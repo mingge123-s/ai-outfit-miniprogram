@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/result/result"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f8f9fa",
+    "navigationBarTitleText": "AI 穿搭",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f8f9fa"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

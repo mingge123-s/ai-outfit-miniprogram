@@ -1,0 +1,33 @@
+<view class="page">
+  <!-- 效果图 -->
+  <view class="hero-wrap">
+    <image class="hero-image" src="{{image}}" mode="widthFix" show-menu-by-longpress bindtap="previewImage" />
+    <view class="float-label">⭐ AI 智能搭配</view>
+  </view>
+
+  <!-- 搭配单品 -->
+  <view class="section-head">
+    <text class="section-title">搭配单品</text>
+    <text class="section-sub">共 {{items.length}} 件</text>
+  </view>
+  <scroll-view class="items-scroll" scroll-x enable-flex>
+    <view class="item-cell" wx:for="{{items}}" wx:key="key">
+      <view class="item-thumb-wrap">
+        <image class="item-thumb" src="{{item.path}}" mode="aspectFit" />
+      </view>
+      <text class="item-name">{{item.label}}</text>
+    </view>
+  </scroll-view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-bar">
+    <button class="save-btn gradient-btn" bindtap="saveToAlbum">⬇ 保存到相册</button>
+    <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating}}">{{regenerating ? '生成中…' : '重新生成'}}</button>
+  </view>
+
+  <!-- 生成中遮罩 -->
+  <view class="loading-overlay" wx:if="{{regenerating}}">
+    <view class="loading-circle gradient-btn">✨</view>
+    <text class="loading-text">AI 正在为你生成穿搭…</text>
+  </view>
+</view>

@@ -1,0 +1,78 @@
+<view class="page">
+  <!-- Hero -->
+  <view class="hero">
+    <text class="hero-label">DESIGN YOUR STYLE</text>
+    <text class="hero-title">即刻开启\n数字时尚之旅</text>
+  </view>
+
+  <!-- 模特照片（可选） -->
+  <view class="person-card dashed {{person ? 'filled' : ''}}" bindtap="choosePerson">
+    <block wx:if="{{person}}">
+      <image class="person-preview" src="{{person}}" mode="aspectFit" />
+      <view class="remove-btn" catchtap="removePerson">×</view>
+    </block>
+    <block wx:else>
+      <view class="person-icon-wrap">
+        <text class="person-icon">👤</text>
+      </view>
+      <text class="person-label">模特照片（可选）</text>
+      <text class="person-hint">上传你的全身照，体验更真实的试穿效果</text>
+    </block>
+  </view>
+
+  <!-- 穿搭单品 -->
+  <view class="section-head">
+    <text class="section-title">穿搭单品</text>
+    <text class="section-sub">至少上传 1 件</text>
+  </view>
+  <view class="grid">
+    <view
+      wx:for="{{items}}"
+      wx:key="key"
+      class="item-card dashed {{item.path ? 'filled' : ''}}"
+      data-index="{{index}}"
+      bindtap="chooseItem"
+    >
+      <block wx:if="{{item.path}}">
+        <image class="item-preview" src="{{item.path}}" mode="aspectFill" />
+        <view class="remove-btn" catchtap="removeItem" data-index="{{index}}">×</view>
+        <view class="item-tag">{{item.label}}</view>
+      </block>
+      <block wx:else>
+        <text class="item-icon">{{item.icon}}</text>
+        <text class="item-label">{{item.label}}</text>
+        <text class="item-hint">CLICK TO UPLOAD</text>
+      </block>
+    </view>
+  </view>
+
+  <!-- 背景风格 -->
+  <view class="section-head">
+    <text class="section-title">背景风格</text>
+  </view>
+  <view class="chips">
+    <view
+      wx:for="{{styles}}"
+      wx:key="key"
+      class="chip {{backgroundStyle === item.key ? 'chip-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="chooseStyle"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-bar">
+    <button
+      class="generate-btn gradient-btn {{canGenerate && !loading ? '' : 'disabled'}}"
+      disabled="{{!canGenerate || loading}}"
+      bindtap="generate"
+    >✨ {{loading ? '生成中…' : '生成穿搭'}}</button>
+  </view>
+
+  <!-- 生成中遮罩 -->
+  <view class="loading-overlay" wx:if="{{loading}}">
+    <view class="loading-circle gradient-btn">✨</view>
+    <text class="loading-text">AI 正在为你生成穿搭…</text>
+    <text class="loading-hint">大约需要 10~30 秒</text>
+  </view>
+</view>

@@ -1,0 +1,20 @@
+{
+  "name": "ai-outfit-server",
+  "version": "1.0.0",
+  "description": "AI 穿搭生成小程序后端：接收单品图片，调用生图模型 API 生成模特穿搭",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

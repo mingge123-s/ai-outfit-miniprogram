@@ -1,0 +1,15 @@
+page {
+  background-color: #ffffff;
+  color: #191c1d;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  font-size: 32rpx;
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #3525cd 0%, #831ada 100%);
+  color: #ffffff;
+}
+
+button::after {
+  border: none;
+}
