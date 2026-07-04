@@ -9,7 +9,7 @@ Page({
     openId: null,
     selected: {},
     selectedCount: 0,
-    labels: { top: '上衣', pants: '裤子', shoes: '鞋子', hat: '帽子' },
+    labels: { top: '上衣', pants: '裤子', shoes: '鞋子', hat: '帽子', coat: '外套', dress: '裙装', bag: '包包', accessory: '配饰', socks: '袜子' },
     baseUrl: api.API_BASE_URL
   },
 

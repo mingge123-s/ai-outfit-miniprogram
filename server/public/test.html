@@ -73,6 +73,10 @@
   .me-btn.plain { background: #fff; border: 1.5px solid #d5d5e0; color: #1c1c28; font-weight: 400; }
   .tab { display: none; }
   .tab.active { display: block; }
+  .more-toggle { width: 100%; margin-top: 10px; padding: 10px 0; border: 1.5px dashed #d5d5e0; border-radius: 10px;
+                 background: #fff; color: #8a8a99; font-size: 13px; cursor: pointer; }
+  #moreGrid { display: none; margin-top: 10px; }
+  #moreGrid.open { display: grid; }
 </style>
 </head>
 <body>
@@ -91,6 +95,14 @@
     <div class="slot" data-key="pants"><span>裤子</span></div>
     <div class="slot" data-key="shoes"><span>鞋子</span></div>
     <div class="slot" data-key="hat"><span>帽子</span></div>
+  </div>
+  <button class="more-toggle" id="moreToggle">▼ 更多配件（外套/裙装/包包/配饰/袜子）</button>
+  <div class="grid" id="moreGrid">
+    <div class="slot" data-key="coat"><span>外套</span></div>
+    <div class="slot" data-key="dress"><span>裙装</span></div>
+    <div class="slot" data-key="bag"><span>包包</span></div>
+    <div class="slot" data-key="accessory"><span>配饰</span></div>
+    <div class="slot" data-key="socks"><span>袜子</span></div>
   </div>
 
   <h2>背景风格</h2>
@@ -181,7 +193,7 @@ async function refreshWardrobe() {
   const { items } = await api("GET", "/api/wardrobe");
   $("wcount").textContent = items.length ? `（${items.length} 件）` : "";
   $("wardrobe").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
-  const labels = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子" };
+  const labels = CAT_LABELS;
   for (const it of items) {
     const d = document.createElement("div");
     d.className = "thumb";
@@ -193,6 +205,7 @@ async function refreshWardrobe() {
 }
 
 function useWardrobeItem(it) {
+  ensureMoreOpen(it.category);
   images[it.category] = { wardrobeId: it.id, imageUrl: it.imageUrl };
   const slot = document.querySelector(`.slot[data-key="${it.category}"]`);
   slot.querySelector("img")?.remove();
@@ -203,7 +216,17 @@ function useWardrobeItem(it) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子" };
+const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子", coat: "外套", dress: "裙装", bag: "包包", accessory: "配饰", socks: "袜子" };
+const ALL_CATS = Object.keys(CAT_LABELS);
+const MORE_CATS = ["coat", "dress", "bag", "accessory", "socks"];
+
+$("moreToggle").onclick = () => {
+  const open = $("moreGrid").classList.toggle("open");
+  $("moreToggle").textContent = (open ? "▲ 收起" : "▼ 更多配件（外套/裙装/包包/配饰/袜子）");
+};
+function ensureMoreOpen(cat) {
+  if (MORE_CATS.includes(cat) && !$("moreGrid").classList.contains("open")) $("moreToggle").click();
+}
 
 async function urlToB64(url) {
   const blob = await (await fetch(url)).blob();
@@ -259,6 +282,7 @@ async function refreshOutfits() {
     if (useBtn) useBtn.onclick = async () => {
       for (const t of card.querySelectorAll(".thumb.sel")) {
         const { cat, url } = t.dataset;
+        ensureMoreOpen(cat);
         images[cat] = { data: await urlToB64(url), mimeType: "image/png" };
         const slot = document.querySelector(`.slot[data-key="${cat}"]`);
         slot.querySelector("img")?.remove();
@@ -316,7 +340,7 @@ document.querySelectorAll(".style-btn").forEach(b => {
 });
 $("genBtn").addEventListener("click", async () => {
   const items = {};
-  for (const k of ["top","pants","shoes","hat"]) if (images[k]) items[k] = images[k];
+  for (const k of ALL_CATS) if (images[k]) items[k] = images[k];
   if (Object.keys(items).length === 0) { alert("请至少上传一件单品"); return; }
   const btn = $("genBtn"), status = $("status");
   btn.disabled = true;
@@ -328,7 +352,7 @@ $("genBtn").addEventListener("click", async () => {
     clearInterval(timer);
     status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
     lastImage = data.image;
-    lastItems = ["top","pants","shoes","hat"].filter(k => images[k]).map(k =>
+    lastItems = ALL_CATS.filter(k => images[k]).map(k =>
       images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });
     $("result").innerHTML = `<img src="${data.image}">`;
     $("collectBtn").style.display = "block";

@@ -86,7 +86,7 @@ app.get("/api/wardrobe", requireAuth, (req, res) => {
 });
 app.post("/api/wardrobe", requireAuth, (req, res) => {
   const { category, image } = req.body || {};
-  if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 top/pants/shoes/hat" });
+  if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
   const it = wardrobe.add(req.user.id, category, file);
@@ -144,6 +144,11 @@ const ITEM_LABELS = {
   pants: "裤子 (pants/bottoms)",
   shoes: "鞋子 (shoes)",
   hat: "帽子 (hat/headwear)",
+  coat: "外套 (coat/jacket/outerwear, worn over the top garment)",
+  dress: "裙装 (skirt/dress)",
+  bag: "包包 (bag/handbag/backpack, carried or worn)",
+  accessory: "配饰 (accessory: scarf/belt/tie/sunglasses/jewelry)",
+  socks: "袜子 (socks)",
 };
 
 const BACKGROUND_STYLES = {
@@ -292,7 +297,7 @@ app.post("/api/tryon", async (req, res) => {
     const itemKeys = Object.keys(ITEM_LABELS).filter((k) => items[k]?.data);
 
     if (itemKeys.length === 0) {
-      return res.status(400).json({ error: "至少上传一件单品图片（上衣/裤子/鞋子/帽子）" });
+      return res.status(400).json({ error: "至少上传一件单品图片" });
     }
 
     const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle);

@@ -27,8 +27,14 @@ Page({
       { key: 'top', label: '上衣', icon: '👕', path: null },
       { key: 'pants', label: '裤子', icon: '👖', path: null },
       { key: 'shoes', label: '鞋子', icon: '👟', path: null },
-      { key: 'hat', label: '帽子', icon: '🧢', path: null }
+      { key: 'hat', label: '帽子', icon: '🧢', path: null },
+      { key: 'coat', label: '外套', icon: '🧥', path: null },
+      { key: 'dress', label: '裙装', icon: '👗', path: null },
+      { key: 'bag', label: '包包', icon: '👜', path: null },
+      { key: 'accessory', label: '配饰', icon: '🧣', path: null },
+      { key: 'socks', label: '袜子', icon: '🧦', path: null }
     ],
+    showMore: false,
     styles: [
       { key: 'street', label: '街拍' },
       { key: 'studio', label: '影棚' },
@@ -69,6 +75,7 @@ Page({
           update[`items[${index}].path`] = p.path;
           update[`items[${index}].wardrobeId`] = null;
           update[`items[${index}].imageUrl`] = null;
+          if (index >= 4) update.showMore = true;
         }
       }
       this.setData(update, () => this.updateCanGenerate());
@@ -85,7 +92,8 @@ Page({
           {
             [`items[${index}].path`]: null,
             [`items[${index}].wardrobeId`]: pick.item.id,
-            [`items[${index}].imageUrl`]: `${API_BASE_URL}${pick.item.imageUrl}`
+            [`items[${index}].imageUrl`]: `${API_BASE_URL}${pick.item.imageUrl}`,
+            showMore: this.data.showMore || index >= 4
           },
           () => this.updateCanGenerate()
         );
@@ -138,6 +146,10 @@ Page({
     } finally {
       wx.hideLoading();
     }
+  },
+
+  toggleMore() {
+    this.setData({ showMore: !this.data.showMore });
   },
 
   chooseStyle(e) {

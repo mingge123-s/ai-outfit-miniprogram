@@ -4,7 +4,12 @@ const CATEGORIES = [
   { key: 'top', label: '上衣', icon: '👕' },
   { key: 'pants', label: '裤子', icon: '👖' },
   { key: 'shoes', label: '鞋子', icon: '👟' },
-  { key: 'hat', label: '帽子', icon: '🧢' }
+  { key: 'hat', label: '帽子', icon: '🧢' },
+  { key: 'coat', label: '外套', icon: '🧥' },
+  { key: 'dress', label: '裙装', icon: '👗' },
+  { key: 'bag', label: '包包', icon: '👜' },
+  { key: 'accessory', label: '配饰', icon: '🧣' },
+  { key: 'socks', label: '袜子', icon: '🧦' }
 ];
 
 function pathToBase64(path) {
