@@ -5,13 +5,22 @@ import { GoogleGenAI } from "@google/genai";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const MODEL_ID = process.env.MODEL_ID || "gemini-2.5-flash-image-preview";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/+$/, "");
+// PROVIDER: "gemini" | "openai"（openai 兼容接口，如 ai.gs88.shop 等代理网关）
+const PROVIDER = process.env.PROVIDER || (OPENAI_API_KEY ? "openai" : "gemini");
+const MODEL_ID =
+  process.env.MODEL_ID || (PROVIDER === "openai" ? "gpt-image-2" : "gemini-2.5-flash-image-preview");
+const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 
-if (!GEMINI_API_KEY) {
+if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
   console.error("Missing GEMINI_API_KEY environment variable.");
 }
+if (PROVIDER === "openai" && !OPENAI_API_KEY) {
+  console.error("Missing OPENAI_API_KEY environment variable.");
+}
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const ai = PROVIDER === "gemini" ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
 const app = express();
 app.use(cors());
@@ -60,7 +69,87 @@ Prohibitions:
 `;
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+async function generateWithGemini(prompt, images) {
+  const parts = [{ text: prompt }];
+  for (const img of images) {
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
+  }
+  const response = await ai.models.generateContent({
+    model: MODEL_ID,
+    contents: [{ role: "user", parts }],
+    config: {
+      temperature: 0.6,
+      topP: 0.95,
+      responseModalities: ["Text", "Image"],
+    },
+  });
+  let imageData = null;
+  let imageMimeType = "image/png";
+  let textResponse = null;
+  const candidateParts = response.candidates?.[0]?.content?.parts || [];
+  for (const part of candidateParts) {
+    if (part.inlineData?.data) {
+      imageData = part.inlineData.data;
+      imageMimeType = part.inlineData.mimeType || "image/png";
+    } else if (part.text) {
+      textResponse = part.text;
+    }
+  }
+  if (!imageData) {
+    const blockReason = response.promptFeedback?.blockReason;
+    const err = new Error(
+      blockReason ? `生成被安全策略拦截: ${blockReason}` : "模型未返回图片，请重试"
+    );
+    err.statusCode = 502;
+    err.description = textResponse;
+    throw err;
+  }
+  return { imageData, imageMimeType, textResponse };
+}
+
+async function generateWithOpenAI(prompt, images) {
+  // OpenAI 兼容的 /v1/images/edits：多张参考图 + 提示词
+  const form = new FormData();
+  form.append("model", MODEL_ID);
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("size", "1024x1536");
+  if (IMAGE_QUALITY) form.append("quality", IMAGE_QUALITY);
+  images.forEach((img, i) => {
+    const ext = (img.mimeType || "image/jpeg").split("/")[1] || "jpg";
+    form.append(
+      "image[]",
+      new Blob([Buffer.from(img.data, "base64")], { type: img.mimeType }),
+      `input_${i + 1}.${ext}`
+    );
+  });
+  const resp = await fetch(`${OPENAI_BASE_URL}/v1/images/edits`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: form,
+  });
+  const raw = (await resp.text()).trim(); // 部分网关会在 JSON 前填充空白字符
+  if (!resp.ok) {
+    const err = new Error(`生图 API 错误 (HTTP ${resp.status}): ${raw.slice(0, 300)}`);
+    err.statusCode = 502;
+    throw err;
+  }
+  const data = JSON.parse(raw);
+  const item = data.data?.[0];
+  if (item?.b64_json) {
+    return { imageData: item.b64_json, imageMimeType: "image/png", textResponse: item.revised_prompt || null };
+  }
+  if (item?.url) {
+    const imgResp = await fetch(item.url);
+    const buf = Buffer.from(await imgResp.arrayBuffer());
+    return { imageData: buf.toString("base64"), imageMimeType: "image/png", textResponse: null };
+  }
+  const err = new Error("生图 API 未返回图片数据");
+  err.statusCode = 502;
+  throw err;
+}
+
+app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model: MODEL_ID }));
 
 // POST /api/tryon
 // JSON body: {
@@ -77,57 +166,19 @@ app.post("/api/tryon", async (req, res) => {
       return res.status(400).json({ error: "至少上传一件单品图片（上衣/裤子/鞋子/帽子）" });
     }
 
-    const parts = [{ text: buildPrompt(itemKeys, !!personImage?.data, backgroundStyle) }];
-    for (const key of itemKeys) {
-      parts.push({
-        inlineData: {
-          mimeType: items[key].mimeType || "image/jpeg",
-          data: items[key].data,
-        },
-      });
-    }
+    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle);
+    const images = itemKeys.map((key) => ({
+      mimeType: items[key].mimeType || "image/jpeg",
+      data: items[key].data,
+    }));
     if (personImage?.data) {
-      parts.push({
-        inlineData: {
-          mimeType: personImage.mimeType || "image/jpeg",
-          data: personImage.data,
-        },
-      });
+      images.push({ mimeType: personImage.mimeType || "image/jpeg", data: personImage.data });
     }
 
-    const response = await ai.models.generateContent({
-      model: MODEL_ID,
-      contents: [{ role: "user", parts }],
-      config: {
-        temperature: 0.6,
-        topP: 0.95,
-        responseModalities: ["Text", "Image"],
-      },
-    });
-
-    let imageData = null;
-    let imageMimeType = "image/png";
-    let textResponse = null;
-
-    const candidateParts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of candidateParts) {
-      if (part.inlineData?.data) {
-        imageData = part.inlineData.data;
-        imageMimeType = part.inlineData.mimeType || "image/png";
-      } else if (part.text) {
-        textResponse = part.text;
-      }
-    }
-
-    if (!imageData) {
-      const blockReason = response.promptFeedback?.blockReason;
-      return res.status(502).json({
-        error: blockReason
-          ? `生成被安全策略拦截: ${blockReason}`
-          : "模型未返回图片，请重试",
-        description: textResponse,
-      });
-    }
+    const { imageData, imageMimeType, textResponse } =
+      PROVIDER === "openai"
+        ? await generateWithOpenAI(prompt, images)
+        : await generateWithGemini(prompt, images);
 
     return res.json({
       image: `data:${imageMimeType};base64,${imageData}`,
@@ -135,9 +186,10 @@ app.post("/api/tryon", async (req, res) => {
     });
   } catch (err) {
     console.error("tryon error:", err);
-    return res.status(500).json({
+    return res.status(err.statusCode || 500).json({
       error: "生成失败",
       details: err instanceof Error ? err.message : String(err),
+      description: err.description || undefined,
     });
   }
 });

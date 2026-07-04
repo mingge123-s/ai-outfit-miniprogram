@@ -26,7 +26,7 @@ docs/                  # Stitch 生成的设计稿
 ```bash
 cd server
 npm install
-cp .env.example .env   # 填入你的 GEMINI_API_KEY
+cp .env.example .env   # 填入 OPENAI_API_KEY（OpenAI 兼容网关）或 GEMINI_API_KEY
 npm start              # 默认 http://localhost:3000
 ```
 
@@ -47,7 +47,10 @@ npm start              # 默认 http://localhost:3000
 
 所有单品均为可选，但至少需要一件；`personImage` 可选（不传则生成 AI 模特）。返回 `{ "image": "data:image/png;base64,...", "description": "..." }`。
 
-默认使用 Gemini 图像模型（`gemini-2.5-flash-image-preview`），可通过 `.env` 中的 `MODEL_ID` 更换；如需接其他生图 API（可灵、阿里云 AI 试衣等），只需改写 `server/index.js` 中的调用部分，接口协议保持不变。
+支持两种生图提供方（由 `.env` 自动选择）：
+
+- **OpenAI 兼容网关**（如 `https://ai.gs88.shop`）：配置 `OPENAI_API_KEY` + `OPENAI_BASE_URL`，走 `/v1/images/edits` 多图编辑接口，默认模型 `gpt-image-2`。Cloudflare 网关下高质量档易 524 超时，默认 `IMAGE_QUALITY=low`。
+- **Google Gemini**：配置 `GEMINI_API_KEY`，默认模型 `gemini-2.5-flash-image-preview`。
 
 ## 运行小程序
 
