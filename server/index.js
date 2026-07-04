@@ -4,7 +4,7 @@ import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
-import { UPLOADS_DIR, saveImage, loginUser, userByToken, wardrobe, outfits } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -85,20 +85,41 @@ app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
 });
 
 // 套装收藏
+const parseOutfitItems = (o) => {
+  try {
+    return JSON.parse(o.items_json || "[]").map((it) => ({ category: it.category, imageUrl: imageUrl(it.image_file) }));
+  } catch { return []; }
+};
 app.get("/api/outfits", requireAuth, (req, res) => {
   const items = outfits.list(req.user.id).map((o) => ({
-    id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, createdAt: o.created_at,
+    id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description,
+    items: parseOutfitItems(o), createdAt: o.created_at,
   }));
   res.json({ items });
 });
 app.post("/api/outfits", requireAuth, (req, res) => {
-  const { image, backgroundStyle, description } = req.body || {};
+  const { image, backgroundStyle, description, items } = req.body || {};
   let data = image?.data;
   if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
   if (!data) return res.status(400).json({ error: "缺少图片数据" });
   const file = saveImage(data, image.mimeType || "image/png");
-  const o = outfits.add(req.user.id, file, backgroundStyle, description);
-  res.json({ outfit: { id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, createdAt: o.created_at } });
+
+  // 生成时用到的单品配件：{ category, data?, mimeType?, wardrobeId? }
+  const savedItems = [];
+  for (const it of Array.isArray(items) ? items : []) {
+    if (!ITEM_LABELS[it?.category]) continue;
+    let itData = it.data;
+    if (typeof itData === "string" && itData.startsWith("data:")) itData = itData.split(",")[1];
+    if (itData) {
+      savedItems.push({ category: it.category, image_file: saveImage(itData, it.mimeType || "image/jpeg") });
+    } else if (it.wardrobeId) {
+      const w = wardrobe.get(req.user.id, Number(it.wardrobeId));
+      if (w) savedItems.push({ category: it.category, image_file: copyImage(w.image_file) });
+    }
+  }
+
+  const o = outfits.add(req.user.id, file, backgroundStyle, description, savedItems.length ? JSON.stringify(savedItems) : null);
+  res.json({ outfit: { id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, items: parseOutfitItems(o), createdAt: o.created_at } });
 });
 app.delete("/api/outfits/:id", requireAuth, (req, res) => {
   const ok = outfits.remove(req.user.id, Number(req.params.id));

@@ -82,7 +82,7 @@ module.exports = {
   },
   outfits: {
     list: () => authedRequest('GET', '/api/outfits'),
-    add: (image, backgroundStyle, description) => authedRequest('POST', '/api/outfits', { image, backgroundStyle, description }),
+    add: (image, backgroundStyle, description, items) => authedRequest('POST', '/api/outfits', { image, backgroundStyle, description, items }),
     remove: (id) => authedRequest('DELETE', `/api/outfits/${id}`)
   }
 };

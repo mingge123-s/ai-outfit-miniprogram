@@ -4,6 +4,8 @@ Page({
   data: {
     items: [],
     loading: false,
+    openId: null,
+    labels: { top: '上衣', pants: '裤子', shoes: '鞋子', hat: '帽子' },
     baseUrl: api.API_BASE_URL
   },
 
@@ -21,6 +23,11 @@ Page({
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  toggleItems(e) {
+    const id = e.currentTarget.dataset.id;
+    this.setData({ openId: this.data.openId === id ? null : id });
   },
 
   preview(e) {

@@ -35,11 +35,18 @@ CREATE TABLE IF NOT EXISTS outfits (
   created_at TEXT DEFAULT (datetime('now'))
 );
 `);
+try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 
 export function saveImage(base64, mimeType = "image/png") {
   const ext = (mimeType.split("/")[1] || "png").replace("jpeg", "jpg");
   const name = `${crypto.randomUUID()}.${ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, name), Buffer.from(base64, "base64"));
+  return name;
+}
+
+export function copyImage(file) {
+  const name = `${crypto.randomUUID()}${path.extname(file)}`;
+  fs.copyFileSync(path.join(UPLOADS_DIR, file), path.join(UPLOADS_DIR, name));
   return name;
 }
 
@@ -88,8 +95,8 @@ export const outfits = {
   list(userId) {
     return db.prepare("SELECT * FROM outfits WHERE user_id = ? ORDER BY id DESC").all(userId);
   },
-  add(userId, imageFile, background, description) {
-    const info = db.prepare("INSERT INTO outfits (user_id, image_file, background, description) VALUES (?, ?, ?, ?)").run(userId, imageFile, background || null, description || null);
+  add(userId, imageFile, background, description, itemsJson) {
+    const info = db.prepare("INSERT INTO outfits (user_id, image_file, background, description, items_json) VALUES (?, ?, ?, ?, ?)").run(userId, imageFile, background || null, description || null, itemsJson || null);
     return db.prepare("SELECT * FROM outfits WHERE id = ?").get(info.lastInsertRowid);
   },
   remove(userId, id) {
@@ -97,6 +104,9 @@ export const outfits = {
     if (!item) return false;
     db.prepare("DELETE FROM outfits WHERE id = ?").run(id);
     deleteImage(item.image_file);
+    try {
+      for (const it of JSON.parse(item.items_json || "[]")) deleteImage(it.image_file);
+    } catch {}
     return true;
   },
 };

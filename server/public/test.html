@@ -41,10 +41,23 @@
                 font-size: 10px; padding: 1px 6px; border-radius: 8px; }
   .muted { color: #8a8a99; font-size: 13px; }
   input[type=file] { display: none; }
-  .tabs { display: flex; gap: 6px; margin: 14px 0 4px; background: #fff; border-radius: 12px; padding: 5px; }
-  .tab-btn { flex: 1; padding: 10px 0; border: 0; border-radius: 9px; background: transparent; color: #8a8a99; font-size: 14px; cursor: pointer; }
-  .tab-btn.active { background: #6c5ce7; color: #fff; font-weight: 600; }
-  .tab-btn.active .muted { color: #e6e2ff; }
+  .wrap { padding-bottom: 86px; }
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 420px; margin: 0 auto;
+          display: flex; background: #fff; border-top: 1px solid #ececf2; padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); }
+  .tab-btn { flex: 1; padding: 8px 0; border: 0; border-radius: 10px; background: transparent; color: #8a8a99; font-size: 13px; cursor: pointer; }
+  .tab-btn .ico { display: block; font-size: 20px; line-height: 1.2; }
+  .tab-btn.active { color: #6c5ce7; font-weight: 600; }
+  .tab-btn.active .muted { color: #6c5ce7; }
+  .outfit-card { background: #fff; border-radius: 12px; padding: 10px; margin-bottom: 12px; }
+  .outfit-card .main { position: relative; cursor: pointer; }
+  .outfit-card .main > img { width: 100%; border-radius: 10px; display: block; }
+  .outfit-card .del { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.6); color: #fff; border: 0;
+                      border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px; }
+  .outfit-items { display: none; margin-top: 10px; }
+  .outfit-card.open .outfit-items { display: block; }
+  .outfit-items .tip { font-size: 12px; color: #8a8a99; margin-bottom: 6px; }
+  .outfit-items .row { display: flex; gap: 8px; overflow-x: auto; }
+  .outfit-items .thumb { flex: 0 0 auto; width: 72px; height: 72px; border: 1px solid #ececf2; }
   .tab { display: none; }
   .tab.active { display: block; }
 </style>
@@ -54,12 +67,6 @@
   <h1>AI 穿搭生成（测试页）</h1>
   <div class="sub">与小程序相同流程，调用同一后端 /api/*</div>
   <div id="userbar">登录中…</div>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="gen">生成</button>
-    <button class="tab-btn" data-tab="wardrobeTab">衣柜 <span class="muted" id="wcount"></span></button>
-    <button class="tab-btn" data-tab="outfitsTab">套装收藏 <span class="muted" id="ocount"></span></button>
-  </div>
 
   <div class="tab active" id="gen">
   <h2>模特照片（可选）</h2>
@@ -94,15 +101,21 @@
 
   <div class="tab" id="outfitsTab">
     <h2>套装收藏</h2>
-    <div class="muted" style="margin-bottom:10px">生成页点「☆ 收藏套装」后展示在这里</div>
-    <div class="thumbs" id="outfits"><span class="muted">（空）</span></div>
+    <div class="muted" style="margin-bottom:10px">点击套装可展开查看生成时用的单品配件</div>
+    <div id="outfits"><span class="muted">（空）</span></div>
   </div>
 
   <input type="file" id="file" accept="image/*">
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="gen"><span class="ico">✨</span>生成</button>
+    <button class="tab-btn" data-tab="wardrobeTab"><span class="ico">👕</span>衣柜 <span class="muted" id="wcount"></span></button>
+    <button class="tab-btn" data-tab="outfitsTab"><span class="ico">⭐</span>套装收藏 <span class="muted" id="ocount"></span></button>
+  </div>
 </div>
 <script>
 const images = {};
-let currentKey = null, bg = "street", token = "", lastImage = null;
+let currentKey = null, bg = "street", token = "", lastImage = null, lastItems = [];
 const $ = (id) => document.getElementById(id);
 const fileInput = $("file");
 
@@ -148,7 +161,7 @@ async function refreshWardrobe() {
 }
 
 function useWardrobeItem(it) {
-  images[it.category] = { wardrobeId: it.id };
+  images[it.category] = { wardrobeId: it.id, imageUrl: it.imageUrl };
   const slot = document.querySelector(`.slot[data-key="${it.category}"]`);
   slot.querySelector("img")?.remove();
   const img = document.createElement("img");
@@ -158,17 +171,25 @@ function useWardrobeItem(it) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子" };
 async function refreshOutfits() {
   const { items } = await api("GET", "/api/outfits");
-  $("ocount").textContent = items.length ? `（${items.length} 套）` : "";
+  $("ocount").textContent = items.length ? `（${items.length}）` : "";
   $("outfits").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
   for (const it of items) {
-    const d = document.createElement("div");
-    d.className = "thumb";
-    d.innerHTML = `<img src="${it.imageUrl}"><button class="del">×</button>`;
-    d.querySelector("img").onclick = () => window.open(it.imageUrl);
-    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/outfits/" + it.id); refreshOutfits(); };
-    $("outfits").appendChild(d);
+    const card = document.createElement("div");
+    card.className = "outfit-card";
+    const parts = (it.items || []).map(p =>
+      `<div class="thumb"><img src="${p.imageUrl}"><span class="cat">${CAT_LABELS[p.category] || p.category}</span></div>`).join("");
+    card.innerHTML = `
+      <div class="main"><img src="${it.imageUrl}"><button class="del">×</button></div>
+      <div class="outfit-items">
+        <div class="tip">生成时的单品配件</div>
+        <div class="row">${parts || '<span class="muted">（无配件记录）</span>'}</div>
+      </div>`;
+    card.querySelector(".main img").onclick = () => card.classList.toggle("open");
+    card.querySelector(".del").onclick = async (e) => { e.stopPropagation(); await api("DELETE", "/api/outfits/" + it.id); refreshOutfits(); };
+    $("outfits").appendChild(card);
   }
 }
 
@@ -227,6 +248,8 @@ $("genBtn").addEventListener("click", async () => {
     clearInterval(timer);
     status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
     lastImage = data.image;
+    lastItems = ["top","pants","shoes","hat"].filter(k => images[k]).map(k =>
+      images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });
     $("result").innerHTML = `<img src="${data.image}">`;
     $("collectBtn").style.display = "block";
     $("collectBtn").textContent = "☆ 收藏套装";
@@ -240,7 +263,7 @@ $("collectBtn").addEventListener("click", async () => {
   if (!lastImage) return;
   $("collectBtn").disabled = true;
   try {
-    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg });
+    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg, items: lastItems });
     $("collectBtn").textContent = "★ 已收藏";
     refreshOutfits();
   } catch (e) {

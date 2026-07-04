@@ -77,7 +77,16 @@ Page({
     this.setData({ collecting: true });
     try {
       const result = app.globalData.lastResult;
-      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle);
+      const req = app.globalData.lastRequest;
+      const items = req
+        ? Object.keys(req.items || {}).map((category) => {
+            const v = req.items[category];
+            return v.wardrobeId
+              ? { category, wardrobeId: v.wardrobeId }
+              : { category, data: v.data, mimeType: v.mimeType };
+          })
+        : [];
+      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle, undefined, items);
       this.setData({ collected: true });
       wx.showToast({ title: '已收藏套装', icon: 'success' });
     } catch (err) {

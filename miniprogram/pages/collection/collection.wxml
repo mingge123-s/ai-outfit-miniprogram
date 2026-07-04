@@ -1,10 +1,21 @@
 <view class="page">
   <view class="grid">
     <view class="card" wx:for="{{items}}" wx:key="id">
-      <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-url="{{item.imageUrl}}" bindtap="preview" />
+      <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-id="{{item.id}}" bindtap="toggleItems" />
+      <view class="card-parts" wx:if="{{openId === item.id}}">
+        <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件</text>
+        <text class="parts-tip" wx:else>（无配件记录）</text>
+        <scroll-view scroll-x class="parts-row" wx:if="{{item.items.length}}">
+          <view class="part" wx:for="{{item.items}}" wx:for-item="part" wx:key="imageUrl">
+            <image class="part-img" src="{{baseUrl}}{{part.imageUrl}}" mode="aspectFill" />
+            <text class="part-cat">{{labels[part.category]}}</text>
+          </view>
+        </scroll-view>
+      </view>
       <view class="card-bar">
         <text class="card-date">{{item.createdAt}}</text>
         <view class="card-actions">
+          <text class="action" data-url="{{item.imageUrl}}" bindtap="preview">🔍</text>
           <text class="action" data-url="{{item.imageUrl}}" bindtap="save">⬇</text>
           <text class="action danger" data-id="{{item.id}}" bindtap="remove">🗑</text>
         </view>
