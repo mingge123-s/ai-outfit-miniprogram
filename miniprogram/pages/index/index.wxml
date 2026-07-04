@@ -87,6 +87,13 @@
       bindtap="chooseStyle"
     >{{item.label}}</view>
   </view>
+  <input
+    wx:if="{{backgroundStyle === 'custom'}}"
+    class="custom-bg"
+    placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
+    value="{{customBackground}}"
+    bindinput="onCustomBgInput"
+  />
 
   <!-- 底部按钮 -->
   <view class="bottom-bar">

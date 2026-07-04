@@ -175,11 +175,18 @@ const BACKGROUND_STYLES = {
   street: "urban street-style scene (city sidewalk, storefronts, natural daylight)",
   studio: "clean professional photo studio with a neutral seamless backdrop and soft studio lighting",
   outdoor: "natural outdoor scene (park, greenery, golden-hour sunlight)",
+  cafe: "cozy cafe interior (warm ambient light, coffee bar and wooden furniture softly blurred)",
+  beach: "sunny beach scene (sand, ocean waves and blue sky, bright natural light)",
+  campus: "university campus scene (classic academic buildings, tree-lined path, daytime)",
+  night: "city night scene (neon signs and street lights with soft bokeh)",
+  snow: "winter snow scene (snow-covered ground and trees, soft overcast light)",
+  home: "stylish home interior (bright living room, large windows, minimalist furniture)",
 };
 
-function buildPrompt(itemKeys, hasPerson, backgroundStyle) {
+function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground) {
   const itemList = itemKeys.map((k, i) => `input_${i + 1}: ${ITEM_LABELS[k]}`).join("; ");
-  const background = BACKGROUND_STYLES[backgroundStyle] || BACKGROUND_STYLES.studio;
+  const custom = typeof customBackground === "string" ? customBackground.trim().slice(0, 200) : "";
+  const background = custom || BACKGROUND_STYLES[backgroundStyle] || BACKGROUND_STYLES.studio;
   const personInstruction = hasPerson
     ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. Retain their exact body pose. DO NOT guess or hallucinate facial features.`
     : `No person image is provided. Generate a photorealistic, full-body fashion model with a natural standing pose suitable for showcasing the outfit.`;
@@ -293,11 +300,12 @@ app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model
 // JSON body: {
 //   items: { top?: {data, mimeType}, pants?: {...}, shoes?: {...}, hat?: {...} },
 //   personImage?: {data, mimeType},   // base64, optional
-//   backgroundStyle?: "street" | "studio" | "outdoor"
+//   backgroundStyle?: "street" | "studio" | "outdoor" | "cafe" | "beach" | "campus" | "night" | "snow" | "home" | "custom"
+//   customBackground?: string   // backgroundStyle 为 custom 时的自定义背景描述
 // }
 app.post("/api/tryon", async (req, res) => {
   try {
-    let { items = {}, personImage, backgroundStyle } = req.body || {};
+    let { items = {}, personImage, backgroundStyle, customBackground } = req.body || {};
 
     // 支持 { wardrobeId } 引用衣柜单品（需登录）
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
@@ -330,7 +338,7 @@ app.post("/api/tryon", async (req, res) => {
       return res.status(400).json({ error: "至少上传一件单品图片" });
     }
 
-    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle);
+    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "");
     const images = itemKeys.map((key) => ({
       mimeType: items[key].mimeType || "image/jpeg",
       data: items[key].data,

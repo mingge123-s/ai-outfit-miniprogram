@@ -21,8 +21,10 @@
   .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: #6c5ce7; color: #fff;
                border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
   .person { height: 140px; }
-  .styles { display: flex; gap: 8px; }
-  .style-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
+  .styles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .style-btn { flex: 0 0 calc((100% - 24px) / 4); padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
+  #customBg { display: none; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 10px 12px; border: 1.5px solid #d5d5e0; border-radius: 10px; font-size: 14px; }
+  #customBg.open { display: block; }
   .style-btn.active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
   .gen { width: 100%; margin-top: 22px; padding: 14px 0; border: 0; border-radius: 12px;
          background: linear-gradient(90deg,#6c5ce7,#a55eea); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
@@ -110,7 +112,15 @@
     <button class="style-btn active" data-style="street">街拍</button>
     <button class="style-btn" data-style="studio">影棚</button>
     <button class="style-btn" data-style="outdoor">户外</button>
+    <button class="style-btn" data-style="cafe">咖啡馆</button>
+    <button class="style-btn" data-style="beach">海边</button>
+    <button class="style-btn" data-style="campus">校园</button>
+    <button class="style-btn" data-style="night">夜景</button>
+    <button class="style-btn" data-style="snow">雪地</button>
+    <button class="style-btn" data-style="home">居家</button>
+    <button class="style-btn" data-style="custom">自定义</button>
   </div>
+  <input type="text" id="customBg" placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…">
 
   <button class="gen" id="genBtn">生成穿搭</button>
   <div id="status"></div>
@@ -375,6 +385,7 @@ document.querySelectorAll(".style-btn").forEach(b => {
     document.querySelectorAll(".style-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
     bg = b.dataset.style;
+    $("customBg").classList.toggle("open", bg === "custom");
   });
 });
 $("genBtn").addEventListener("click", async () => {
@@ -387,7 +398,7 @@ $("genBtn").addEventListener("click", async () => {
   const t0 = Date.now();
   const timer = setInterval(() => { status.textContent = `生成中… ${Math.round((Date.now()-t0)/1000)}s`; }, 1000);
   try {
-    const data = await api("POST", "/api/tryon", { items, personImage: images.person || undefined, backgroundStyle: bg });
+    const data = await api("POST", "/api/tryon", { items, personImage: images.person || undefined, backgroundStyle: bg, customBackground: bg === "custom" ? $("customBg").value : undefined });
     clearInterval(timer);
     status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
     lastImage = data.image;

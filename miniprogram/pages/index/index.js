@@ -40,9 +40,17 @@ Page({
     styles: [
       { key: 'street', label: '街拍' },
       { key: 'studio', label: '影棚' },
-      { key: 'outdoor', label: '户外' }
+      { key: 'outdoor', label: '户外' },
+      { key: 'cafe', label: '咖啡馆' },
+      { key: 'beach', label: '海边' },
+      { key: 'campus', label: '校园' },
+      { key: 'night', label: '夜景' },
+      { key: 'snow', label: '雪地' },
+      { key: 'home', label: '居家' },
+      { key: 'custom', label: '自定义' }
     ],
     backgroundStyle: 'street',
+    customBackground: '',
     canGenerate: false,
     loading: false
   },
@@ -166,6 +174,10 @@ Page({
     this.setData({ backgroundStyle: e.currentTarget.dataset.key });
   },
 
+  onCustomBgInput(e) {
+    this.setData({ customBackground: e.detail.value });
+  },
+
   updateCanGenerate() {
     this.setData({ canGenerate: this.data.items.some((i) => i.path || i.wardrobeId) });
   },
@@ -187,6 +199,7 @@ Page({
         }
       }
       const body = { items, backgroundStyle: this.data.backgroundStyle };
+      if (this.data.backgroundStyle === 'custom') body.customBackground = this.data.customBackground;
       if (this.data.personPhotoId) {
         body.personImage = { personPhotoId: this.data.personPhotoId };
       } else if (this.data.person) {

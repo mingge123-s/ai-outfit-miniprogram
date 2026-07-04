@@ -172,8 +172,16 @@
   gap: 24rpx;
   flex-wrap: wrap;
 }
+.custom-bg {
+  margin-top: 20rpx;
+  padding: 18rpx 24rpx;
+  border: 2rpx solid #d5d5e0;
+  border-radius: 16rpx;
+  background: #fff;
+  font-size: 26rpx;
+}
 .chip {
-  padding: 16rpx 48rpx;
+  padding: 16rpx 32rpx;
   border-radius: 999rpx;
   background: #e1e3e4;
   color: #464555;
