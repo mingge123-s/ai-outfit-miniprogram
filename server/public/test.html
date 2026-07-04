@@ -57,7 +57,20 @@
   .outfit-card.open .outfit-items { display: block; }
   .outfit-items .tip { font-size: 12px; color: #8a8a99; margin-bottom: 6px; }
   .outfit-items .row { display: flex; gap: 8px; overflow-x: auto; }
-  .outfit-items .thumb { flex: 0 0 auto; width: 72px; height: 72px; border: 1px solid #ececf2; }
+  .outfit-items .thumb { flex: 0 0 auto; width: 72px; height: 72px; border: 1px solid #ececf2; cursor: pointer; }
+  .outfit-items .thumb.sel { outline: 3px solid #6c5ce7; outline-offset: -3px; }
+  .outfit-items .thumb.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: #6c5ce7; font-weight: 700; }
+  .use-parts { margin-top: 10px; width: 100%; padding: 10px 0; border: 0; border-radius: 10px; background: #6c5ce7; color: #fff; font-size: 14px; cursor: pointer; }
+  .use-parts:disabled { opacity: .4; }
+  .me-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .me-card h3 { font-size: 14px; margin-bottom: 10px; }
+  .me-row { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #f2f2f6; }
+  .me-row:last-child { border-bottom: 0; }
+  .me-row .v { color: #8a8a99; }
+  .badge { background: #edeaff; color: #6c5ce7; font-size: 12px; padding: 2px 10px; border-radius: 10px; }
+  .me-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 10px; border: 0; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .me-btn.primary { background: linear-gradient(90deg,#f7b733,#fc4a1a); color: #fff; }
+  .me-btn.plain { background: #fff; border: 1.5px solid #d5d5e0; color: #1c1c28; font-weight: 400; }
   .tab { display: none; }
   .tab.active { display: block; }
 </style>
@@ -105,12 +118,31 @@
     <div id="outfits"><span class="muted">（空）</span></div>
   </div>
 
+  <div class="tab" id="meTab">
+    <h2>我的</h2>
+    <div class="me-card">
+      <h3>账号信息</h3>
+      <div class="me-row"><span>账号</span><span class="v" id="meUser">-</span></div>
+      <div class="me-row"><span>登录方式</span><span class="v" id="meMode">-</span></div>
+      <div class="me-row"><span>注册时间</span><span class="v" id="meDate">-</span></div>
+      <div class="me-row"><span>衣柜单品</span><span class="v" id="meW">-</span></div>
+      <div class="me-row"><span>收藏套装</span><span class="v" id="meO">-</span></div>
+    </div>
+    <div class="me-card">
+      <h3>会员</h3>
+      <div class="me-row"><span>当前等级</span><span class="badge" id="meLevel">免费版</span></div>
+      <button class="me-btn primary" id="vipBtn">👑 开通会员 / 充值</button>
+    </div>
+    <button class="me-btn plain" id="logoutBtn">退出登录（切换新账号）</button>
+  </div>
+
   <input type="file" id="file" accept="image/*">
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="gen"><span class="ico">✨</span>生成</button>
     <button class="tab-btn" data-tab="wardrobeTab"><span class="ico">👕</span>衣柜 <span class="muted" id="wcount"></span></button>
-    <button class="tab-btn" data-tab="outfitsTab"><span class="ico">⭐</span>套装收藏 <span class="muted" id="ocount"></span></button>
+    <button class="tab-btn" data-tab="outfitsTab"><span class="ico">⭐</span>收藏 <span class="muted" id="ocount"></span></button>
+    <button class="tab-btn" data-tab="meTab"><span class="ico">👤</span>我的</button>
   </div>
 </div>
 <script>
@@ -142,7 +174,7 @@ async function login() {
   const data = await api("POST", "/api/login", { code });
   token = data.token;
   $("userbar").textContent = `已登录 · 账号 #${data.userId}${data.devMode ? "（开发模式）" : ""}`;
-  refreshWardrobe(); refreshOutfits();
+  refreshWardrobe(); refreshOutfits(); refreshMe();
 }
 
 async function refreshWardrobe() {
@@ -172,6 +204,31 @@ function useWardrobeItem(it) {
 }
 
 const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子" };
+
+async function urlToB64(url) {
+  const blob = await (await fetch(url)).blob();
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(",")[1]);
+    r.readAsDataURL(blob);
+  });
+}
+
+async function refreshMe() {
+  const me = await api("GET", "/api/me");
+  $("meUser").textContent = "#" + me.userId + (me.nickname ? " · " + me.nickname : "");
+  $("meMode").textContent = me.devMode ? "开发模式" : "微信登录";
+  $("meDate").textContent = me.createdAt;
+  $("meW").textContent = me.wardrobeCount + " 件";
+  $("meO").textContent = me.outfitCount + " 套";
+  $("meLevel").textContent = me.memberLevel === "free" ? "免费版" : me.memberLevel;
+}
+$("vipBtn").onclick = () => alert("会员/充值功能开发中，敬请期待～");
+$("logoutBtn").onclick = () => {
+  if (!confirm("退出后将以新账号登录，确定？")) return;
+  localStorage.removeItem("dev_code");
+  location.reload();
+};
 async function refreshOutfits() {
   const { items } = await api("GET", "/api/outfits");
   $("ocount").textContent = items.length ? `（${items.length}）` : "";
@@ -180,15 +237,38 @@ async function refreshOutfits() {
     const card = document.createElement("div");
     card.className = "outfit-card";
     const parts = (it.items || []).map(p =>
-      `<div class="thumb"><img src="${p.imageUrl}"><span class="cat">${CAT_LABELS[p.category] || p.category}</span></div>`).join("");
+      `<div class="thumb" data-cat="${p.category}" data-url="${p.imageUrl}"><img src="${p.imageUrl}"><span class="cat">${CAT_LABELS[p.category] || p.category}</span></div>`).join("");
     card.innerHTML = `
       <div class="main"><img src="${it.imageUrl}"><button class="del">×</button></div>
       <div class="outfit-items">
-        <div class="tip">生成时的单品配件</div>
+        <div class="tip">生成时的单品配件（点击配件预选，可多选）</div>
         <div class="row">${parts || '<span class="muted">（无配件记录）</span>'}</div>
+        ${parts ? '<button class="use-parts" disabled>把选中配件填入生成页</button>' : ""}
       </div>`;
     card.querySelector(".main img").onclick = () => card.classList.toggle("open");
     card.querySelector(".del").onclick = async (e) => { e.stopPropagation(); await api("DELETE", "/api/outfits/" + it.id); refreshOutfits(); };
+    const useBtn = card.querySelector(".use-parts");
+    card.querySelectorAll(".outfit-items .thumb").forEach(t => {
+      t.onclick = () => {
+        t.classList.toggle("sel");
+        const n = card.querySelectorAll(".thumb.sel").length;
+        useBtn.disabled = n === 0;
+        useBtn.textContent = n ? `把选中的 ${n} 件配件填入生成页` : "把选中配件填入生成页";
+      };
+    });
+    if (useBtn) useBtn.onclick = async () => {
+      for (const t of card.querySelectorAll(".thumb.sel")) {
+        const { cat, url } = t.dataset;
+        images[cat] = { data: await urlToB64(url), mimeType: "image/png" };
+        const slot = document.querySelector(`.slot[data-key="${cat}"]`);
+        slot.querySelector("img")?.remove();
+        const img = document.createElement("img");
+        img.src = url;
+        slot.prepend(img);
+      }
+      showTab("gen");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
     $("outfits").appendChild(card);
   }
 }

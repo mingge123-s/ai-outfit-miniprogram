@@ -9,6 +9,10 @@
 .part { display: inline-block; position: relative; margin-right: 10rpx; }
 .part-img { width: 110rpx; height: 110rpx; border-radius: 12rpx; border: 1rpx solid #ececf2; }
 .part-cat { position: absolute; left: 6rpx; bottom: 10rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 16rpx; padding: 2rpx 8rpx; border-radius: 10rpx; }
+.part.sel .part-img { border: 4rpx solid #6c5ce7; box-sizing: border-box; }
+.part-check { position: absolute; top: 4rpx; right: 8rpx; color: #6c5ce7; font-weight: 700; font-size: 24rpx; }
+.use-parts { margin-top: 12rpx; width: 100% !important; background: #6c5ce7; color: #fff; font-size: 24rpx; border-radius: 12rpx; }
+.use-parts[disabled] { background: #d5d5e0; color: #fff; }
 .card-bar { display: flex; align-items: center; justify-content: space-between; padding: 14rpx 18rpx; }
 .card-date { font-size: 20rpx; color: #8a8a99; }
 .card-actions { display: flex; gap: 18rpx; }

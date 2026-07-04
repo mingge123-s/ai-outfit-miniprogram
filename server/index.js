@@ -64,6 +64,19 @@ function requireAuth(req, res, next) {
 
 const imageUrl = (file) => `/uploads/${file}`;
 
+// 我的信息
+app.get("/api/me", requireAuth, (req, res) => {
+  res.json({
+    userId: req.user.id,
+    nickname: req.user.nickname || null,
+    createdAt: req.user.created_at,
+    devMode: !(WX_APPID && WX_SECRET),
+    wardrobeCount: wardrobe.list(req.user.id).length,
+    outfitCount: outfits.list(req.user.id).length,
+    memberLevel: "free", // 会员/充值功能预留
+  });
+});
+
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
   const items = wardrobe.list(req.user.id, req.query.category).map((it) => ({

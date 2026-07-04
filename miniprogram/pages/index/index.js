@@ -58,6 +58,23 @@ Page({
   },
 
   onShow() {
+    // 从套装收藏页回传的配件（批量填入）
+    const parts = app.globalData.outfitPartsPick;
+    if (parts && parts.length) {
+      app.globalData.outfitPartsPick = null;
+      const update = {};
+      for (const p of parts) {
+        const index = this.data.items.findIndex((i) => i.key === p.key);
+        if (index >= 0) {
+          update[`items[${index}].path`] = p.path;
+          update[`items[${index}].wardrobeId`] = null;
+          update[`items[${index}].imageUrl`] = null;
+        }
+      }
+      this.setData(update, () => this.updateCanGenerate());
+      wx.showToast({ title: `已填入 ${parts.length} 件配件`, icon: 'success' });
+    }
+
     // 从衣柜选择页回传
     const pick = app.globalData.wardrobePick;
     if (pick) {

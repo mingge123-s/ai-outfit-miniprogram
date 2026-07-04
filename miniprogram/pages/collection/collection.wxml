@@ -3,14 +3,19 @@
     <view class="card" wx:for="{{items}}" wx:key="id">
       <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-id="{{item.id}}" bindtap="toggleItems" />
       <view class="card-parts" wx:if="{{openId === item.id}}">
-        <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件</text>
+        <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件（点击预选，可多选）</text>
         <text class="parts-tip" wx:else>（无配件记录）</text>
         <scroll-view scroll-x class="parts-row" wx:if="{{item.items.length}}">
-          <view class="part" wx:for="{{item.items}}" wx:for-item="part" wx:key="imageUrl">
+          <view class="part {{selected[part.category] === part.imageUrl ? 'sel' : ''}}" wx:for="{{item.items}}" wx:for-item="part" wx:key="imageUrl"
+                data-cat="{{part.category}}" data-url="{{part.imageUrl}}" catchtap="togglePart">
             <image class="part-img" src="{{baseUrl}}{{part.imageUrl}}" mode="aspectFill" />
             <text class="part-cat">{{labels[part.category]}}</text>
+            <text class="part-check" wx:if="{{selected[part.category] === part.imageUrl}}">✓</text>
           </view>
         </scroll-view>
+        <button class="use-parts" wx:if="{{item.items.length}}" disabled="{{selectedCount === 0}}" size="mini" catchtap="useParts">
+          把选中配件填入首页生成{{selectedCount ? '（' + selectedCount + ' 件）' : ''}}
+        </button>
       </view>
       <view class="card-bar">
         <text class="card-date">{{item.createdAt}}</text>

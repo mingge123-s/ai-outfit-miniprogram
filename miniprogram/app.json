@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/wardrobe/wardrobe",
     "pages/collection/collection",
+    "pages/me/me",
     "pages/result/result",
     "pages/picker/picker"
   ],
@@ -19,7 +20,8 @@
     "list": [
       { "pagePath": "pages/index/index", "text": "首页" },
       { "pagePath": "pages/wardrobe/wardrobe", "text": "衣柜" },
-      { "pagePath": "pages/collection/collection", "text": "收藏" }
+      { "pagePath": "pages/collection/collection", "text": "收藏" },
+      { "pagePath": "pages/me/me", "text": "我的" }
     ]
   },
   "style": "v2",
