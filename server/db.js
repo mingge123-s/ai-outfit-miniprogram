@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS outfits (
   description TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS person_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  image_file TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `);
 try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 
@@ -86,6 +92,26 @@ export const wardrobe = {
     const item = this.get(userId, id);
     if (!item) return false;
     db.prepare("DELETE FROM wardrobe_items WHERE id = ?").run(id);
+    deleteImage(item.image_file);
+    return true;
+  },
+};
+
+export const personPhotos = {
+  list(userId) {
+    return db.prepare("SELECT * FROM person_photos WHERE user_id = ? ORDER BY id DESC").all(userId);
+  },
+  add(userId, imageFile) {
+    const info = db.prepare("INSERT INTO person_photos (user_id, image_file) VALUES (?, ?)").run(userId, imageFile);
+    return db.prepare("SELECT * FROM person_photos WHERE id = ?").get(info.lastInsertRowid);
+  },
+  get(userId, id) {
+    return db.prepare("SELECT * FROM person_photos WHERE id = ? AND user_id = ?").get(id, userId) || null;
+  },
+  remove(userId, id) {
+    const item = this.get(userId, id);
+    if (!item) return false;
+    db.prepare("DELETE FROM person_photos WHERE id = ?").run(id);
     deleteImage(item.image_file);
     return true;
   },

@@ -2,6 +2,14 @@
 .card { background: #fff; border-radius: 20rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 24rpx; }
 
 .profile { display: flex; align-items: center; padding: 32rpx; }
+.photos { padding: 24rpx; }
+.photos-title { font-size: 24rpx; color: #55556b; display: block; margin-bottom: 16rpx; }
+.photos-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.photo { position: relative; width: 150rpx; height: 200rpx; border-radius: 12rpx; overflow: hidden; background: #f6f6f8; }
+.photo-img { width: 100%; height: 100%; }
+.photo-del { position: absolute; top: 6rpx; right: 6rpx; width: 36rpx; height: 36rpx; line-height: 32rpx; text-align: center; background: rgba(0,0,0,0.55); color: #fff; border-radius: 50%; font-size: 24rpx; }
+.photo-add { display: flex; align-items: center; justify-content: center; border: 2rpx dashed #d5d5e0; }
+.photo-plus { font-size: 48rpx; color: #8a8a99; }
 .avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #edeaff; display: flex; align-items: center; justify-content: center; font-size: 48rpx; margin-right: 24rpx; }
 .info { flex: 1; display: flex; flex-direction: column; }
 .name { font-size: 32rpx; font-weight: 600; }

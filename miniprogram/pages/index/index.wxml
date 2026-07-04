@@ -6,9 +6,9 @@
   </view>
 
   <!-- 模特照片（可选） -->
-  <view class="person-card dashed {{person ? 'filled' : ''}}" bindtap="choosePerson">
-    <block wx:if="{{person}}">
-      <image class="person-preview" src="{{person}}" mode="aspectFit" />
+  <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
+    <block wx:if="{{person || personUrl}}">
+      <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
       <view class="remove-btn" catchtap="removePerson">×</view>
     </block>
     <block wx:else>

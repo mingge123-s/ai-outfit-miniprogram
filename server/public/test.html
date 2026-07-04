@@ -141,6 +141,11 @@
       <div class="me-row"><span>收藏套装</span><span class="v" id="meO">-</span></div>
     </div>
     <div class="me-card">
+      <h3>我的模特照（全身照，可多张，点击可直接用于生成）</h3>
+      <div class="thumbs" id="personPhotos"><span class="muted">（空）</span></div>
+      <button class="me-btn plain" id="addPersonBtn">＋ 添加全身照</button>
+    </div>
+    <div class="me-card">
       <h3>会员</h3>
       <div class="me-row"><span>当前等级</span><span class="badge" id="meLevel">免费版</span></div>
       <button class="me-btn primary" id="vipBtn">👑 开通会员 / 充值</button>
@@ -237,6 +242,32 @@ async function urlToB64(url) {
   });
 }
 
+async function refreshPersonPhotos() {
+  const { items } = await api("GET", "/api/person-photos");
+  $("personPhotos").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
+  for (const p of items) {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `<img src="${p.imageUrl}" title="点击用于生成"><button class="del">×</button>`;
+    d.querySelector("img").onclick = () => usePersonPhoto(p);
+    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/person-photos/" + p.id); refreshPersonPhotos(); refreshMe(); };
+    $("personPhotos").appendChild(d);
+  }
+}
+
+function usePersonPhoto(p) {
+  images.person = { personPhotoId: p.id };
+  const slot = document.querySelector('.slot[data-key="person"]');
+  slot.querySelector("img")?.remove();
+  const img = document.createElement("img");
+  img.src = p.imageUrl;
+  slot.prepend(img);
+  showTab("gen");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+$("addPersonBtn").onclick = () => { currentKey = "__person_photo__"; fileInput.click(); };
+
 async function refreshMe() {
   const me = await api("GET", "/api/me");
   $("meUser").textContent = "#" + me.userId + (me.nickname ? " · " + me.nickname : "");
@@ -244,6 +275,7 @@ async function refreshMe() {
   $("meDate").textContent = me.createdAt;
   $("meW").textContent = me.wardrobeCount + " 件";
   $("meO").textContent = me.outfitCount + " 套";
+  refreshPersonPhotos();
   $("meLevel").textContent = me.memberLevel === "free" ? "免费版" : me.memberLevel;
 }
 $("vipBtn").onclick = () => alert("会员/充值功能开发中，敬请期待～");
@@ -307,8 +339,15 @@ fileInput.addEventListener("change", () => {
   const f = fileInput.files[0];
   if (!f) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const dataUrl = reader.result;
+    if (currentKey === "__person_photo__") {
+      try {
+        await api("POST", "/api/person-photos", { image: { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" } });
+        refreshPersonPhotos(); refreshMe();
+      } catch (err) { alert("上传失败: " + err.message); }
+      return;
+    }
     images[currentKey] = { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" };
     const slot = document.querySelector(`.slot[data-key="${currentKey}"]`);
     slot.querySelector("img")?.remove();

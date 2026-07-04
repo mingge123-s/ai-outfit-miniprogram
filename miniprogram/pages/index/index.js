@@ -23,6 +23,8 @@ function guessMimeType(path) {
 Page({
   data: {
     person: null,
+    personPhotoId: null,
+    personUrl: null,
     items: [
       { key: 'top', label: '上衣', icon: '👕', path: null },
       { key: 'pants', label: '裤子', icon: '👖', path: null },
@@ -55,15 +57,23 @@ Page({
   },
 
   choosePerson() {
-    if (this.data.person) return;
+    if (this.data.person || this.data.personPhotoId) return;
     this.chooseImage((path) => this.setData({ person: path }));
   },
 
   removePerson() {
-    this.setData({ person: null });
+    this.setData({ person: null, personPhotoId: null, personUrl: null });
   },
 
   onShow() {
+    // 从「我的」页选中的模特照
+    const photo = app.globalData.personPhotoPick;
+    if (photo) {
+      app.globalData.personPhotoPick = null;
+      this.setData({ person: null, personPhotoId: photo.id, personUrl: `${API_BASE_URL}${photo.imageUrl}` });
+      wx.showToast({ title: '已选用模特照', icon: 'success' });
+    }
+
     // 从套装收藏页回传的配件（批量填入）
     const parts = app.globalData.outfitPartsPick;
     if (parts && parts.length) {
@@ -177,7 +187,9 @@ Page({
         }
       }
       const body = { items, backgroundStyle: this.data.backgroundStyle };
-      if (this.data.person) {
+      if (this.data.personPhotoId) {
+        body.personImage = { personPhotoId: this.data.personPhotoId };
+      } else if (this.data.person) {
         body.personImage = {
           data: await pathToBase64(this.data.person),
           mimeType: guessMimeType(this.data.person)

@@ -4,7 +4,7 @@ import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -73,8 +73,28 @@ app.get("/api/me", requireAuth, (req, res) => {
     devMode: !(WX_APPID && WX_SECRET),
     wardrobeCount: wardrobe.list(req.user.id).length,
     outfitCount: outfits.list(req.user.id).length,
+    personPhotoCount: personPhotos.list(req.user.id).length,
     memberLevel: "free", // 会员/充值功能预留
   });
+});
+
+// 我的模特照（全身照，可多张）
+app.get("/api/person-photos", requireAuth, (req, res) => {
+  const items = personPhotos.list(req.user.id).map((p) => ({
+    id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at,
+  }));
+  res.json({ items });
+});
+app.post("/api/person-photos", requireAuth, (req, res) => {
+  const { image } = req.body || {};
+  if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const file = saveImage(image.data, image.mimeType || "image/jpeg");
+  const p = personPhotos.add(req.user.id, file);
+  res.json({ item: { id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at } });
+});
+app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
+  const ok = personPhotos.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
 });
 
 // 衣柜
@@ -277,11 +297,21 @@ app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model
 // }
 app.post("/api/tryon", async (req, res) => {
   try {
-    const { items = {}, personImage, backgroundStyle } = req.body || {};
+    let { items = {}, personImage, backgroundStyle } = req.body || {};
 
     // 支持 { wardrobeId } 引用衣柜单品（需登录）
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     const user = userByToken(token);
+
+    // 支持 { personPhotoId } 引用「我的模特照」（需登录）
+    if (personImage && !personImage.data && personImage.personPhotoId) {
+      if (!user) return res.status(401).json({ error: "使用我的模特照需要登录" });
+      const p = personPhotos.get(user.id, Number(personImage.personPhotoId));
+      if (!p) return res.status(404).json({ error: `模特照不存在: ${personImage.personPhotoId}` });
+      const buf = fs.readFileSync(path.join(UPLOADS_DIR, p.image_file));
+      const ext = path.extname(p.image_file).slice(1) || "png";
+      personImage = { data: buf.toString("base64"), mimeType: `image/${ext === "jpg" ? "jpeg" : ext}` };
+    }
     for (const k of Object.keys(ITEM_LABELS)) {
       const ref = items[k];
       if (ref && !ref.data && ref.wardrobeId) {
