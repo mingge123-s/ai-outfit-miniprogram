@@ -41,6 +41,12 @@
                 font-size: 10px; padding: 1px 6px; border-radius: 8px; }
   .muted { color: #8a8a99; font-size: 13px; }
   input[type=file] { display: none; }
+  .tabs { display: flex; gap: 6px; margin: 14px 0 4px; background: #fff; border-radius: 12px; padding: 5px; }
+  .tab-btn { flex: 1; padding: 10px 0; border: 0; border-radius: 9px; background: transparent; color: #8a8a99; font-size: 14px; cursor: pointer; }
+  .tab-btn.active { background: #6c5ce7; color: #fff; font-weight: 600; }
+  .tab-btn.active .muted { color: #e6e2ff; }
+  .tab { display: none; }
+  .tab.active { display: block; }
 </style>
 </head>
 <body>
@@ -49,6 +55,13 @@
   <div class="sub">与小程序相同流程，调用同一后端 /api/*</div>
   <div id="userbar">登录中…</div>
 
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="gen">生成</button>
+    <button class="tab-btn" data-tab="wardrobeTab">衣柜 <span class="muted" id="wcount"></span></button>
+    <button class="tab-btn" data-tab="outfitsTab">套装收藏 <span class="muted" id="ocount"></span></button>
+  </div>
+
+  <div class="tab active" id="gen">
   <h2>模特照片（可选）</h2>
   <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
 
@@ -71,12 +84,19 @@
   <div id="status"></div>
   <div id="result"></div>
   <button class="sec-btn" id="collectBtn" style="display:none">☆ 收藏套装</button>
+  </div>
 
-  <h2>我的衣柜 <span class="muted" id="wcount"></span></h2>
-  <div class="thumbs" id="wardrobe"><span class="muted">（空）</span></div>
+  <div class="tab" id="wardrobeTab">
+    <h2>我的衣柜</h2>
+    <div class="muted" style="margin-bottom:10px">点击单品可直接用于生成（自动切回生成页）</div>
+    <div class="thumbs" id="wardrobe"><span class="muted">（空）</span></div>
+  </div>
 
-  <h2>套装收藏 <span class="muted" id="ocount"></span></h2>
-  <div class="thumbs" id="outfits"><span class="muted">（空）</span></div>
+  <div class="tab" id="outfitsTab">
+    <h2>套装收藏</h2>
+    <div class="muted" style="margin-bottom:10px">生成页点「☆ 收藏套装」后展示在这里</div>
+    <div class="thumbs" id="outfits"><span class="muted">（空）</span></div>
+  </div>
 
   <input type="file" id="file" accept="image/*">
 </div>
@@ -85,6 +105,12 @@ const images = {};
 let currentKey = null, bg = "street", token = "", lastImage = null;
 const $ = (id) => document.getElementById(id);
 const fileInput = $("file");
+
+function showTab(id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === id));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+}
+document.querySelectorAll(".tab-btn").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
 async function api(method, path, body) {
   const resp = await fetch(path, {
@@ -128,6 +154,7 @@ function useWardrobeItem(it) {
   const img = document.createElement("img");
   img.src = it.imageUrl;
   slot.prepend(img);
+  showTab("gen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
