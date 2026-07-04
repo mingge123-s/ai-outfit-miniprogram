@@ -1,13 +1,26 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/result/result"
+    "pages/wardrobe/wardrobe",
+    "pages/collection/collection",
+    "pages/result/result",
+    "pages/picker/picker"
   ],
   "window": {
     "navigationBarBackgroundColor": "#f8f9fa",
     "navigationBarTitleText": "AI 穿搭",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f8f9fa"
+  },
+  "tabBar": {
+    "color": "#8a8a99",
+    "selectedColor": "#6c5ce7",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/wardrobe/wardrobe", "text": "衣柜" },
+      { "pagePath": "pages/collection/collection", "text": "收藏" }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

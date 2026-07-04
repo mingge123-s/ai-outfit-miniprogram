@@ -1,4 +1,5 @@
 const { API_BASE_URL } = require('../../config');
+const api = require('../../utils/api');
 
 const app = getApp();
 
@@ -56,17 +57,70 @@ Page({
     this.setData({ person: null });
   },
 
+  onShow() {
+    // 从衣柜选择页回传
+    const pick = app.globalData.wardrobePick;
+    if (pick) {
+      app.globalData.wardrobePick = null;
+      const index = this.data.items.findIndex((i) => i.key === pick.key);
+      if (index >= 0) {
+        this.setData(
+          {
+            [`items[${index}].path`]: null,
+            [`items[${index}].wardrobeId`]: pick.item.id,
+            [`items[${index}].imageUrl`]: `${API_BASE_URL}${pick.item.imageUrl}`
+          },
+          () => this.updateCanGenerate()
+        );
+      }
+    }
+  },
+
   chooseItem(e) {
     const index = e.currentTarget.dataset.index;
-    if (this.data.items[index].path) return;
-    this.chooseImage((path) => {
-      this.setData({ [`items[${index}].path`]: path }, () => this.updateCanGenerate());
+    const item = this.data.items[index];
+    if (item.path || item.wardrobeId) return;
+    wx.showActionSheet({
+      itemList: ['从相册/拍照上传', '从衣柜选择'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          this.chooseImage((path) => {
+            this.setData({ [`items[${index}].path`]: path }, () => this.updateCanGenerate());
+          });
+        } else {
+          wx.navigateTo({ url: `/pages/picker/picker?category=${item.key}` });
+        }
+      }
     });
   },
 
   removeItem(e) {
     const index = e.currentTarget.dataset.index;
-    this.setData({ [`items[${index}].path`]: null }, () => this.updateCanGenerate());
+    this.setData(
+      {
+        [`items[${index}].path`]: null,
+        [`items[${index}].wardrobeId`]: null,
+        [`items[${index}].imageUrl`]: null
+      },
+      () => this.updateCanGenerate()
+    );
+  },
+
+  // 把已上传的单品收藏进衣柜
+  async saveItemToWardrobe(e) {
+    const index = e.currentTarget.dataset.index;
+    const item = this.data.items[index];
+    if (!item.path) return;
+    wx.showLoading({ title: '收藏中…' });
+    try {
+      const data = await pathToBase64(item.path);
+      await api.wardrobe.add(item.key, { data, mimeType: guessMimeType(item.path) });
+      wx.showToast({ title: '已加入衣柜', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.message || '收藏失败', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   chooseStyle(e) {
@@ -74,7 +128,7 @@ Page({
   },
 
   updateCanGenerate() {
-    this.setData({ canGenerate: this.data.items.some((i) => i.path) });
+    this.setData({ canGenerate: this.data.items.some((i) => i.path || i.wardrobeId) });
   },
 
   async generate() {
@@ -84,7 +138,9 @@ Page({
     try {
       const items = {};
       for (const item of this.data.items) {
-        if (item.path) {
+        if (item.wardrobeId) {
+          items[item.key] = { wardrobeId: item.wardrobeId };
+        } else if (item.path) {
           items[item.key] = {
             data: await pathToBase64(item.path),
             mimeType: guessMimeType(item.path)
@@ -99,12 +155,14 @@ Page({
         };
       }
 
+      await api.ensureLogin().catch(() => {});
       const res = await new Promise((resolve, reject) => {
         wx.request({
           url: `${API_BASE_URL}/api/tryon`,
           method: 'POST',
           data: body,
-          timeout: 120000,
+          timeout: 300000,
+          header: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {},
           success: resolve,
           fail: reject
         });
@@ -116,7 +174,9 @@ Page({
 
       app.globalData.lastResult = {
         image: res.data.image,
-        items: this.data.items.filter((i) => i.path).map(({ key, label, path }) => ({ key, label, path })),
+        items: this.data.items
+          .filter((i) => i.path || i.wardrobeId)
+          .map(({ key, label, path, imageUrl }) => ({ key, label, path: path || imageUrl })),
         backgroundStyle: this.data.backgroundStyle
       };
       app.globalData.lastRequest = body;

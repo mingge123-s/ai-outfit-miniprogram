@@ -104,6 +104,17 @@
   box-shadow: 0 12rpx 30rpx rgba(99, 102, 241, 0.35);
   background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
 }
+.collect-btn {
+  width: 100%;
+  height: 100rpx;
+  line-height: 96rpx;
+  border-radius: 999rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #6c5ce7;
+  background: #edeaff;
+  border: 3rpx solid #6c5ce7;
+}
 .regen-btn {
   width: 100%;
   height: 100rpx;

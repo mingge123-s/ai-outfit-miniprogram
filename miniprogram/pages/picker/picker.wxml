@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="tip">从衣柜选择一件「{{label}}」</view>
+  <view class="grid">
+    <view class="item-card" wx:for="{{items}}" wx:key="id" data-item="{{item}}" bindtap="pick">
+      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
+    </view>
+  </view>
+  <view class="empty" wx:if="{{!loading && items.length === 0}}">
+    <text>衣柜里还没有「{{label}}」，请先到「衣柜」页添加</text>
+  </view>
+</view>

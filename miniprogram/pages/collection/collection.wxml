@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="grid">
+    <view class="card" wx:for="{{items}}" wx:key="id">
+      <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-url="{{item.imageUrl}}" bindtap="preview" />
+      <view class="card-bar">
+        <text class="card-date">{{item.createdAt}}</text>
+        <view class="card-actions">
+          <text class="action" data-url="{{item.imageUrl}}" bindtap="save">⬇</text>
+          <text class="action danger" data-id="{{item.id}}" bindtap="remove">🗑</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{!loading && items.length === 0}}">
+    <text>还没有收藏的套装\n在生成结果页点「收藏套装」即可保存到这里</text>
+  </view>
+</view>

@@ -9,7 +9,8 @@
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f6f6f8; color: #1c1c28; }
   .wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
   h1 { font-size: 20px; margin-bottom: 4px; }
-  .sub { color: #8a8a99; font-size: 13px; margin-bottom: 20px; }
+  .sub { color: #8a8a99; font-size: 13px; margin-bottom: 12px; }
+  #userbar { font-size: 12px; color: #6c5ce7; background: #edeaff; border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
   h2 { font-size: 15px; margin: 18px 0 10px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .slot { background: #fff; border: 1.5px dashed #d5d5e0; border-radius: 12px; height: 120px;
@@ -17,6 +18,8 @@
           cursor: pointer; overflow: hidden; position: relative; }
   .slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
   .slot span { font-size: 13px; color: #8a8a99; z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
+  .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: #6c5ce7; color: #fff;
+               border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
   .person { height: 140px; }
   .styles { display: flex; gap: 8px; }
   .style-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
@@ -27,18 +30,29 @@
   #status { margin-top: 12px; text-align: center; font-size: 14px; color: #6c5ce7; min-height: 20px; }
   #result { margin-top: 16px; }
   #result img { width: 100%; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+  .sec-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 12px; border: 1.5px solid #6c5ce7;
+             background: #edeaff; color: #6c5ce7; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .thumb { position: relative; width: 92px; height: 92px; border-radius: 10px; overflow: hidden; background: #fff; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.6); color: #fff; border: 0;
+                border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
+  .thumb .cat { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); color: #fff;
+                font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+  .muted { color: #8a8a99; font-size: 13px; }
   input[type=file] { display: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>AI 穿搭生成（测试页）</h1>
-  <div class="sub">与小程序相同流程，调用同一后端 POST /api/tryon</div>
+  <div class="sub">与小程序相同流程，调用同一后端 /api/*</div>
+  <div id="userbar">登录中…</div>
 
   <h2>模特照片（可选）</h2>
   <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
 
-  <h2>穿搭单品（至少一件）</h2>
+  <h2>穿搭单品（至少一件，☆ 可收藏进衣柜）</h2>
   <div class="grid">
     <div class="slot" data-key="top"><span>上衣</span></div>
     <div class="slot" data-key="pants"><span>裤子</span></div>
@@ -56,16 +70,86 @@
   <button class="gen" id="genBtn">生成穿搭</button>
   <div id="status"></div>
   <div id="result"></div>
+  <button class="sec-btn" id="collectBtn" style="display:none">☆ 收藏套装</button>
+
+  <h2>我的衣柜 <span class="muted" id="wcount"></span></h2>
+  <div class="thumbs" id="wardrobe"><span class="muted">（空）</span></div>
+
+  <h2>套装收藏 <span class="muted" id="ocount"></span></h2>
+  <div class="thumbs" id="outfits"><span class="muted">（空）</span></div>
+
   <input type="file" id="file" accept="image/*">
 </div>
 <script>
 const images = {};
-let currentKey = null;
-let bg = "street";
-const fileInput = document.getElementById("file");
+let currentKey = null, bg = "street", token = "", lastImage = null;
+const $ = (id) => document.getElementById(id);
+const fileInput = $("file");
+
+async function api(method, path, body) {
+  const resp = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.details || data.error || ("HTTP " + resp.status));
+  return data;
+}
+
+async function login() {
+  let code = localStorage.getItem("dev_code");
+  if (!code) { code = "web_" + Math.random().toString(36).slice(2, 10); localStorage.setItem("dev_code", code); }
+  const data = await api("POST", "/api/login", { code });
+  token = data.token;
+  $("userbar").textContent = `已登录 · 账号 #${data.userId}${data.devMode ? "（开发模式）" : ""}`;
+  refreshWardrobe(); refreshOutfits();
+}
+
+async function refreshWardrobe() {
+  const { items } = await api("GET", "/api/wardrobe");
+  $("wcount").textContent = items.length ? `（${items.length} 件）` : "";
+  $("wardrobe").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
+  const labels = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子" };
+  for (const it of items) {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `<img src="${it.imageUrl}" title="点击用于生成"><button class="del">×</button><span class="cat">${labels[it.category]}</span>`;
+    d.querySelector("img").onclick = () => useWardrobeItem(it);
+    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/wardrobe/" + it.id); refreshWardrobe(); };
+    $("wardrobe").appendChild(d);
+  }
+}
+
+function useWardrobeItem(it) {
+  images[it.category] = { wardrobeId: it.id };
+  const slot = document.querySelector(`.slot[data-key="${it.category}"]`);
+  slot.querySelector("img")?.remove();
+  const img = document.createElement("img");
+  img.src = it.imageUrl;
+  slot.prepend(img);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function refreshOutfits() {
+  const { items } = await api("GET", "/api/outfits");
+  $("ocount").textContent = items.length ? `（${items.length} 套）` : "";
+  $("outfits").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
+  for (const it of items) {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `<img src="${it.imageUrl}"><button class="del">×</button>`;
+    d.querySelector("img").onclick = () => window.open(it.imageUrl);
+    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/outfits/" + it.id); refreshOutfits(); };
+    $("outfits").appendChild(d);
+  }
+}
 
 document.querySelectorAll(".slot").forEach(el => {
-  el.addEventListener("click", () => { currentKey = el.dataset.key; fileInput.click(); });
+  el.addEventListener("click", (e) => {
+    if (e.target.classList.contains("fav") || e.target.classList.contains("del")) return;
+    currentKey = el.dataset.key; fileInput.click();
+  });
 });
 fileInput.addEventListener("change", () => {
   const f = fileInput.files[0];
@@ -76,9 +160,21 @@ fileInput.addEventListener("change", () => {
     images[currentKey] = { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" };
     const slot = document.querySelector(`.slot[data-key="${currentKey}"]`);
     slot.querySelector("img")?.remove();
+    slot.querySelector(".fav")?.remove();
     const img = document.createElement("img");
     img.src = dataUrl;
     slot.prepend(img);
+    if (currentKey !== "person") {
+      const key = currentKey;
+      const fav = document.createElement("button");
+      fav.className = "fav"; fav.textContent = "☆"; fav.title = "收藏进衣柜";
+      fav.onclick = async (e) => {
+        e.stopPropagation();
+        try { await api("POST", "/api/wardrobe", { category: key, image: images[key] }); fav.textContent = "★"; refreshWardrobe(); }
+        catch (err) { alert("收藏失败: " + err.message); }
+      };
+      slot.appendChild(fav);
+    }
   };
   reader.readAsDataURL(f);
   fileInput.value = "";
@@ -90,34 +186,42 @@ document.querySelectorAll(".style-btn").forEach(b => {
     bg = b.dataset.style;
   });
 });
-document.getElementById("genBtn").addEventListener("click", async () => {
+$("genBtn").addEventListener("click", async () => {
   const items = {};
   for (const k of ["top","pants","shoes","hat"]) if (images[k]) items[k] = images[k];
   if (Object.keys(items).length === 0) { alert("请至少上传一件单品"); return; }
-  const btn = document.getElementById("genBtn"), status = document.getElementById("status");
+  const btn = $("genBtn"), status = $("status");
   btn.disabled = true;
-  status.textContent = "生成中，约需 1 分钟…";
-  document.getElementById("result").innerHTML = "";
+  $("result").innerHTML = ""; $("collectBtn").style.display = "none";
   const t0 = Date.now();
   const timer = setInterval(() => { status.textContent = `生成中… ${Math.round((Date.now()-t0)/1000)}s`; }, 1000);
   try {
-    const resp = await fetch("/api/tryon", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, personImage: images.person || undefined, backgroundStyle: bg })
-    });
-    const data = await resp.json();
+    const data = await api("POST", "/api/tryon", { items, personImage: images.person || undefined, backgroundStyle: bg });
     clearInterval(timer);
-    if (!resp.ok) { status.textContent = "失败：" + (data.details || data.error); }
-    else {
-      status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
-      document.getElementById("result").innerHTML = `<img src="${data.image}">`;
-    }
+    status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
+    lastImage = data.image;
+    $("result").innerHTML = `<img src="${data.image}">`;
+    $("collectBtn").style.display = "block";
+    $("collectBtn").textContent = "☆ 收藏套装";
+    $("collectBtn").disabled = false;
   } catch (e) {
     clearInterval(timer);
-    status.textContent = "请求出错：" + e.message;
+    status.textContent = "失败：" + e.message;
   } finally { btn.disabled = false; }
 });
+$("collectBtn").addEventListener("click", async () => {
+  if (!lastImage) return;
+  $("collectBtn").disabled = true;
+  try {
+    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg });
+    $("collectBtn").textContent = "★ 已收藏";
+    refreshOutfits();
+  } catch (e) {
+    alert("收藏失败: " + e.message);
+    $("collectBtn").disabled = false;
+  }
+});
+login().catch(e => { $("userbar").textContent = "登录失败: " + e.message; });
 </script>
 </body>
 </html>

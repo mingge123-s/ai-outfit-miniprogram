@@ -135,6 +135,20 @@
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
 }
+.fav-btn {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: rgba(108, 92, 231, 0.85);
+  color: #ffffff;
+  font-size: 30rpx;
+  line-height: 46rpx;
+  text-align: center;
+  z-index: 2;
+}
 .remove-btn {
   position: absolute;
   top: 12rpx;

@@ -1,0 +1,31 @@
+.page { padding: 24rpx 32rpx 60rpx; }
+
+.tip { font-size: 26rpx; color: #6c5ce7; background: #edeaff; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
+
+.chips { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.chip {
+  flex: 1; text-align: center; padding: 16rpx 0; border-radius: 16rpx;
+  background: #fff; border: 2rpx solid #e3e3ee; font-size: 26rpx; color: #55556b;
+}
+.chip-active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
+.chip-disabled { opacity: 0.4; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
+.item-card {
+  position: relative; height: 210rpx; border-radius: 16rpx; overflow: hidden; background: #fff;
+}
+.item-img { width: 100%; height: 100%; }
+.add-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 2rpx dashed #c9c9dc; background: #fbfbfe;
+}
+.dashed { border: 2rpx dashed #c9c9dc; }
+.add-plus { font-size: 56rpx; color: #6c5ce7; line-height: 1; }
+.add-label { font-size: 24rpx; color: #8a8a99; margin-top: 8rpx; }
+
+.remove-btn {
+  position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; line-height: 36rpx;
+  text-align: center; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; font-size: 28rpx;
+}
+
+.empty { margin-top: 80rpx; text-align: center; color: #8a8a99; font-size: 26rpx; padding: 0 40rpx; }

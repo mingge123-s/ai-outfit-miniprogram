@@ -1,0 +1,12 @@
+.page { padding: 24rpx 32rpx 60rpx; }
+
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
+.card { background: #fff; border-radius: 20rpx; overflow: hidden; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05); }
+.card-img { width: 100%; height: 420rpx; display: block; }
+.card-bar { display: flex; align-items: center; justify-content: space-between; padding: 14rpx 18rpx; }
+.card-date { font-size: 20rpx; color: #8a8a99; }
+.card-actions { display: flex; gap: 18rpx; }
+.action { font-size: 30rpx; }
+.danger { opacity: 0.8; }
+
+.empty { margin-top: 120rpx; text-align: center; color: #8a8a99; font-size: 26rpx; line-height: 1.8; }

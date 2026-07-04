@@ -1,0 +1,6 @@
+.page { padding: 24rpx 32rpx 60rpx; }
+.tip { font-size: 26rpx; color: #6c5ce7; background: #edeaff; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
+.item-card { height: 210rpx; border-radius: 16rpx; overflow: hidden; background: #fff; }
+.item-img { width: 100%; height: 100%; }
+.empty { margin-top: 80rpx; text-align: center; color: #8a8a99; font-size: 26rpx; padding: 0 40rpx; }

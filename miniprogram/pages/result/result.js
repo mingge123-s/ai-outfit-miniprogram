@@ -1,4 +1,5 @@
 const { API_BASE_URL } = require('../../config');
+const api = require('../../utils/api');
 
 const app = getApp();
 
@@ -25,7 +26,9 @@ Page({
   data: {
     image: '',
     items: [],
-    regenerating: false
+    regenerating: false,
+    collecting: false,
+    collected: false
   },
 
   onLoad() {
@@ -69,6 +72,21 @@ Page({
     }
   },
 
+  async collectOutfit() {
+    if (this.data.collecting || this.data.collected) return;
+    this.setData({ collecting: true });
+    try {
+      const result = app.globalData.lastResult;
+      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle);
+      this.setData({ collected: true });
+      wx.showToast({ title: '已收藏套装', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.message || '收藏失败', icon: 'none' });
+    } finally {
+      this.setData({ collecting: false });
+    }
+  },
+
   async regenerate() {
     const body = app.globalData.lastRequest;
     if (!body || this.data.regenerating) return;
@@ -79,7 +97,8 @@ Page({
           url: `${API_BASE_URL}/api/tryon`,
           method: 'POST',
           data: body,
-          timeout: 120000,
+          timeout: 300000,
+          header: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {},
           success: resolve,
           fail: reject
         });
@@ -88,7 +107,7 @@ Page({
         throw new Error((res.data && res.data.error) || `请求失败 (${res.statusCode})`);
       }
       app.globalData.lastResult.image = res.data.image;
-      this.setData({ image: res.data.image });
+      this.setData({ image: res.data.image, collected: false });
     } catch (err) {
       wx.showModal({
         title: '生成失败',

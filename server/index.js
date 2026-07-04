@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
+import fs from "node:fs";
+import path from "node:path";
+import { UPLOADS_DIR, saveImage, loginUser, userByToken, wardrobe, outfits } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -12,6 +15,8 @@ const PROVIDER = process.env.PROVIDER || (OPENAI_API_KEY ? "openai" : "gemini");
 const MODEL_ID =
   process.env.MODEL_ID || (PROVIDER === "openai" ? "gpt-image-2" : "gemini-2.5-flash-image-preview");
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
+const WX_APPID = process.env.WX_APPID || "";
+const WX_SECRET = process.env.WX_SECRET || "";
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
   console.error("Missing GEMINI_API_KEY environment variable.");
@@ -26,6 +31,79 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "40mb" }));
 app.use(express.static(new URL("./public", import.meta.url).pathname));
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+// 登录：微信 code2session；未配置 WX_APPID/WX_SECRET 时走开发模式（code 即账号标识）
+app.post("/api/login", async (req, res) => {
+  try {
+    const { code } = req.body || {};
+    if (!code) return res.status(400).json({ error: "缺少 code" });
+    let openid;
+    if (WX_APPID && WX_SECRET) {
+      const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+      const data = await (await fetch(url)).json();
+      if (!data.openid) return res.status(401).json({ error: "微信登录失败", details: data.errmsg });
+      openid = data.openid;
+    } else {
+      openid = `dev_${code}`;
+    }
+    const user = loginUser(openid);
+    return res.json({ token: user.token, userId: user.id, devMode: !(WX_APPID && WX_SECRET) });
+  } catch (err) {
+    return res.status(500).json({ error: "登录失败", details: String(err) });
+  }
+});
+
+function requireAuth(req, res, next) {
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  const user = userByToken(token);
+  if (!user) return res.status(401).json({ error: "未登录" });
+  req.user = user;
+  next();
+}
+
+const imageUrl = (file) => `/uploads/${file}`;
+
+// 衣柜
+app.get("/api/wardrobe", requireAuth, (req, res) => {
+  const items = wardrobe.list(req.user.id, req.query.category).map((it) => ({
+    id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at,
+  }));
+  res.json({ items });
+});
+app.post("/api/wardrobe", requireAuth, (req, res) => {
+  const { category, image } = req.body || {};
+  if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 top/pants/shoes/hat" });
+  if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const file = saveImage(image.data, image.mimeType || "image/jpeg");
+  const it = wardrobe.add(req.user.id, category, file);
+  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at } });
+});
+app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
+  const ok = wardrobe.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 套装收藏
+app.get("/api/outfits", requireAuth, (req, res) => {
+  const items = outfits.list(req.user.id).map((o) => ({
+    id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, createdAt: o.created_at,
+  }));
+  res.json({ items });
+});
+app.post("/api/outfits", requireAuth, (req, res) => {
+  const { image, backgroundStyle, description } = req.body || {};
+  let data = image?.data;
+  if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
+  if (!data) return res.status(400).json({ error: "缺少图片数据" });
+  const file = saveImage(data, image.mimeType || "image/png");
+  const o = outfits.add(req.user.id, file, backgroundStyle, description);
+  res.json({ outfit: { id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, createdAt: o.created_at } });
+});
+app.delete("/api/outfits/:id", requireAuth, (req, res) => {
+  const ok = outfits.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
 
 const ITEM_LABELS = {
   top: "上衣 (top garment)",
@@ -161,6 +239,22 @@ app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model
 app.post("/api/tryon", async (req, res) => {
   try {
     const { items = {}, personImage, backgroundStyle } = req.body || {};
+
+    // 支持 { wardrobeId } 引用衣柜单品（需登录）
+    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const user = userByToken(token);
+    for (const k of Object.keys(ITEM_LABELS)) {
+      const ref = items[k];
+      if (ref && !ref.data && ref.wardrobeId) {
+        if (!user) return res.status(401).json({ error: "使用衣柜单品需要登录" });
+        const it = wardrobe.get(user.id, Number(ref.wardrobeId));
+        if (!it) return res.status(404).json({ error: `衣柜单品不存在: ${ref.wardrobeId}` });
+        const buf = fs.readFileSync(path.join(UPLOADS_DIR, it.image_file));
+        const ext = path.extname(it.image_file).slice(1) || "png";
+        items[k] = { data: buf.toString("base64"), mimeType: `image/${ext === "jpg" ? "jpeg" : ext}` };
+      }
+    }
+
     const itemKeys = Object.keys(ITEM_LABELS).filter((k) => items[k]?.data);
 
     if (itemKeys.length === 0) {

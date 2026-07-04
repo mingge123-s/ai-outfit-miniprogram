@@ -1,0 +1,28 @@
+<view class="page">
+  <!-- 分类 -->
+  <view class="chips">
+    <view
+      wx:for="{{categories}}"
+      wx:key="key"
+      class="chip {{category === item.key ? 'chip-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="switchCategory"
+    >{{item.icon}} {{item.label}}</view>
+  </view>
+
+  <!-- 列表 -->
+  <view class="grid">
+    <view class="item-card add-card dashed" bindtap="addItem">
+      <text class="add-plus">＋</text>
+      <text class="add-label">添加单品</text>
+    </view>
+    <view class="item-card" wx:for="{{items}}" wx:key="id" data-item="{{item}}" bindtap="tapItem">
+      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
+      <view class="remove-btn" catchtap="removeItem" data-id="{{item.id}}">×</view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{!loading && items.length === 0}}">
+    <text>衣柜里还没有单品，点击上方「添加单品」收藏你的衣物</text>
+  </view>
+</view>

@@ -29,14 +29,15 @@
     <view
       wx:for="{{items}}"
       wx:key="key"
-      class="item-card dashed {{item.path ? 'filled' : ''}}"
+      class="item-card dashed {{item.path || item.wardrobeId ? 'filled' : ''}}"
       data-index="{{index}}"
       bindtap="chooseItem"
     >
-      <block wx:if="{{item.path}}">
-        <image class="item-preview" src="{{item.path}}" mode="aspectFill" />
+      <block wx:if="{{item.path || item.wardrobeId}}">
+        <image class="item-preview" src="{{item.path || item.imageUrl}}" mode="aspectFill" />
         <view class="remove-btn" catchtap="removeItem" data-index="{{index}}">×</view>
-        <view class="item-tag">{{item.label}}</view>
+        <view class="fav-btn" wx:if="{{item.path}}" catchtap="saveItemToWardrobe" data-index="{{index}}">☆</view>
+        <view class="item-tag">{{item.label}}{{item.wardrobeId ? ' · 衣柜' : ''}}</view>
       </block>
       <block wx:else>
         <text class="item-icon">{{item.icon}}</text>
