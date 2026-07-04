@@ -25,6 +25,7 @@ const ai = PROVIDER === "gemini" ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) :
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "40mb" }));
+app.use(express.static(new URL("./public", import.meta.url).pathname));
 
 const ITEM_LABELS = {
   top: "上衣 (top garment)",

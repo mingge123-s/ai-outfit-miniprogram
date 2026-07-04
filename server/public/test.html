@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 穿搭生成 - 测试页</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f6f6f8; color: #1c1c28; }
+  .wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #8a8a99; font-size: 13px; margin-bottom: 20px; }
+  h2 { font-size: 15px; margin: 18px 0 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .slot { background: #fff; border: 1.5px dashed #d5d5e0; border-radius: 12px; height: 120px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          cursor: pointer; overflow: hidden; position: relative; }
+  .slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .slot span { font-size: 13px; color: #8a8a99; z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
+  .person { height: 140px; }
+  .styles { display: flex; gap: 8px; }
+  .style-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
+  .style-btn.active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
+  .gen { width: 100%; margin-top: 22px; padding: 14px 0; border: 0; border-radius: 12px;
+         background: linear-gradient(90deg,#6c5ce7,#a55eea); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .gen:disabled { opacity: .5; }
+  #status { margin-top: 12px; text-align: center; font-size: 14px; color: #6c5ce7; min-height: 20px; }
+  #result { margin-top: 16px; }
+  #result img { width: 100%; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI 穿搭生成（测试页）</h1>
+  <div class="sub">与小程序相同流程，调用同一后端 POST /api/tryon</div>
+
+  <h2>模特照片（可选）</h2>
+  <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
+
+  <h2>穿搭单品（至少一件）</h2>
+  <div class="grid">
+    <div class="slot" data-key="top"><span>上衣</span></div>
+    <div class="slot" data-key="pants"><span>裤子</span></div>
+    <div class="slot" data-key="shoes"><span>鞋子</span></div>
+    <div class="slot" data-key="hat"><span>帽子</span></div>
+  </div>
+
+  <h2>背景风格</h2>
+  <div class="styles">
+    <button class="style-btn active" data-style="street">街拍</button>
+    <button class="style-btn" data-style="studio">影棚</button>
+    <button class="style-btn" data-style="outdoor">户外</button>
+  </div>
+
+  <button class="gen" id="genBtn">生成穿搭</button>
+  <div id="status"></div>
+  <div id="result"></div>
+  <input type="file" id="file" accept="image/*">
+</div>
+<script>
+const images = {};
+let currentKey = null;
+let bg = "street";
+const fileInput = document.getElementById("file");
+
+document.querySelectorAll(".slot").forEach(el => {
+  el.addEventListener("click", () => { currentKey = el.dataset.key; fileInput.click(); });
+});
+fileInput.addEventListener("change", () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    images[currentKey] = { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" };
+    const slot = document.querySelector(`.slot[data-key="${currentKey}"]`);
+    slot.querySelector("img")?.remove();
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    slot.prepend(img);
+  };
+  reader.readAsDataURL(f);
+  fileInput.value = "";
+});
+document.querySelectorAll(".style-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".style-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    bg = b.dataset.style;
+  });
+});
+document.getElementById("genBtn").addEventListener("click", async () => {
+  const items = {};
+  for (const k of ["top","pants","shoes","hat"]) if (images[k]) items[k] = images[k];
+  if (Object.keys(items).length === 0) { alert("请至少上传一件单品"); return; }
+  const btn = document.getElementById("genBtn"), status = document.getElementById("status");
+  btn.disabled = true;
+  status.textContent = "生成中，约需 1 分钟…";
+  document.getElementById("result").innerHTML = "";
+  const t0 = Date.now();
+  const timer = setInterval(() => { status.textContent = `生成中… ${Math.round((Date.now()-t0)/1000)}s`; }, 1000);
+  try {
+    const resp = await fetch("/api/tryon", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items, personImage: images.person || undefined, backgroundStyle: bg })
+    });
+    const data = await resp.json();
+    clearInterval(timer);
+    if (!resp.ok) { status.textContent = "失败：" + (data.details || data.error); }
+    else {
+      status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
+      document.getElementById("result").innerHTML = `<img src="${data.image}">`;
+    }
+  } catch (e) {
+    clearInterval(timer);
+    status.textContent = "请求出错：" + e.message;
+  } finally { btn.disabled = false; }
+});
+</script>
+</body>
+</html>
