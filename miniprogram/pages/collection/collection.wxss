@@ -5,7 +5,7 @@
 .card-name { display: flex; align-items: center; justify-content: space-between; padding: 12rpx 18rpx 8rpx; }
 .name-text { font-size: 24rpx; font-weight: 600; }
 .name-empty { color: #8a8a99; font-weight: 400; }
-.name-edit { font-size: 24rpx; color: #6c5ce7; padding-left: 12rpx; }
+.name-edit { font-size: 24rpx; color: #5c7c8d; padding-left: 12rpx; }
 .card-img { width: 100%; height: 420rpx; display: block; }
 .card-parts { padding: 12rpx 18rpx 0; }
 .parts-tip { font-size: 20rpx; color: #8a8a99; }
@@ -13,9 +13,9 @@
 .part { display: inline-block; position: relative; margin-right: 10rpx; }
 .part-img { width: 110rpx; height: 110rpx; border-radius: 12rpx; border: 1rpx solid #ececf2; }
 .part-cat { position: absolute; left: 6rpx; bottom: 10rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 16rpx; padding: 2rpx 8rpx; border-radius: 10rpx; }
-.part.sel .part-img { border: 4rpx solid #6c5ce7; box-sizing: border-box; }
-.part-check { position: absolute; top: 4rpx; right: 8rpx; color: #6c5ce7; font-weight: 700; font-size: 24rpx; }
-.use-parts { margin-top: 12rpx; width: 100% !important; background: #6c5ce7; color: #fff; font-size: 24rpx; border-radius: 12rpx; }
+.part.sel .part-img { border: 4rpx solid #5c7c8d; box-sizing: border-box; }
+.part-check { position: absolute; top: 4rpx; right: 8rpx; color: #5c7c8d; font-weight: 700; font-size: 24rpx; }
+.use-parts { margin-top: 12rpx; width: 100% !important; background: #5c7c8d; color: #fff; font-size: 24rpx; border-radius: 12rpx; }
 .use-parts[disabled] { background: #d5d5e0; color: #fff; }
 .card-bar { display: flex; align-items: center; justify-content: space-between; padding: 14rpx 18rpx; }
 .card-date { font-size: 20rpx; color: #8a8a99; }

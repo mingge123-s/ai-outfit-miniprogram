@@ -6,7 +6,7 @@ page {
 }
 
 .gradient-btn {
-  background: linear-gradient(135deg, #3525cd 0%, #831ada 100%);
+  background: #5c7c8d;
   color: #ffffff;
 }
 

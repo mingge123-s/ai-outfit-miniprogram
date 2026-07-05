@@ -5,37 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI 穿搭生成 - 测试页</title>
 <style>
+  :root {
+    --accent: #5c7c8d;        /* 雾霾蓝灰 */
+    --accent-deep: #47616f;
+    --accent-bg: #eef3f5;     /* 浅蓝灰底 */
+    --line: #e2e6e9;
+    --text: #33393e;
+    --text-sub: #8b949b;
+    --gold: #b99a5f;          /* 会员金，低饱和 */
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f6f6f8; color: #1c1c28; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f7f8f8; color: var(--text); }
   .wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
   h1 { font-size: 20px; margin-bottom: 4px; }
   .sub { color: #8a8a99; font-size: 13px; margin-bottom: 12px; }
-  #userbar { font-size: 12px; color: #6c5ce7; background: #edeaff; border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
+  #userbar { font-size: 12px; color: var(--accent); background: var(--accent-bg); border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
   h2 { font-size: 15px; margin: 18px 0 10px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .slot { background: #fff; border: 1.5px dashed #d5d5e0; border-radius: 12px; height: 120px;
+  .slot { background: #fff; border: 1.5px dashed var(--line); border-radius: 12px; height: 120px;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           cursor: pointer; overflow: hidden; position: relative; }
   .slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-  .slot span { font-size: 13px; color: #8a8a99; z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
-  .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: #6c5ce7; color: #fff;
+  .slot span { font-size: 13px; color: var(--text-sub); z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
+  .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: var(--accent); color: #fff;
                border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
   .slot .slot-del { position: absolute; top: 6px; right: 6px; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
                     border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
   .person { height: 140px; }
   .styles { display: flex; flex-wrap: wrap; gap: 8px; }
-  .style-btn { flex: 0 0 calc((100% - 24px) / 4); padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
-  #customBg { display: none; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 10px 12px; border: 1.5px solid #d5d5e0; border-radius: 10px; font-size: 14px; }
+  .style-btn { flex: 0 0 calc((100% - 24px) / 4); padding: 10px 0; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-size: 14px; cursor: pointer; color: var(--text); }
+  #customBg { display: none; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; }
   #customBg.open { display: block; }
-  .style-btn.active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
-  .gen { width: 100%; margin-top: 22px; padding: 14px 0; border: 0; border-radius: 12px;
-         background: linear-gradient(90deg,#6c5ce7,#a55eea); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .style-btn.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-deep); font-weight: 600; }
+  .gen { width: 100%; margin-top: 22px; padding: 15px 0; border: 0; border-radius: 12px;
+         background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(92,124,141,.3); }
+  .gen:hover { background: var(--accent-deep); }
   .gen:disabled { opacity: .5; }
-  #status { margin-top: 12px; text-align: center; font-size: 14px; color: #6c5ce7; min-height: 20px; }
+  .quota-hint { text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 8px; }
+  #status { margin-top: 12px; text-align: center; font-size: 14px; color: var(--accent); min-height: 20px; }
   #result { margin-top: 16px; }
   #result img { width: 100%; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
-  .sec-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 12px; border: 1.5px solid #6c5ce7;
-             background: #edeaff; color: #6c5ce7; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .sec-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 12px; border: 1.5px solid var(--accent);
+             background: var(--accent-bg); color: var(--accent-deep); font-size: 15px; font-weight: 600; cursor: pointer; }
   .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
   .thumb { position: relative; width: 92px; height: 92px; border-radius: 10px; overflow: hidden; background: #fff; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -43,15 +54,15 @@
                 border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
   .thumb .cat { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); color: #fff;
                 font-size: 10px; padding: 1px 6px; border-radius: 8px; }
-  .muted { color: #8a8a99; font-size: 13px; }
+  .muted { color: var(--text-sub); font-size: 13px; }
   input[type=file] { display: none; }
   .wrap { padding-bottom: 86px; }
   .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 420px; margin: 0 auto;
           display: flex; background: #fff; border-top: 1px solid #ececf2; padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); }
-  .tab-btn { flex: 1; padding: 8px 0; border: 0; border-radius: 10px; background: transparent; color: #8a8a99; font-size: 13px; cursor: pointer; }
+  .tab-btn { flex: 1; padding: 8px 0; border: 0; border-radius: 10px; background: transparent; color: var(--text-sub); font-size: 13px; cursor: pointer; }
   .tab-btn .ico { display: block; font-size: 20px; line-height: 1.2; }
-  .tab-btn.active { color: #6c5ce7; font-weight: 600; }
-  .tab-btn.active .muted { color: #6c5ce7; }
+  .tab-btn.active { color: var(--accent-deep); font-weight: 600; background: var(--accent-bg); }
+  .tab-btn.active .muted { color: var(--accent-deep); }
   .outfit-card { background: #fff; border-radius: 12px; padding: 10px; margin-bottom: 12px; }
   .outfit-card .main { position: relative; cursor: pointer; }
   .outfit-card .main > img { width: 100%; border-radius: 10px; display: block; }
@@ -62,32 +73,35 @@
   .outfit-items .tip { font-size: 12px; color: #8a8a99; margin-bottom: 6px; }
   .outfit-items .row { display: flex; gap: 8px; overflow-x: auto; }
   .outfit-items .thumb { flex: 0 0 auto; width: 72px; height: 72px; border: 1px solid #ececf2; cursor: pointer; }
-  .outfit-items .thumb.sel { outline: 3px solid #6c5ce7; outline-offset: -3px; }
-  .outfit-items .thumb.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: #6c5ce7; font-weight: 700; }
-  .use-parts { margin-top: 10px; width: 100%; padding: 10px 0; border: 0; border-radius: 10px; background: #6c5ce7; color: #fff; font-size: 14px; cursor: pointer; }
+  .outfit-items .thumb.sel { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .outfit-items .thumb.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: var(--accent); font-weight: 700; }
+  .use-parts { margin-top: 10px; width: 100%; padding: 10px 0; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-size: 14px; cursor: pointer; }
   .use-parts:disabled { opacity: .4; }
   .me-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
   .me-card h3 { font-size: 14px; margin-bottom: 10px; }
   .me-row { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #f2f2f6; }
   .me-row:last-child { border-bottom: 0; }
-  .me-row .v { color: #8a8a99; }
-  .badge { background: #edeaff; color: #6c5ce7; font-size: 12px; padding: 2px 10px; border-radius: 10px; }
+  .me-row .v { color: var(--text-sub); }
+  .badge { background: var(--accent-bg); color: var(--accent-deep); font-size: 12px; padding: 2px 10px; border-radius: 10px; }
   .me-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 10px; border: 0; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .me-btn.primary { background: linear-gradient(90deg,#f7b733,#fc4a1a); color: #fff; }
-  .me-btn.plain { background: #fff; border: 1.5px solid #d5d5e0; color: #1c1c28; font-weight: 400; }
+  .me-btn.primary { background: var(--gold); color: #fff; }
+  .me-btn.plain { background: #fff; border: 1.5px solid var(--line); color: var(--text); font-weight: 400; }
   .tab { display: none; }
   .tab.active { display: block; }
-  .more-toggle { width: 100%; margin-top: 10px; padding: 10px 0; border: 1.5px dashed #d5d5e0; border-radius: 10px;
-                 background: #fff; color: #8a8a99; font-size: 13px; cursor: pointer; }
+  .more-toggle { width: 100%; margin-top: 10px; padding: 10px 0; border: 1.5px dashed var(--line); border-radius: 10px;
+                 background: #fff; color: var(--text-sub); font-size: 13px; cursor: pointer; }
   #moreGrid { display: none; margin-top: 10px; }
   #moreGrid.open { display: grid; }
   .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .cat-chip { padding: 6px 12px; border-radius: 14px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 13px; cursor: pointer; }
-  .cat-chip.active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
-  .group-title { font-size: 13px; color: #55556b; font-weight: 600; margin: 12px 0 6px; }
+  .cat-chip { padding: 6px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; font-size: 13px; cursor: pointer; }
+  .cat-chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-deep); font-weight: 600; }
+  .group-title { font-size: 13px; color: #5a6268; font-weight: 600; margin: 12px 0 6px; }
   .outfit-name { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   .outfit-name .nm { font-size: 14px; font-weight: 600; flex: 1; }
-  .outfit-name .rename { border: 0; background: #edeaff; color: #6c5ce7; border-radius: 8px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  .outfit-name .rename { border: 0; background: var(--accent-bg); color: var(--accent-deep); border-radius: 8px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  h2 .step { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 6px;
+             background: var(--accent); color: #fff; border-radius: 50%; font-size: 12px; font-weight: 600; vertical-align: -2px; }
+  h2 .opt { font-weight: 400; font-size: 12px; color: var(--text-sub); }
 </style>
 </head>
 <body>
@@ -98,10 +112,7 @@
 
   <div class="tab active" id="gen">
   <div id="genForm">
-  <h2>模特照片（可选）</h2>
-  <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
-
-  <h2>穿搭单品（至少一件，☆ 可收藏进衣柜）</h2>
+  <h2><span class="step">1</span>选穿搭单品 <span class="opt">至少一件，☆ 可收藏进衣柜</span></h2>
   <div class="grid">
     <div class="slot" data-key="top"><span>上衣</span></div>
     <div class="slot" data-key="pants"><span>裤子</span></div>
@@ -117,7 +128,7 @@
     <div class="slot" data-key="socks"><span>袜子</span></div>
   </div>
 
-  <h2>背景风格</h2>
+  <h2><span class="step">2</span>选背景风格</h2>
   <div class="styles">
     <button class="style-btn active" data-style="street">街拍</button>
     <button class="style-btn" data-style="studio">影棚</button>
@@ -132,7 +143,11 @@
   </div>
   <input type="text" id="customBg" placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…">
 
-  <button class="gen" id="genBtn">生成穿搭</button>
+  <h2><span class="step">3</span>模特照片 <span class="opt">可选，不传则由 AI 生成模特</span></h2>
+  <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
+
+  <button class="gen" id="genBtn">✨ 生成穿搭</button>
+  <div class="quota-hint" id="quotaHint"></div>
   </div>
   <div id="status"></div>
   <div id="result"></div>
@@ -350,6 +365,7 @@ async function refreshMe() {
   refreshPersonPhotos();
   refreshHistory();
   $("meQuota").textContent = `${me.remainingToday} / ${me.dailyLimit} 次`;
+  $("quotaHint").textContent = `今日剩余免费生成 ${me.remainingToday} 次`;
   $("meLevel").textContent = me.memberLevel === "free" ? "免费版" : me.memberLevel;
 }
 
@@ -492,6 +508,7 @@ $("genBtn").addEventListener("click", async () => {
     clearInterval(timer);
     if (task.status === "failed") throw new Error(task.error || "生成失败");
     status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）· 今日剩余 ${remainingToday} 次`;
+    $("quotaHint").textContent = `今日剩余免费生成 ${remainingToday} 次`;
     lastTaskId = taskId;
     lastItems = ALL_CATS.filter(k => images[k]).map(k =>
       images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });

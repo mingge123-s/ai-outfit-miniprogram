@@ -102,7 +102,7 @@
   font-size: 34rpx;
   font-weight: 600;
   box-shadow: 0 12rpx 30rpx rgba(99, 102, 241, 0.35);
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  background: #5c7c8d;
 }
 .collect-btn {
   width: 100%;
@@ -111,9 +111,9 @@
   border-radius: 999rpx;
   font-size: 34rpx;
   font-weight: 600;
-  color: #6c5ce7;
-  background: #edeaff;
-  border: 3rpx solid #6c5ce7;
+  color: #5c7c8d;
+  background: #eef3f5;
+  border: 3rpx solid #5c7c8d;
 }
 .regen-btn {
   width: 100%;

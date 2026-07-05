@@ -12,7 +12,7 @@
   font-size: 24rpx;
   font-weight: 600;
   letter-spacing: 4rpx;
-  color: #3525cd;
+  color: #5c7c8d;
   margin-bottom: 8rpx;
 }
 .hero-title {
@@ -25,7 +25,7 @@
 
 /* 虚线卡片 */
 .dashed {
-  border: 3rpx dashed #3525cd;
+  border: 3rpx dashed #5c7c8d;
   border-radius: 24rpx;
   background: #f3f4f5;
   position: relative;
@@ -67,7 +67,7 @@
 .person-label {
   font-size: 26rpx;
   font-weight: 600;
-  color: #3525cd;
+  color: #5c7c8d;
 }
 .person-hint {
   font-size: 22rpx;
@@ -90,7 +90,7 @@
 }
 .section-sub {
   font-size: 24rpx;
-  color: #3525cd;
+  color: #5c7c8d;
 }
 
 /* 单品网格 */
@@ -189,7 +189,7 @@
   font-weight: 600;
 }
 .chip-active {
-  background: #3525cd;
+  background: #5c7c8d;
   color: #ffffff;
   box-shadow: 0 6rpx 16rpx rgba(53, 37, 205, 0.3);
 }
@@ -243,7 +243,7 @@
 .loading-text {
   font-size: 32rpx;
   font-weight: 600;
-  color: #3525cd;
+  color: #5c7c8d;
 }
 .loading-hint {
   font-size: 24rpx;

@@ -1,13 +1,13 @@
 .page { padding: 24rpx 32rpx 60rpx; }
 
-.tip { font-size: 26rpx; color: #6c5ce7; background: #edeaff; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
+.tip { font-size: 26rpx; color: #5c7c8d; background: #eef3f5; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 24rpx; }
 .chip {
   flex: 0 0 calc((100% - 48rpx) / 4); text-align: center; padding: 16rpx 0; border-radius: 16rpx;
   background: #fff; border: 2rpx solid #e3e3ee; font-size: 26rpx; color: #55556b;
 }
-.chip-active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
+.chip-active { border-color: #5c7c8d; background: #eef3f5; color: #5c7c8d; font-weight: 600; }
 .chip-disabled { opacity: 0.4; }
 
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
@@ -20,7 +20,7 @@
   border: 2rpx dashed #c9c9dc; background: #fbfbfe;
 }
 .dashed { border: 2rpx dashed #c9c9dc; }
-.add-plus { font-size: 56rpx; color: #6c5ce7; line-height: 1; }
+.add-plus { font-size: 56rpx; color: #5c7c8d; line-height: 1; }
 .add-label { font-size: 24rpx; color: #8a8a99; margin-top: 8rpx; }
 
 .remove-btn {
