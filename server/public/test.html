@@ -88,10 +88,6 @@
   .me-btn.plain { background: #fff; border: 1.5px solid var(--line); color: var(--text); font-weight: 400; }
   .tab { display: none; }
   .tab.active { display: block; }
-  .more-toggle { width: 100%; margin-top: 8px; padding: 8px 0; border: 1.5px dashed var(--line); border-radius: 10px;
-                 background: #fff; color: var(--text-sub); font-size: 12px; cursor: pointer; }
-  #moreGrid { display: none; margin-top: 8px; }
-  #moreGrid.open { display: grid; }
   .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .cat-chip { padding: 6px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; font-size: 13px; cursor: pointer; }
   .cat-chip.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-deep); font-weight: 600; }
@@ -117,9 +113,6 @@
     <div class="slot" data-key="pants"><span>裤子</span></div>
     <div class="slot" data-key="shoes"><span>鞋子</span></div>
     <div class="slot" data-key="hat"><span>帽子</span></div>
-  </div>
-  <button class="more-toggle" id="moreToggle">▼ 更多配件（外套/裙装/配饰/袜子）</button>
-  <div class="grid" id="moreGrid">
     <div class="slot" data-key="coat"><span>外套</span></div>
     <div class="slot" data-key="dress"><span>裙装</span></div>
     <div class="slot" data-key="accessory"><span>配饰/包包</span></div>
@@ -270,6 +263,7 @@ function clearSlot(key) {
   slot.querySelector("img")?.remove();
   slot.querySelector(".fav")?.remove();
   slot.querySelector(".slot-del")?.remove();
+  updateGenBtn();
 }
 function setSlotImage(key, src) {
   const slot = document.querySelector(`.slot[data-key="${key}"]`);
@@ -283,12 +277,12 @@ function setSlotImage(key, src) {
   del.className = "slot-del"; del.textContent = "×"; del.title = "移除";
   del.onclick = (e) => { e.stopPropagation(); clearSlot(key); };
   slot.appendChild(del);
+  updateGenBtn();
   return slot;
 }
 
 function useWardrobeItem(it) {
   const cat = normCat(it.category);
-  ensureMoreOpen(cat);
   images[cat] = { wardrobeId: it.id, imageUrl: it.imageUrl };
   setSlotImage(cat, it.imageUrl);
   showTab("gen");
@@ -300,7 +294,6 @@ const normCat = (c) => c === "bag" ? "accessory" : c; // 包包归入配饰
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const ALL_CATS = Object.keys(CAT_LABELS).filter(c => c !== "bag");
-const MORE_CATS = ["coat", "dress", "accessory", "socks"];
 
 // 衣柜页直接上传：先选分类，再选图
 let uploadCat = "top";
@@ -316,13 +309,10 @@ for (const cat of ALL_CATS) {
 }
 $("wardrobeAddBtn").onclick = () => { currentKey = "__wardrobe_upload__"; fileInput.click(); };
 
-$("moreToggle").onclick = () => {
-  const open = $("moreGrid").classList.toggle("open");
-  $("moreToggle").textContent = (open ? "▲ 收起" : "▼ 更多配件（外套/裙装/包包/配饰/袜子）");
-};
-function ensureMoreOpen(cat) {
-  if (MORE_CATS.includes(cat) && !$("moreGrid").classList.contains("open")) $("moreToggle").click();
+function updateGenBtn() {
+  $("genBtn").disabled = !ALL_CATS.some(k => images[k]);
 }
+updateGenBtn();
 
 async function urlToB64(url) {
   const blob = await (await fetch(url)).blob();
@@ -425,7 +415,6 @@ async function refreshOutfits() {
     if (useBtn) useBtn.onclick = async () => {
       for (const t of card.querySelectorAll(".thumb.sel")) {
         const { cat, url } = t.dataset;
-        ensureMoreOpen(cat);
         images[cat] = { data: await urlToB64(url), mimeType: "image/png" };
         setSlotImage(cat, url);
       }
@@ -522,7 +511,7 @@ $("genBtn").addEventListener("click", async () => {
   } catch (e) {
     clearInterval(timer);
     status.textContent = "失败：" + e.message;
-  } finally { btn.disabled = false; }
+  } finally { updateGenBtn(); }
 });
 $("backBtn").addEventListener("click", () => {
   $("genForm").style.display = "";

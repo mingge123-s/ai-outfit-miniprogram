@@ -35,7 +35,6 @@ Page({
       { key: 'accessory', label: '配饰/包包', icon: '🧣', path: null },
       { key: 'socks', label: '袜子', icon: '🧦', path: null }
     ],
-    showMore: false,
     styles: [
       { key: 'street', label: '街拍' },
       { key: 'studio', label: '影棚' },
@@ -92,7 +91,6 @@ Page({
           update[`items[${index}].path`] = p.path;
           update[`items[${index}].wardrobeId`] = null;
           update[`items[${index}].imageUrl`] = null;
-          if (index >= 4) update.showMore = true;
         }
       }
       this.setData(update, () => this.updateCanGenerate());
@@ -109,8 +107,7 @@ Page({
           {
             [`items[${index}].path`]: null,
             [`items[${index}].wardrobeId`]: pick.item.id,
-            [`items[${index}].imageUrl`]: `${API_BASE_URL}${pick.item.imageUrl}`,
-            showMore: this.data.showMore || index >= 4
+            [`items[${index}].imageUrl`]: `${API_BASE_URL}${pick.item.imageUrl}`
           },
           () => this.updateCanGenerate()
         );
@@ -165,9 +162,6 @@ Page({
     }
   },
 
-  toggleMore() {
-    this.setData({ showMore: !this.data.showMore });
-  },
 
   chooseStyle(e) {
     this.setData({ backgroundStyle: e.currentTarget.dataset.key });

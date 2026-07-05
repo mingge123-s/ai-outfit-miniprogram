@@ -14,7 +14,6 @@
     <view
       wx:for="{{items}}"
       wx:key="key"
-      wx:if="{{index < 4}}"
       class="item-card dashed {{item.path || item.wardrobeId ? 'filled' : ''}}"
       data-index="{{index}}"
       bindtap="chooseItem"
@@ -33,31 +32,6 @@
     </view>
   </view>
 
-  <view class="more-toggle" bindtap="toggleMore">
-    {{showMore ? '▲ 收起更多配件' : '▼ 更多配件（外套/裙装/配饰/袜子）'}}
-  </view>
-  <view class="grid" wx:if="{{showMore}}">
-    <view
-      wx:for="{{items}}"
-      wx:key="key"
-      wx:if="{{index >= 4}}"
-      class="item-card dashed {{item.path || item.wardrobeId ? 'filled' : ''}}"
-      data-index="{{index}}"
-      bindtap="chooseItem"
-    >
-      <block wx:if="{{item.path || item.wardrobeId}}">
-        <image class="item-preview" src="{{item.path || item.imageUrl}}" mode="aspectFill" />
-        <view class="remove-btn" catchtap="removeItem" data-index="{{index}}">×</view>
-        <view class="fav-btn" wx:if="{{item.path}}" catchtap="saveItemToWardrobe" data-index="{{index}}">☆</view>
-        <view class="item-tag">{{item.label}}{{item.wardrobeId ? ' · 衣柜' : ''}}</view>
-      </block>
-      <block wx:else>
-        <text class="item-icon">{{item.icon}}</text>
-        <text class="item-label">{{item.label}}</text>
-        <text class="item-hint">CLICK TO UPLOAD</text>
-      </block>
-    </view>
-  </view>
 
   <!-- 背景风格 -->
   <view class="section-head">
