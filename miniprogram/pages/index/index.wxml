@@ -5,24 +5,9 @@
     <text class="hero-title">即刻开启\n数字时尚之旅</text>
   </view>
 
-  <!-- 模特照片（可选） -->
-  <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
-    <block wx:if="{{person || personUrl}}">
-      <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
-      <view class="remove-btn" catchtap="removePerson">×</view>
-    </block>
-    <block wx:else>
-      <view class="person-icon-wrap">
-        <text class="person-icon">👤</text>
-      </view>
-      <text class="person-label">模特照片（可选）</text>
-      <text class="person-hint">上传你的全身照，体验更真实的试穿效果</text>
-    </block>
-  </view>
-
   <!-- 穿搭单品 -->
   <view class="section-head">
-    <text class="section-title">穿搭单品</text>
+    <text class="section-title">① 选穿搭单品</text>
     <text class="section-sub">至少上传 1 件</text>
   </view>
   <view class="grid">
@@ -76,7 +61,7 @@
 
   <!-- 背景风格 -->
   <view class="section-head">
-    <text class="section-title">背景风格</text>
+    <text class="section-title">② 选背景风格</text>
   </view>
   <view class="chips">
     <view
@@ -94,6 +79,24 @@
     value="{{customBackground}}"
     bindinput="onCustomBgInput"
   />
+
+  <!-- 模特照片（可选） -->
+  <view class="section-head">
+    <text class="section-title">③ 模特照片</text>
+    <text class="section-sub">可选，不传则由 AI 生成模特</text>
+  </view>
+  <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
+    <block wx:if="{{person || personUrl}}">
+      <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
+      <view class="remove-btn" catchtap="removePerson">×</view>
+    </block>
+    <block wx:else>
+      <view class="person-icon-wrap">
+        <text class="person-icon">👤</text>
+      </view>
+      <text class="person-label">点击上传全身照</text>
+    </block>
+  </view>
 
   <!-- 底部按钮 -->
   <view class="bottom-bar">

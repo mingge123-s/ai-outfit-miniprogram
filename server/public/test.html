@@ -16,39 +16,39 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f7f8f8; color: var(--text); }
-  .wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  .sub { color: #8a8a99; font-size: 13px; margin-bottom: 12px; }
-  #userbar { font-size: 12px; color: var(--accent); background: var(--accent-bg); border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
-  h2 { font-size: 15px; margin: 18px 0 10px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .slot { background: #fff; border: 1.5px dashed var(--line); border-radius: 12px; height: 120px;
+  .wrap { max-width: 420px; margin: 0 auto; padding: 10px 14px 30px; }
+  h1 { font-size: 17px; margin-bottom: 2px; display: inline; }
+  .sub { color: #8a8a99; font-size: 12px; margin-bottom: 6px; }
+  #userbar { font-size: 11px; color: var(--accent); background: var(--accent-bg); border-radius: 8px; padding: 4px 8px; margin-bottom: 8px; }
+  h2 { font-size: 14px; margin: 12px 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot { background: #fff; border: 1.5px dashed var(--line); border-radius: 10px; height: 82px;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           cursor: pointer; overflow: hidden; position: relative; }
   .slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-  .slot span { font-size: 13px; color: var(--text-sub); z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
-  .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: var(--accent); color: #fff;
-               border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
-  .slot .slot-del { position: absolute; top: 6px; right: 6px; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
-                    border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
-  .person { height: 140px; }
-  .styles { display: flex; flex-wrap: wrap; gap: 8px; }
-  .style-btn { flex: 0 0 calc((100% - 24px) / 4); padding: 10px 0; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-size: 14px; cursor: pointer; color: var(--text); }
-  #customBg { display: none; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; }
+  .slot span { font-size: 12px; color: var(--text-sub); z-index: 1; background: rgba(255,255,255,.8); padding: 2px 6px; border-radius: 8px; }
+  .slot .fav { position: absolute; top: 4px; left: 4px; z-index: 2; background: var(--accent); color: #fff;
+               border: 0; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
+  .slot .slot-del { position: absolute; top: 4px; right: 4px; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
+                    border: 0; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
+  .person { height: 96px; }
+  .styles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .style-btn { flex: 0 0 calc((100% - 30px) / 6); padding: 8px 0; border-radius: 9px; border: 1.5px solid var(--line); background: #fff; font-size: 12px; cursor: pointer; color: var(--text); }
+  #customBg { display: none; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 13px; }
   #customBg.open { display: block; }
   .style-btn.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-deep); font-weight: 600; }
-  .gen { width: 100%; margin-top: 22px; padding: 15px 0; border: 0; border-radius: 12px;
+  .gen { width: 100%; margin-top: 14px; padding: 13px 0; border: 0; border-radius: 12px;
          background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(92,124,141,.3); }
   .gen:hover { background: var(--accent-deep); }
   .gen:disabled { opacity: .5; }
-  .quota-hint { text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 8px; }
+  .quota-hint { text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 6px; }
   #status { margin-top: 12px; text-align: center; font-size: 14px; color: var(--accent); min-height: 20px; }
   #result { margin-top: 16px; }
   #result img { width: 100%; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12); }
   .sec-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 12px; border: 1.5px solid var(--accent);
              background: var(--accent-bg); color: var(--accent-deep); font-size: 15px; font-weight: 600; cursor: pointer; }
   .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
-  .thumb { position: relative; width: 92px; height: 92px; border-radius: 10px; overflow: hidden; background: #fff; }
+  .thumb { position: relative; width: 78px; height: 78px; border-radius: 10px; overflow: hidden; background: #fff; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; }
   .thumb .del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.6); color: #fff; border: 0;
                 border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
@@ -77,20 +77,20 @@
   .outfit-items .thumb.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: var(--accent); font-weight: 700; }
   .use-parts { margin-top: 10px; width: 100%; padding: 10px 0; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-size: 14px; cursor: pointer; }
   .use-parts:disabled { opacity: .4; }
-  .me-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-  .me-card h3 { font-size: 14px; margin-bottom: 10px; }
-  .me-row { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #f2f2f6; }
+  .me-card { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .me-card h3 { font-size: 13px; margin-bottom: 6px; }
+  .me-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f2f2f6; }
   .me-row:last-child { border-bottom: 0; }
   .me-row .v { color: var(--text-sub); }
   .badge { background: var(--accent-bg); color: var(--accent-deep); font-size: 12px; padding: 2px 10px; border-radius: 10px; }
-  .me-btn { width: 100%; margin-top: 10px; padding: 12px 0; border-radius: 10px; border: 0; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .me-btn { width: 100%; margin-top: 8px; padding: 10px 0; border-radius: 10px; border: 0; font-size: 14px; font-weight: 600; cursor: pointer; }
   .me-btn.primary { background: var(--gold); color: #fff; }
   .me-btn.plain { background: #fff; border: 1.5px solid var(--line); color: var(--text); font-weight: 400; }
   .tab { display: none; }
   .tab.active { display: block; }
-  .more-toggle { width: 100%; margin-top: 10px; padding: 10px 0; border: 1.5px dashed var(--line); border-radius: 10px;
-                 background: #fff; color: var(--text-sub); font-size: 13px; cursor: pointer; }
-  #moreGrid { display: none; margin-top: 10px; }
+  .more-toggle { width: 100%; margin-top: 8px; padding: 8px 0; border: 1.5px dashed var(--line); border-radius: 10px;
+                 background: #fff; color: var(--text-sub); font-size: 12px; cursor: pointer; }
+  #moreGrid { display: none; margin-top: 8px; }
   #moreGrid.open { display: grid; }
   .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .cat-chip { padding: 6px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; font-size: 13px; cursor: pointer; }
@@ -106,8 +106,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>AI 穿搭生成（测试页）</h1>
-  <div class="sub">与小程序相同流程，调用同一后端 /api/*</div>
+  <div class="sub"><h1>AI 穿搭生成</h1> · 测试页，与小程序调用同一后端</div>
   <div id="userbar">登录中…</div>
 
   <div class="tab active" id="gen">
@@ -144,7 +143,7 @@
   <input type="text" id="customBg" placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…">
 
   <h2><span class="step">3</span>模特照片 <span class="opt">可选，不传则由 AI 生成模特</span></h2>
-  <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
+  <div class="grid"><div class="slot person" data-key="person"><span>上传全身照</span></div></div>
 
   <button class="gen" id="genBtn">✨ 生成穿搭</button>
   <div class="quota-hint" id="quotaHint"></div>
