@@ -72,8 +72,20 @@ Page({
     }
   },
 
-  async collectOutfit() {
+  collectOutfit() {
     if (this.data.collecting || this.data.collected) return;
+    wx.showModal({
+      title: '套装名字',
+      editable: true,
+      placeholderText: '给这套穿搭取个名字（可留空）',
+      success: (res) => {
+        if (!res.confirm) return;
+        this.doCollect(res.content || '');
+      }
+    });
+  },
+
+  async doCollect(name) {
     this.setData({ collecting: true });
     try {
       const result = app.globalData.lastResult;
@@ -86,7 +98,7 @@ Page({
               : { category, data: v.data, mimeType: v.mimeType };
           })
         : [];
-      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle, undefined, items);
+      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle, undefined, items, name);
       this.setData({ collected: true });
       wx.showToast({ title: '已收藏套装', icon: 'success' });
     } catch (err) {

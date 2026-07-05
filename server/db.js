@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS person_photos (
 );
 `);
 try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
+try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 
 export function saveImage(base64, mimeType = "image/png") {
   const ext = (mimeType.split("/")[1] || "png").replace("jpeg", "jpg");
@@ -121,9 +122,14 @@ export const outfits = {
   list(userId) {
     return db.prepare("SELECT * FROM outfits WHERE user_id = ? ORDER BY id DESC").all(userId);
   },
-  add(userId, imageFile, background, description, itemsJson) {
-    const info = db.prepare("INSERT INTO outfits (user_id, image_file, background, description, items_json) VALUES (?, ?, ?, ?, ?)").run(userId, imageFile, background || null, description || null, itemsJson || null);
+  add(userId, imageFile, background, description, itemsJson, name) {
+    const info = db.prepare("INSERT INTO outfits (user_id, image_file, background, description, items_json, name) VALUES (?, ?, ?, ?, ?, ?)").run(userId, imageFile, background || null, description || null, itemsJson || null, name || null);
     return db.prepare("SELECT * FROM outfits WHERE id = ?").get(info.lastInsertRowid);
+  },
+  rename(userId, id, name) {
+    const info = db.prepare("UPDATE outfits SET name = ? WHERE id = ? AND user_id = ?").run(name || null, id, userId);
+    if (!info.changes) return null;
+    return db.prepare("SELECT * FROM outfits WHERE id = ?").get(id);
   },
   remove(userId, id) {
     const item = db.prepare("SELECT * FROM outfits WHERE id = ? AND user_id = ?").get(id, userId);

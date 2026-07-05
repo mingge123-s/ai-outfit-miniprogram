@@ -1,6 +1,10 @@
 <view class="page">
   <view class="grid">
     <view class="card" wx:for="{{items}}" wx:key="id">
+      <view class="card-name" data-item="{{item}}" bindtap="rename">
+        <text class="name-text {{item.name ? '' : 'name-empty'}}">{{item.name || '未命名套装'}}</text>
+        <text class="name-edit">✎</text>
+      </view>
       <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-id="{{item.id}}" bindtap="toggleItems" />
       <view class="card-parts" wx:if="{{openId === item.id}}">
         <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件（点击预选，可多选）</text>

@@ -136,13 +136,13 @@ const parseOutfitItems = (o) => {
 };
 app.get("/api/outfits", requireAuth, (req, res) => {
   const items = outfits.list(req.user.id).map((o) => ({
-    id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description,
+    id: o.id, name: o.name || null, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description,
     items: parseOutfitItems(o), createdAt: o.created_at,
   }));
   res.json({ items });
 });
 app.post("/api/outfits", requireAuth, (req, res) => {
-  const { image, backgroundStyle, description, items } = req.body || {};
+  const { image, backgroundStyle, description, items, name } = req.body || {};
   let data = image?.data;
   if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
   if (!data) return res.status(400).json({ error: "缺少图片数据" });
@@ -162,9 +162,18 @@ app.post("/api/outfits", requireAuth, (req, res) => {
     }
   }
 
-  const o = outfits.add(req.user.id, file, backgroundStyle, description, savedItems.length ? JSON.stringify(savedItems) : null);
-  res.json({ outfit: { id: o.id, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, items: parseOutfitItems(o), createdAt: o.created_at } });
+  const outfitName = typeof name === "string" ? name.trim().slice(0, 30) : "";
+  const o = outfits.add(req.user.id, file, backgroundStyle, description, savedItems.length ? JSON.stringify(savedItems) : null, outfitName || null);
+  res.json({ outfit: { id: o.id, name: o.name || null, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, items: parseOutfitItems(o), createdAt: o.created_at } });
 });
+const renameOutfit = (req, res) => {
+  const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 30) : "";
+  const o = outfits.rename(req.user.id, Number(req.params.id), name || null);
+  if (!o) return res.status(404).json({ error: "不存在" });
+  res.json({ outfit: { id: o.id, name: o.name || null, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description, items: parseOutfitItems(o), createdAt: o.created_at } });
+};
+app.patch("/api/outfits/:id", requireAuth, renameOutfit);
+app.put("/api/outfits/:id", requireAuth, renameOutfit); // wx.request 不支持 PATCH
 app.delete("/api/outfits/:id", requireAuth, (req, res) => {
   const ok = outfits.remove(req.user.id, Number(req.params.id));
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });

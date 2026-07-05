@@ -84,6 +84,25 @@ Page({
     });
   },
 
+  rename(e) {
+    const item = e.currentTarget.dataset.item;
+    wx.showModal({
+      title: '套装名字',
+      editable: true,
+      placeholderText: '给这套穿搭取个名字',
+      content: item.name || '',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await api.outfits.rename(item.id, res.content || '');
+          this.refresh();
+        } catch (err) {
+          wx.showToast({ title: err.message || '改名失败', icon: 'none' });
+        }
+      }
+    });
+  },
+
   remove(e) {
     const id = e.currentTarget.dataset.id;
     wx.showModal({

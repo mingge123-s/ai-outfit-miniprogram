@@ -81,6 +81,13 @@
                  background: #fff; color: #8a8a99; font-size: 13px; cursor: pointer; }
   #moreGrid { display: none; margin-top: 10px; }
   #moreGrid.open { display: grid; }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .cat-chip { padding: 6px 12px; border-radius: 14px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 13px; cursor: pointer; }
+  .cat-chip.active { border-color: #6c5ce7; background: #edeaff; color: #6c5ce7; font-weight: 600; }
+  .group-title { font-size: 13px; color: #55556b; font-weight: 600; margin: 12px 0 6px; }
+  .outfit-name { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .outfit-name .nm { font-size: 14px; font-weight: 600; flex: 1; }
+  .outfit-name .rename { border: 0; background: #edeaff; color: #6c5ce7; border-radius: 8px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -136,7 +143,10 @@
   <div class="tab" id="wardrobeTab">
     <h2>我的衣柜</h2>
     <div class="muted" style="margin-bottom:10px">点击单品可直接用于生成（自动切回生成页）</div>
-    <div class="thumbs" id="wardrobe"><span class="muted">（空）</span></div>
+    <div class="muted" style="margin-bottom:6px">上传到分类：</div>
+    <div class="cat-chips" id="uploadCats"></div>
+    <button class="me-btn plain" id="wardrobeAddBtn" style="margin:0 0 14px">＋ 上传添加单品</button>
+    <div id="wardrobe"><span class="muted">（空）</span></div>
   </div>
 
   <div class="tab" id="outfitsTab">
@@ -213,16 +223,28 @@ async function refreshWardrobe() {
   const { items } = await api("GET", "/api/wardrobe");
   $("wcount").textContent = items.length ? `（${items.length} 件）` : "";
   $("wardrobe").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
-  const labels = CAT_LABELS;
-  for (const it of items) {
-    const d = document.createElement("div");
-    d.className = "thumb";
-    d.innerHTML = `<img src="${it.imageUrl}" title="点击用于生成"><button class="del">×</button><span class="cat">${labels[it.category]}</span>`;
-    d.querySelector("img").onclick = () => useWardrobeItem(it);
-    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/wardrobe/" + it.id); refreshWardrobe(); };
-    $("wardrobe").appendChild(d);
+  // 按分类分组展示
+  for (const cat of ALL_CATS) {
+    const group = items.filter(it => it.category === cat);
+    if (!group.length) continue;
+    const title = document.createElement("div");
+    title.className = "group-title";
+    title.textContent = `${CAT_LABELS[cat]}（${group.length}）`;
+    $("wardrobe").appendChild(title);
+    const row = document.createElement("div");
+    row.className = "thumbs";
+    for (const it of group) {
+      const d = document.createElement("div");
+      d.className = "thumb";
+      d.innerHTML = `<img src="${it.imageUrl}" title="点击用于生成"><button class="del">×</button><span class="cat">${CAT_LABELS[it.category]}</span>`;
+      d.querySelector("img").onclick = () => useWardrobeItem(it);
+      d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/wardrobe/" + it.id); refreshWardrobe(); };
+      row.appendChild(d);
+    }
+    $("wardrobe").appendChild(row);
   }
 }
+
 
 function clearSlot(key) {
   delete images[key];
@@ -255,8 +277,24 @@ function useWardrobeItem(it) {
 }
 
 const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子", coat: "外套", dress: "裙装", bag: "包包", accessory: "配饰", socks: "袜子" };
+const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 const ALL_CATS = Object.keys(CAT_LABELS);
 const MORE_CATS = ["coat", "dress", "bag", "accessory", "socks"];
+
+// 衣柜页直接上传：先选分类，再选图
+let uploadCat = "top";
+for (const cat of ALL_CATS) {
+  const b = document.createElement("button");
+  b.className = "cat-chip" + (cat === uploadCat ? " active" : "");
+  b.textContent = CAT_LABELS[cat];
+  b.onclick = () => {
+    uploadCat = cat;
+    document.querySelectorAll(".cat-chip").forEach(x => x.classList.toggle("active", x === b));
+  };
+  $("uploadCats").appendChild(b);
+}
+$("wardrobeAddBtn").onclick = () => { currentKey = "__wardrobe_upload__"; fileInput.click(); };
 
 $("moreToggle").onclick = () => {
   const open = $("moreGrid").classList.toggle("open");
@@ -323,6 +361,7 @@ async function refreshOutfits() {
     const parts = (it.items || []).map(p =>
       `<div class="thumb" data-cat="${p.category}" data-url="${p.imageUrl}"><img src="${p.imageUrl}"><span class="cat">${CAT_LABELS[p.category] || p.category}</span></div>`).join("");
     card.innerHTML = `
+      <div class="outfit-name"><span class="nm">${it.name ? escapeHtml(it.name) : '<span class="muted">未命名套装</span>'}</span><button class="rename">✎ 改名</button></div>
       <div class="main"><img src="${it.imageUrl}"><button class="del">×</button></div>
       <div class="outfit-items">
         <div class="tip">生成时的单品配件（点击配件预选，可多选）</div>
@@ -330,6 +369,12 @@ async function refreshOutfits() {
         ${parts ? '<button class="use-parts" disabled>把选中配件填入生成页</button>' : ""}
       </div>`;
     card.querySelector(".main img").onclick = () => card.classList.toggle("open");
+    card.querySelector(".rename").onclick = async () => {
+      const name = prompt("给这套穿搭取个名字（最多 30 字）", it.name || "");
+      if (name === null) return;
+      try { await api("PATCH", "/api/outfits/" + it.id, { name }); refreshOutfits(); }
+      catch (e) { alert("改名失败: " + e.message); }
+    };
     card.querySelector(".del").onclick = async (e) => { e.stopPropagation(); await api("DELETE", "/api/outfits/" + it.id); refreshOutfits(); };
     const useBtn = card.querySelector(".use-parts");
     card.querySelectorAll(".outfit-items .thumb").forEach(t => {
@@ -370,6 +415,13 @@ fileInput.addEventListener("change", () => {
       try {
         await api("POST", "/api/person-photos", { image: { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" } });
         refreshPersonPhotos(); refreshMe();
+      } catch (err) { alert("上传失败: " + err.message); }
+      return;
+    }
+    if (currentKey === "__wardrobe_upload__") {
+      try {
+        await api("POST", "/api/wardrobe", { category: uploadCat, image: { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" } });
+        refreshWardrobe(); refreshMe();
       } catch (err) { alert("上传失败: " + err.message); }
       return;
     }
@@ -436,9 +488,11 @@ $("backBtn").addEventListener("click", () => {
 });
 $("collectBtn").addEventListener("click", async () => {
   if (!lastImage) return;
+  const name = prompt("给这套穿搭取个名字（可留空，最多 30 字）", "");
+  if (name === null) return;
   $("collectBtn").disabled = true;
   try {
-    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg, items: lastItems });
+    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg, items: lastItems, name });
     $("collectBtn").textContent = "★ 已收藏";
     refreshOutfits();
   } catch (e) {
