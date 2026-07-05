@@ -10,10 +10,18 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/+$/, "");
-// PROVIDER: "gemini" | "openai"（openai 兼容接口，如 ai.gs88.shop 等代理网关）
-const PROVIDER = process.env.PROVIDER || (OPENAI_API_KEY ? "openai" : "gemini");
+const ARK_API_KEY = process.env.ARK_API_KEY || "";
+const ARK_BASE_URL = (process.env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3").replace(/\/+$/, "");
+// PROVIDER: "gemini" | "openai"（openai 兼容接口，如 ai.gs88.shop 等代理网关）| "ark"（火山方舟 豆包 Seedream）
+const PROVIDER =
+  process.env.PROVIDER || (ARK_API_KEY ? "ark" : OPENAI_API_KEY ? "openai" : "gemini");
 const MODEL_ID =
-  process.env.MODEL_ID || (PROVIDER === "openai" ? "gpt-image-2" : "gemini-2.5-flash-image-preview");
+  process.env.MODEL_ID ||
+  (PROVIDER === "openai"
+    ? "gpt-image-2"
+    : PROVIDER === "ark"
+      ? "doubao-seedream-5-0-260128"
+      : "gemini-2.5-flash-image-preview");
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
@@ -23,6 +31,9 @@ if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
 }
 if (PROVIDER === "openai" && !OPENAI_API_KEY) {
   console.error("Missing OPENAI_API_KEY environment variable.");
+}
+if (PROVIDER === "ark" && !ARK_API_KEY) {
+  console.error("Missing ARK_API_KEY environment variable.");
 }
 
 const ai = PROVIDER === "gemini" ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
@@ -294,6 +305,46 @@ async function generateWithOpenAI(prompt, images) {
   throw err;
 }
 
+async function generateWithArk(prompt, images) {
+  // 火山方舟 豆包 Seedream：/images/generations，支持多张参考图（data URL）
+  const body = {
+    model: MODEL_ID,
+    prompt,
+    image: images.map((img) => `data:${img.mimeType || "image/jpeg"};base64,${img.data}`),
+    sequential_image_generation: "disabled",
+    response_format: "b64_json",
+    size: process.env.ARK_SIZE || "2k",
+    watermark: false,
+  };
+  const resp = await fetch(`${ARK_BASE_URL}/images/generations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${ARK_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = (await resp.text()).trim();
+  if (!resp.ok) {
+    const err = new Error(`生图 API 错误 (HTTP ${resp.status}): ${raw.slice(0, 300)}`);
+    err.statusCode = 502;
+    throw err;
+  }
+  const data = JSON.parse(raw);
+  const item = data.data?.[0];
+  if (item?.b64_json) {
+    return { imageData: item.b64_json, imageMimeType: "image/jpeg", textResponse: null };
+  }
+  if (item?.url) {
+    const imgResp = await fetch(item.url);
+    const buf = Buffer.from(await imgResp.arrayBuffer());
+    return { imageData: buf.toString("base64"), imageMimeType: "image/jpeg", textResponse: null };
+  }
+  const err = new Error(`生图 API 未返回图片数据: ${raw.slice(0, 300)}`);
+  err.statusCode = 502;
+  throw err;
+}
+
 app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model: MODEL_ID }));
 
 // POST /api/tryon
@@ -348,9 +399,11 @@ app.post("/api/tryon", async (req, res) => {
     }
 
     const { imageData, imageMimeType, textResponse } =
-      PROVIDER === "openai"
-        ? await generateWithOpenAI(prompt, images)
-        : await generateWithGemini(prompt, images);
+      PROVIDER === "ark"
+        ? await generateWithArk(prompt, images)
+        : PROVIDER === "openai"
+          ? await generateWithOpenAI(prompt, images)
+          : await generateWithGemini(prompt, images);
 
     return res.json({
       image: `data:${imageMimeType};base64,${imageData}`,
