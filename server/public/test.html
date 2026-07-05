@@ -99,6 +99,11 @@
              background: var(--accent); color: #fff; border-radius: 50%; font-size: 12px; font-weight: 600; vertical-align: -2px; }
   h2 .opt { font-weight: 400; font-size: 12px; color: var(--text-sub); }
   .slot:has(img) > span { display: none; }
+  .used-title { font-size: 13px; color: var(--text-sub); margin: 10px 0 6px; }
+  .used-row { display: flex; gap: 8px; overflow-x: auto; }
+  .used-item { flex: 0 0 auto; width: 76px; text-align: center; }
+  .used-item img { width: 76px; height: 76px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .used-item span { display: block; font-size: 12px; color: var(--text-sub); margin-top: 2px; }
   .person-row { display: flex; gap: 8px; align-items: stretch; }
   .switch-person { flex: 0 0 52px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff;
                    color: var(--accent-deep); font-size: 12px; line-height: 1.5; cursor: pointer; }
@@ -541,7 +546,13 @@ $("genBtn").addEventListener("click", async () => {
     lastTaskId = taskId;
     lastItems = ALL_CATS.filter(k => images[k]).map(k =>
       images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });
-    $("result").innerHTML = `<img src="${task.imageUrl}">`;
+    const usedHtml = ALL_CATS.filter(k => images[k]).map(k => {
+      const im = images[k];
+      const src = im.imageUrl || `data:${im.mimeType};base64,${im.data}`;
+      return `<div class="used-item"><img src="${src}"><span>${CAT_LABELS[k]}</span></div>`;
+    }).join("");
+    $("result").innerHTML = `<img src="${task.imageUrl}">` +
+      (usedHtml ? `<div class="used-title">本次使用的配件（对比看效果）</div><div class="used-row">${usedHtml}</div>` : "");
     $("genForm").style.display = "none";
     $("backBtn").style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
