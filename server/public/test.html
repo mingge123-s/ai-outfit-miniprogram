@@ -118,12 +118,11 @@
     <div class="slot" data-key="shoes"><span>鞋子</span></div>
     <div class="slot" data-key="hat"><span>帽子</span></div>
   </div>
-  <button class="more-toggle" id="moreToggle">▼ 更多配件（外套/裙装/包包/配饰/袜子）</button>
+  <button class="more-toggle" id="moreToggle">▼ 更多配件（外套/裙装/配饰/袜子）</button>
   <div class="grid" id="moreGrid">
     <div class="slot" data-key="coat"><span>外套</span></div>
     <div class="slot" data-key="dress"><span>裙装</span></div>
-    <div class="slot" data-key="bag"><span>包包</span></div>
-    <div class="slot" data-key="accessory"><span>配饰</span></div>
+    <div class="slot" data-key="accessory"><span>配饰/包包</span></div>
     <div class="slot" data-key="socks"><span>袜子</span></div>
   </div>
 
@@ -244,7 +243,7 @@ async function refreshWardrobe() {
   $("wardrobe").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
   // 按分类分组展示
   for (const cat of ALL_CATS) {
-    const group = items.filter(it => it.category === cat);
+    const group = items.filter(it => normCat(it.category) === cat);
     if (!group.length) continue;
     const title = document.createElement("div");
     title.className = "group-title";
@@ -255,7 +254,7 @@ async function refreshWardrobe() {
     for (const it of group) {
       const d = document.createElement("div");
       d.className = "thumb";
-      d.innerHTML = `<img src="${it.imageUrl}" title="点击用于生成"><button class="del">×</button><span class="cat">${CAT_LABELS[it.category]}</span>`;
+      d.innerHTML = `<img src="${it.imageUrl}" title="点击用于生成"><button class="del">×</button><span class="cat">${CAT_LABELS[normCat(it.category)]}</span>`;
       d.querySelector("img").onclick = () => useWardrobeItem(it);
       d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/wardrobe/" + it.id); refreshWardrobe(); };
       row.appendChild(d);
@@ -288,18 +287,20 @@ function setSlotImage(key, src) {
 }
 
 function useWardrobeItem(it) {
-  ensureMoreOpen(it.category);
-  images[it.category] = { wardrobeId: it.id, imageUrl: it.imageUrl };
-  setSlotImage(it.category, it.imageUrl);
+  const cat = normCat(it.category);
+  ensureMoreOpen(cat);
+  images[cat] = { wardrobeId: it.id, imageUrl: it.imageUrl };
+  setSlotImage(cat, it.imageUrl);
   showTab("gen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子", coat: "外套", dress: "裙装", bag: "包包", accessory: "配饰", socks: "袜子" };
+const CAT_LABELS = { top: "上衣", pants: "裤子", shoes: "鞋子", hat: "帽子", coat: "外套", dress: "裙装", bag: "包包", accessory: "配饰/包包", socks: "袜子" };
+const normCat = (c) => c === "bag" ? "accessory" : c; // 包包归入配饰
 const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const ALL_CATS = Object.keys(CAT_LABELS);
-const MORE_CATS = ["coat", "dress", "bag", "accessory", "socks"];
+const ALL_CATS = Object.keys(CAT_LABELS).filter(c => c !== "bag");
+const MORE_CATS = ["coat", "dress", "accessory", "socks"];
 
 // 衣柜页直接上传：先选分类，再选图
 let uploadCat = "top";

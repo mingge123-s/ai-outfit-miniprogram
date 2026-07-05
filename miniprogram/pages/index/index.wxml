@@ -34,7 +34,7 @@
   </view>
 
   <view class="more-toggle" bindtap="toggleMore">
-    {{showMore ? '▲ 收起更多配件' : '▼ 更多配件（外套/裙装/包包/配饰/袜子）'}}
+    {{showMore ? '▲ 收起更多配件' : '▼ 更多配件（外套/裙装/配饰/袜子）'}}
   </view>
   <view class="grid" wx:if="{{showMore}}">
     <view

@@ -32,8 +32,7 @@ Page({
       { key: 'hat', label: '帽子', icon: '🧢', path: null },
       { key: 'coat', label: '外套', icon: '🧥', path: null },
       { key: 'dress', label: '裙装', icon: '👗', path: null },
-      { key: 'bag', label: '包包', icon: '👜', path: null },
-      { key: 'accessory', label: '配饰', icon: '🧣', path: null },
+      { key: 'accessory', label: '配饰/包包', icon: '🧣', path: null },
       { key: 'socks', label: '袜子', icon: '🧦', path: null }
     ],
     showMore: false,

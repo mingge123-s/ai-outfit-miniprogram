@@ -7,8 +7,7 @@ const CATEGORIES = [
   { key: 'hat', label: '帽子', icon: '🧢' },
   { key: 'coat', label: '外套', icon: '🧥' },
   { key: 'dress', label: '裙装', icon: '👗' },
-  { key: 'bag', label: '包包', icon: '👜' },
-  { key: 'accessory', label: '配饰', icon: '🧣' },
+  { key: 'accessory', label: '配饰/包包', icon: '🧣' },
   { key: 'socks', label: '袜子', icon: '🧦' }
 ];
 
