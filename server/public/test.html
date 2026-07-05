@@ -154,8 +154,9 @@
   </div>
   <div id="status"></div>
   <div id="result"></div>
+  <button class="gen" id="regenBtn" style="display:none">🔄 不满意？重新生成一张</button>
   <button class="sec-btn" id="collectBtn" style="display:none">☆ 收藏套装</button>
-  <button class="sec-btn" id="backBtn" style="display:none">↩ 返回编辑 / 重新生成</button>
+  <button class="sec-btn" id="backBtn" style="display:none">↩ 返回编辑（换单品/背景）</button>
   </div>
 
   <div class="tab" id="wardrobeTab">
@@ -521,12 +522,13 @@ document.querySelectorAll(".style-btn").forEach(b => {
     $("customBg").classList.toggle("open", bg === "custom");
   });
 });
-$("genBtn").addEventListener("click", async () => {
+async function doGenerate() {
   const items = {};
   for (const k of ALL_CATS) if (images[k]) items[k] = images[k];
   if (Object.keys(items).length === 0) { alert("请至少上传一件单品"); return; }
   const btn = $("genBtn"), status = $("status");
   btn.disabled = true;
+  $("regenBtn").disabled = true;
   $("result").innerHTML = ""; $("collectBtn").style.display = "none";
   const t0 = Date.now();
   const timer = setInterval(() => { status.textContent = `生成中… ${Math.round((Date.now()-t0)/1000)}s`; }, 1000);
@@ -554,6 +556,7 @@ $("genBtn").addEventListener("click", async () => {
     $("result").innerHTML = `<img src="${task.imageUrl}">` +
       (usedHtml ? `<div class="used-title">本次使用的配件（对比看效果）</div><div class="used-row">${usedHtml}</div>` : "");
     $("genForm").style.display = "none";
+    $("regenBtn").style.display = "block";
     $("backBtn").style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
     $("collectBtn").style.display = "block";
@@ -562,13 +565,16 @@ $("genBtn").addEventListener("click", async () => {
   } catch (e) {
     clearInterval(timer);
     status.textContent = "失败：" + e.message;
-  } finally { updateGenBtn(); }
-});
+  } finally { updateGenBtn(); $("regenBtn").disabled = false; }
+}
+$("genBtn").addEventListener("click", doGenerate);
+$("regenBtn").addEventListener("click", doGenerate);
 $("backBtn").addEventListener("click", () => {
   $("genForm").style.display = "";
   $("result").innerHTML = "";
   $("status").textContent = "";
   $("collectBtn").style.display = "none";
+  $("regenBtn").style.display = "none";
   $("backBtn").style.display = "none";
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
