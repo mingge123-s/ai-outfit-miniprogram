@@ -88,6 +88,7 @@
   <div id="userbar">登录中…</div>
 
   <div class="tab active" id="gen">
+  <div id="genForm">
   <h2>模特照片（可选）</h2>
   <div class="slot person" data-key="person"><span>点击上传模特全身照</span></div>
 
@@ -123,9 +124,11 @@
   <input type="text" id="customBg" placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…">
 
   <button class="gen" id="genBtn">生成穿搭</button>
+  </div>
   <div id="status"></div>
   <div id="result"></div>
   <button class="sec-btn" id="collectBtn" style="display:none">☆ 收藏套装</button>
+  <button class="sec-btn" id="backBtn" style="display:none">↩ 返回编辑 / 重新生成</button>
   </div>
 
   <div class="tab" id="wardrobeTab">
@@ -405,6 +408,9 @@ $("genBtn").addEventListener("click", async () => {
     lastItems = ALL_CATS.filter(k => images[k]).map(k =>
       images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });
     $("result").innerHTML = `<img src="${data.image}">`;
+    $("genForm").style.display = "none";
+    $("backBtn").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
     $("collectBtn").style.display = "block";
     $("collectBtn").textContent = "☆ 收藏套装";
     $("collectBtn").disabled = false;
@@ -412,6 +418,14 @@ $("genBtn").addEventListener("click", async () => {
     clearInterval(timer);
     status.textContent = "失败：" + e.message;
   } finally { btn.disabled = false; }
+});
+$("backBtn").addEventListener("click", () => {
+  $("genForm").style.display = "";
+  $("result").innerHTML = "";
+  $("status").textContent = "";
+  $("collectBtn").style.display = "none";
+  $("backBtn").style.display = "none";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 $("collectBtn").addEventListener("click", async () => {
   if (!lastImage) return;
