@@ -69,8 +69,20 @@ async function authedRequest(method, path, data) {
   }
 }
 
+// 异步生成：提交任务后轮询直到完成/失败，返回 { imageUrl, taskId }
+async function generateOutfit(body) {
+  const { taskId } = await authedRequest('POST', '/api/tryon', body);
+  while (true) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const task = await authedRequest('GET', `/api/tryon/${taskId}`);
+    if (task.status === 'done') return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId };
+    if (task.status === 'failed') throw new Error(task.error || '生成失败');
+  }
+}
+
 module.exports = {
   API_BASE_URL,
+  generateOutfit,
   getToken,
   ensureLogin,
   request,
@@ -87,7 +99,7 @@ module.exports = {
   },
   outfits: {
     list: () => authedRequest('GET', '/api/outfits'),
-    add: (image, backgroundStyle, description, items, name) => authedRequest('POST', '/api/outfits', { image, backgroundStyle, description, items, name }),
+    add: (image, backgroundStyle, description, items, name, generationId) => authedRequest('POST', '/api/outfits', { image, generationId, backgroundStyle, description, items, name }),
     rename: (id, name) => authedRequest('PUT', `/api/outfits/${id}`, { name }),
     remove: (id) => authedRequest('DELETE', `/api/outfits/${id}`)
   }

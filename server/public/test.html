@@ -171,6 +171,11 @@
       <button class="me-btn plain" id="addPersonBtn">＋ 添加全身照</button>
     </div>
     <div class="me-card">
+      <h3>生成历史（含未收藏的）</h3>
+      <div class="me-row"><span>今日剩余免费次数</span><span class="v" id="meQuota">-</span></div>
+      <div class="thumbs" id="historyList"><span class="muted">（空）</span></div>
+    </div>
+    <div class="me-card">
       <h3>会员</h3>
       <div class="me-row"><span>当前等级</span><span class="badge" id="meLevel">免费版</span></div>
       <button class="me-btn primary" id="vipBtn">👑 开通会员 / 充值</button>
@@ -189,7 +194,7 @@
 </div>
 <script>
 const images = {};
-let currentKey = null, bg = "street", token = "", lastImage = null, lastItems = [];
+let currentKey = null, bg = "street", token = "", lastTaskId = null, lastItems = [];
 const $ = (id) => document.getElementById(id);
 const fileInput = $("file");
 
@@ -343,7 +348,23 @@ async function refreshMe() {
   $("meW").textContent = me.wardrobeCount + " 件";
   $("meO").textContent = me.outfitCount + " 套";
   refreshPersonPhotos();
+  refreshHistory();
+  $("meQuota").textContent = `${me.remainingToday} / ${me.dailyLimit} 次`;
   $("meLevel").textContent = me.memberLevel === "free" ? "免费版" : me.memberLevel;
+}
+
+async function refreshHistory() {
+  const { items } = await api("GET", "/api/history");
+  const done = items.filter(g => g.status === "done" && g.imageUrl);
+  $("historyList").innerHTML = done.length ? "" : '<span class="muted">（空）</span>';
+  for (const g of done) {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `<img src="${g.imageUrl}" title="${g.createdAt}"><button class="del">×</button>`;
+    d.querySelector("img").onclick = () => window.open(g.imageUrl, "_blank");
+    d.querySelector(".del").onclick = async () => { await api("DELETE", "/api/history/" + g.id); refreshHistory(); };
+    $("historyList").appendChild(d);
+  }
 }
 $("vipBtn").onclick = () => alert("会员/充值功能开发中，敬请期待～");
 $("logoutBtn").onclick = () => {
@@ -460,13 +481,21 @@ $("genBtn").addEventListener("click", async () => {
   const t0 = Date.now();
   const timer = setInterval(() => { status.textContent = `生成中… ${Math.round((Date.now()-t0)/1000)}s`; }, 1000);
   try {
-    const data = await api("POST", "/api/tryon", { items, personImage: images.person || undefined, backgroundStyle: bg, customBackground: bg === "custom" ? $("customBg").value : undefined });
+    // 异步任务：提交后轮询状态，不再长时间占用一个 HTTP 请求
+    const { taskId, remainingToday } = await api("POST", "/api/tryon", { items, personImage: images.person || undefined, backgroundStyle: bg, customBackground: bg === "custom" ? $("customBg").value : undefined });
+    let task;
+    while (true) {
+      await new Promise(r => setTimeout(r, 2500));
+      task = await api("GET", "/api/tryon/" + taskId);
+      if (task.status === "done" || task.status === "failed") break;
+    }
     clearInterval(timer);
-    status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）`;
-    lastImage = data.image;
+    if (task.status === "failed") throw new Error(task.error || "生成失败");
+    status.textContent = `生成成功（${Math.round((Date.now()-t0)/1000)}s）· 今日剩余 ${remainingToday} 次`;
+    lastTaskId = taskId;
     lastItems = ALL_CATS.filter(k => images[k]).map(k =>
       images[k].wardrobeId ? { category: k, wardrobeId: images[k].wardrobeId } : { category: k, data: images[k].data, mimeType: images[k].mimeType });
-    $("result").innerHTML = `<img src="${data.image}">`;
+    $("result").innerHTML = `<img src="${task.imageUrl}">`;
     $("genForm").style.display = "none";
     $("backBtn").style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -487,12 +516,12 @@ $("backBtn").addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 $("collectBtn").addEventListener("click", async () => {
-  if (!lastImage) return;
+  if (!lastTaskId) return;
   const name = prompt("给这套穿搭取个名字（可留空，最多 30 字）", "");
   if (name === null) return;
   $("collectBtn").disabled = true;
   try {
-    await api("POST", "/api/outfits", { image: { data: lastImage }, backgroundStyle: bg, items: lastItems, name });
+    await api("POST", "/api/outfits", { generationId: lastTaskId, backgroundStyle: bg, items: lastItems, name });
     $("collectBtn").textContent = "★ 已收藏";
     refreshOutfits();
   } catch (e) {

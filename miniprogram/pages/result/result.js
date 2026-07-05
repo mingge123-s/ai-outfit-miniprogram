@@ -3,9 +3,17 @@ const api = require('../../utils/api');
 
 const app = getApp();
 
-function dataUrlToTempFile(dataUrl) {
+function imageToTempFile(image) {
   return new Promise((resolve, reject) => {
-    const match = /^data:(image\/\w+);base64,(.+)$/.exec(dataUrl);
+    if (/^https?:/.test(image)) {
+      wx.downloadFile({
+        url: image,
+        success: (res) => (res.statusCode === 200 ? resolve(res.tempFilePath) : reject(new Error('下载失败'))),
+        fail: reject
+      });
+      return;
+    }
+    const match = /^data:(image\/\w+);base64,(.+)$/.exec(image);
     if (!match) {
       reject(new Error('图片格式错误'));
       return;
@@ -42,7 +50,7 @@ Page({
 
   async previewImage() {
     try {
-      const filePath = await dataUrlToTempFile(this.data.image);
+      const filePath = await imageToTempFile(this.data.image);
       wx.previewImage({ urls: [filePath] });
     } catch (e) {
       // ignore
@@ -51,7 +59,7 @@ Page({
 
   async saveToAlbum() {
     try {
-      const filePath = await dataUrlToTempFile(this.data.image);
+      const filePath = await imageToTempFile(this.data.image);
       await new Promise((resolve, reject) => {
         wx.saveImageToPhotosAlbum({ filePath, success: resolve, fail: reject });
       });
@@ -98,7 +106,8 @@ Page({
               : { category, data: v.data, mimeType: v.mimeType };
           })
         : [];
-      await api.outfits.add({ data: this.data.image }, result && result.backgroundStyle, undefined, items, name);
+      const taskId = result && result.taskId;
+      await api.outfits.add(taskId ? undefined : { data: this.data.image }, result && result.backgroundStyle, undefined, items, name, taskId);
       this.setData({ collected: true });
       wx.showToast({ title: '已收藏套装', icon: 'success' });
     } catch (err) {
@@ -113,22 +122,10 @@ Page({
     if (!body || this.data.regenerating) return;
     this.setData({ regenerating: true });
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${API_BASE_URL}/api/tryon`,
-          method: 'POST',
-          data: body,
-          timeout: 300000,
-          header: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {},
-          success: resolve,
-          fail: reject
-        });
-      });
-      if (res.statusCode !== 200 || !res.data.image) {
-        throw new Error((res.data && res.data.error) || `请求失败 (${res.statusCode})`);
-      }
-      app.globalData.lastResult.image = res.data.image;
-      this.setData({ image: res.data.image, collected: false });
+      const { imageUrl, taskId } = await api.generateOutfit(body);
+      app.globalData.lastResult.image = imageUrl;
+      app.globalData.lastResult.taskId = taskId;
+      this.setData({ image: imageUrl, collected: false });
     } catch (err) {
       wx.showModal({
         title: '生成失败',

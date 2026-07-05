@@ -4,7 +4,8 @@ import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos } from "./db.js";
+import { spawn } from "node:child_process";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -25,6 +26,8 @@ const MODEL_ID =
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
+const DAILY_FREE_LIMIT = Number(process.env.DAILY_FREE_LIMIT || 10); // 每用户每日免费生成次数
+const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
   console.error("Missing GEMINI_API_KEY environment variable.");
@@ -77,6 +80,7 @@ const imageUrl = (file) => `/uploads/${file}`;
 
 // 我的信息
 app.get("/api/me", requireAuth, (req, res) => {
+  const usedToday = generations.countToday(req.user.id);
   res.json({
     userId: req.user.id,
     nickname: req.user.nickname || null,
@@ -86,8 +90,42 @@ app.get("/api/me", requireAuth, (req, res) => {
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
     memberLevel: "free", // 会员/充值功能预留
+    dailyLimit: DAILY_FREE_LIMIT,
+    usedToday,
+    remainingToday: Math.max(0, DAILY_FREE_LIMIT - usedToday),
   });
 });
+
+// 自动抠图（rembg，开源本地去背景）；不可用或失败时回退原图
+let rembgAvailable = null;
+async function checkRembg() {
+  if (rembgAvailable !== null) return rembgAvailable;
+  rembgAvailable = await new Promise((resolve) => {
+    const p = spawn("rembg", ["--help"]);
+    p.on("error", () => resolve(false));
+    p.on("exit", (code) => resolve(code === 0));
+  });
+  console.log(rembgAvailable ? "rembg 可用，衣柜上传将自动抠图" : "rembg 不可用，跳过自动抠图（pip install rembg[cli] 可启用）");
+  return rembgAvailable;
+}
+async function removeBackground(file) {
+  if (!AUTO_CUTOUT || !(await checkRembg())) return null;
+  const input = path.join(UPLOADS_DIR, file);
+  const outName = file.replace(/\.[^.]+$/, "") + "_cut.png";
+  const output = path.join(UPLOADS_DIR, outName);
+  const ok = await new Promise((resolve) => {
+    const p = spawn("rembg", ["i", input, output]);
+    const t = setTimeout(() => { p.kill(); resolve(false); }, 120000);
+    p.on("error", () => { clearTimeout(t); resolve(false); });
+    p.on("exit", (code) => { clearTimeout(t); resolve(code === 0); });
+  });
+  if (ok && fs.existsSync(output) && fs.statSync(output).size > 0) {
+    fs.unlinkSync(input);
+    return outName;
+  }
+  try { fs.unlinkSync(output); } catch {}
+  return null;
+}
 
 // 我的模特照（全身照，可多张）
 app.get("/api/person-photos", requireAuth, (req, res) => {
@@ -115,13 +153,15 @@ app.get("/api/wardrobe", requireAuth, (req, res) => {
   }));
   res.json({ items });
 });
-app.post("/api/wardrobe", requireAuth, (req, res) => {
+app.post("/api/wardrobe", requireAuth, async (req, res) => {
   const { category, image } = req.body || {};
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
-  const file = saveImage(image.data, image.mimeType || "image/jpeg");
+  let file = saveImage(image.data, image.mimeType || "image/jpeg");
+  const cut = await removeBackground(file).catch(() => null);
+  if (cut) file = cut;
   const it = wardrobe.add(req.user.id, category, file);
-  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at } });
+  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, cutout: !!cut } });
 });
 app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
   const ok = wardrobe.remove(req.user.id, Number(req.params.id));
@@ -142,11 +182,18 @@ app.get("/api/outfits", requireAuth, (req, res) => {
   res.json({ items });
 });
 app.post("/api/outfits", requireAuth, (req, res) => {
-  const { image, backgroundStyle, description, items, name } = req.body || {};
-  let data = image?.data;
-  if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
-  if (!data) return res.status(400).json({ error: "缺少图片数据" });
-  const file = saveImage(data, image.mimeType || "image/png");
+  const { image, generationId, backgroundStyle, description, items, name } = req.body || {};
+  let file;
+  if (generationId) {
+    const g = generations.get(req.user.id, Number(generationId));
+    if (!g || g.status !== "done" || !g.image_file) return res.status(404).json({ error: "生成记录不存在或未完成" });
+    file = copyImage(g.image_file);
+  } else {
+    let data = image?.data;
+    if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
+    if (!data) return res.status(400).json({ error: "缺少图片数据" });
+    file = saveImage(data, image.mimeType || "image/png");
+  }
 
   // 生成时用到的单品配件：{ category, data?, mimeType?, wardrobeId? }
   const savedItems = [];
@@ -356,34 +403,81 @@ async function generateWithArk(prompt, images) {
 
 app.get("/health", (_req, res) => res.json({ ok: true, provider: PROVIDER, model: MODEL_ID }));
 
-// POST /api/tryon
+async function runProvider(prompt, images) {
+  return PROVIDER === "ark"
+    ? generateWithArk(prompt, images)
+    : PROVIDER === "openai"
+      ? generateWithOpenAI(prompt, images)
+      : generateWithGemini(prompt, images);
+}
+
+// 异步生成任务队列（内存队列，串行消费；失败自动重试 1 次）
+const taskQueue = [];
+let queueRunning = false;
+async function pumpQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  while (taskQueue.length) {
+    const task = taskQueue.shift();
+    generations.setStatus(task.id, "processing");
+    try {
+      let result;
+      try {
+        result = await runProvider(task.prompt, task.images);
+      } catch (e1) {
+        console.error(`generation #${task.id} 首次失败，自动重试:`, e1.message);
+        result = await runProvider(task.prompt, task.images);
+      }
+      const file = saveImage(result.imageData, result.imageMimeType);
+      generations.finish(task.id, file);
+    } catch (err) {
+      console.error(`generation #${task.id} 失败:`, err);
+      generations.fail(task.id, err instanceof Error ? err.message : String(err));
+    }
+  }
+  queueRunning = false;
+}
+
+const generationJson = (g) => ({
+  id: g.id,
+  status: g.status,
+  imageUrl: g.image_file ? imageUrl(g.image_file) : null,
+  background: g.background,
+  error: g.error || null,
+  createdAt: g.created_at,
+  finishedAt: g.finished_at,
+});
+
+// POST /api/tryon —— 异步：立即返回 taskId，前端轮询 GET /api/tryon/:id
 // JSON body: {
-//   items: { top?: {data, mimeType}, pants?: {...}, shoes?: {...}, hat?: {...} },
-//   personImage?: {data, mimeType},   // base64, optional
-//   backgroundStyle?: "street" | "studio" | "outdoor" | "cafe" | "beach" | "campus" | "night" | "snow" | "home" | "custom"
-//   customBackground?: string   // backgroundStyle 为 custom 时的自定义背景描述
+//   items: { top?: {data, mimeType} | {wardrobeId}, ... },
+//   personImage?: {data, mimeType} | {personPhotoId},
+//   backgroundStyle?: "street" | ... | "custom",
+//   customBackground?: string
 // }
-app.post("/api/tryon", async (req, res) => {
+app.post("/api/tryon", requireAuth, (req, res) => {
   try {
     let { items = {}, personImage, backgroundStyle, customBackground } = req.body || {};
+    const user = req.user;
 
-    // 支持 { wardrobeId } 引用衣柜单品（需登录）
-    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-    const user = userByToken(token);
+    // 每日免费次数限额
+    const usedToday = generations.countToday(user.id);
+    if (usedToday >= DAILY_FREE_LIMIT) {
+      return res.status(429).json({ error: `今日免费生成次数已用完（${DAILY_FREE_LIMIT} 次/天），请明天再来` });
+    }
 
-    // 支持 { personPhotoId } 引用「我的模特照」（需登录）
+    // 支持 { personPhotoId } 引用「我的模特照」
     if (personImage && !personImage.data && personImage.personPhotoId) {
-      if (!user) return res.status(401).json({ error: "使用我的模特照需要登录" });
       const p = personPhotos.get(user.id, Number(personImage.personPhotoId));
       if (!p) return res.status(404).json({ error: `模特照不存在: ${personImage.personPhotoId}` });
       const buf = fs.readFileSync(path.join(UPLOADS_DIR, p.image_file));
       const ext = path.extname(p.image_file).slice(1) || "png";
       personImage = { data: buf.toString("base64"), mimeType: `image/${ext === "jpg" ? "jpeg" : ext}` };
     }
+    // 支持 { wardrobeId } 引用衣柜单品
     for (const k of Object.keys(ITEM_LABELS)) {
       const ref = items[k];
       if (ref && !ref.data && ref.wardrobeId) {
-        if (!user) return res.status(401).json({ error: "使用衣柜单品需要登录" });
         const it = wardrobe.get(user.id, Number(ref.wardrobeId));
         if (!it) return res.status(404).json({ error: `衣柜单品不存在: ${ref.wardrobeId}` });
         const buf = fs.readFileSync(path.join(UPLOADS_DIR, it.image_file));
@@ -393,7 +487,6 @@ app.post("/api/tryon", async (req, res) => {
     }
 
     const itemKeys = Object.keys(ITEM_LABELS).filter((k) => items[k]?.data);
-
     if (itemKeys.length === 0) {
       return res.status(400).json({ error: "至少上传一件单品图片" });
     }
@@ -407,27 +500,36 @@ app.post("/api/tryon", async (req, res) => {
       images.push({ mimeType: personImage.mimeType || "image/jpeg", data: personImage.data });
     }
 
-    const { imageData, imageMimeType, textResponse } =
-      PROVIDER === "ark"
-        ? await generateWithArk(prompt, images)
-        : PROVIDER === "openai"
-          ? await generateWithOpenAI(prompt, images)
-          : await generateWithGemini(prompt, images);
-
-    return res.json({
-      image: `data:${imageMimeType};base64,${imageData}`,
-      description: textResponse || null,
-    });
+    const g = generations.create(user.id, backgroundStyle || null);
+    taskQueue.push({ id: g.id, prompt, images });
+    pumpQueue();
+    return res.status(202).json({ taskId: g.id, status: "pending", remainingToday: Math.max(0, DAILY_FREE_LIMIT - usedToday - 1) });
   } catch (err) {
     console.error("tryon error:", err);
-    return res.status(err.statusCode || 500).json({
-      error: "生成失败",
-      details: err instanceof Error ? err.message : String(err),
-      description: err.description || undefined,
-    });
+    return res.status(err.statusCode || 500).json({ error: "生成失败", details: err instanceof Error ? err.message : String(err) });
   }
 });
 
+// 查询生成任务状态
+app.get("/api/tryon/:id", requireAuth, (req, res) => {
+  const g = generations.get(req.user.id, Number(req.params.id));
+  if (!g) return res.status(404).json({ error: "任务不存在" });
+  res.json(generationJson(g));
+});
+
+// 生成历史
+app.get("/api/history", requireAuth, (req, res) => {
+  res.json({ items: generations.list(req.user.id).map(generationJson) });
+});
+app.delete("/api/history/:id", requireAuth, (req, res) => {
+  const ok = generations.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 启动时把上次进程遗留的未完成任务标记为失败（内存队列不跨进程）
+generations.failStale?.();
+
 app.listen(PORT, () => {
+  checkRembg();
   console.log(`AI outfit server listening on http://localhost:${PORT}`);
 });

@@ -34,6 +34,16 @@ CREATE TABLE IF NOT EXISTS outfits (
   description TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS generations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'pending',
+  image_file TEXT,
+  background TEXT,
+  error TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  finished_at TEXT
+);
 CREATE TABLE IF NOT EXISTS person_photos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id),
@@ -114,6 +124,41 @@ export const personPhotos = {
     if (!item) return false;
     db.prepare("DELETE FROM person_photos WHERE id = ?").run(id);
     deleteImage(item.image_file);
+    return true;
+  },
+};
+
+export const generations = {
+  create(userId, background) {
+    const info = db.prepare("INSERT INTO generations (user_id, status, background) VALUES (?, 'pending', ?)").run(userId, background || null);
+    return db.prepare("SELECT * FROM generations WHERE id = ?").get(info.lastInsertRowid);
+  },
+  setStatus(id, status) {
+    db.prepare("UPDATE generations SET status = ? WHERE id = ?").run(status, id);
+  },
+  finish(id, imageFile) {
+    db.prepare("UPDATE generations SET status = 'done', image_file = ?, finished_at = datetime('now') WHERE id = ?").run(imageFile, id);
+  },
+  fail(id, error) {
+    db.prepare("UPDATE generations SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?").run(String(error || "").slice(0, 500), id);
+  },
+  get(userId, id) {
+    return db.prepare("SELECT * FROM generations WHERE id = ? AND user_id = ?").get(id, userId) || null;
+  },
+  list(userId, limit = 50) {
+    return db.prepare("SELECT * FROM generations WHERE user_id = ? ORDER BY id DESC LIMIT ?").all(userId, limit);
+  },
+  failStale() {
+    db.prepare("UPDATE generations SET status = 'failed', error = '服务重启，任务中断', finished_at = datetime('now') WHERE status IN ('pending','processing')").run();
+  },
+  countToday(userId) {
+    return db.prepare("SELECT COUNT(*) AS c FROM generations WHERE user_id = ? AND status != 'failed' AND date(created_at) = date('now')").get(userId).c;
+  },
+  remove(userId, id) {
+    const item = this.get(userId, id);
+    if (!item) return false;
+    db.prepare("DELETE FROM generations WHERE id = ?").run(id);
+    if (item.image_file) deleteImage(item.image_file);
     return true;
   },
 };

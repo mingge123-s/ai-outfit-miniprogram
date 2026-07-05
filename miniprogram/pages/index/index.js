@@ -209,25 +209,11 @@ Page({
         };
       }
 
-      await api.ensureLogin().catch(() => {});
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${API_BASE_URL}/api/tryon`,
-          method: 'POST',
-          data: body,
-          timeout: 300000,
-          header: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {},
-          success: resolve,
-          fail: reject
-        });
-      });
-
-      if (res.statusCode !== 200 || !res.data.image) {
-        throw new Error((res.data && res.data.error) || `请求失败 (${res.statusCode})`);
-      }
+      const { imageUrl, taskId } = await api.generateOutfit(body);
 
       app.globalData.lastResult = {
-        image: res.data.image,
+        image: imageUrl,
+        taskId,
         items: this.data.items
           .filter((i) => i.path || i.wardrobeId)
           .map(({ key, label, path, imageUrl }) => ({ key, label, path: path || imageUrl })),
