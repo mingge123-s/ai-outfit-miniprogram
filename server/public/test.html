@@ -98,6 +98,10 @@
   h2 .step { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 6px;
              background: var(--accent); color: #fff; border-radius: 50%; font-size: 12px; font-weight: 600; vertical-align: -2px; }
   h2 .opt { font-weight: 400; font-size: 12px; color: var(--text-sub); }
+  .slot:has(img) > span { display: none; }
+  .person-row { display: flex; gap: 8px; align-items: stretch; }
+  .switch-person { flex: 0 0 52px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff;
+                   color: var(--accent-deep); font-size: 12px; line-height: 1.5; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -135,7 +139,10 @@
   <input type="text" id="customBg" placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…">
 
   <h2><span class="step">3</span>模特照片 <span class="opt">可选，不传则由 AI 生成模特</span></h2>
-  <div class="grid"><div class="slot person" data-key="person"><span>上传全身照</span></div></div>
+  <div class="person-row">
+    <div class="grid" style="flex:1"><div class="slot person" data-key="person"><span>上传全身照</span></div></div>
+    <button class="switch-person" id="switchPersonBtn" style="display:none">⇄<br>换形象</button>
+  </div>
 
   <button class="gen" id="genBtn">✨ 生成穿搭</button>
   <div class="quota-hint" id="quotaHint"></div>
@@ -342,8 +349,22 @@ async function urlToB64(url) {
   });
 }
 
+let personList = [];
+let personIdx = -1;
+function applyPersonPhoto(p) {
+  images.person = { personPhotoId: p.id };
+  setSlotImage("person", p.imageUrl);
+}
+$("switchPersonBtn").onclick = () => {
+  if (!personList.length) return;
+  personIdx = (personIdx + 1) % personList.length;
+  applyPersonPhoto(personList[personIdx]);
+};
 async function refreshPersonPhotos() {
   const { items } = await api("GET", "/api/person-photos");
+  personList = items;
+  $("switchPersonBtn").style.display = items.length ? "" : "none";
+  if (items.length && !images.person) { personIdx = 0; applyPersonPhoto(items[0]); }
   $("personPhotos").innerHTML = items.length ? "" : '<span class="muted">（空）</span>';
   for (const p of items) {
     const d = document.createElement("div");
@@ -356,8 +377,8 @@ async function refreshPersonPhotos() {
 }
 
 function usePersonPhoto(p) {
-  images.person = { personPhotoId: p.id };
-  setSlotImage("person", p.imageUrl);
+  personIdx = personList.findIndex(x => x.id === p.id);
+  applyPersonPhoto(p);
   showTab("gen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

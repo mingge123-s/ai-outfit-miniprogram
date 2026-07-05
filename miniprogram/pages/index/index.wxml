@@ -59,17 +59,20 @@
     <text class="section-title">③ 模特照片</text>
     <text class="section-sub">可选，不传则由 AI 生成模特</text>
   </view>
-  <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
-    <block wx:if="{{person || personUrl}}">
-      <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
-      <view class="remove-btn" catchtap="removePerson">×</view>
-    </block>
-    <block wx:else>
-      <view class="person-icon-wrap">
-        <text class="person-icon">👤</text>
-      </view>
-      <text class="person-label">点击上传全身照</text>
-    </block>
+  <view class="person-row">
+    <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
+      <block wx:if="{{person || personUrl}}">
+        <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
+        <view class="remove-btn" catchtap="removePerson">×</view>
+      </block>
+      <block wx:else>
+        <view class="person-icon-wrap">
+          <text class="person-icon">👤</text>
+        </view>
+        <text class="person-label">点击上传全身照</text>
+      </block>
+    </view>
+    <view class="switch-person" wx:if="{{personCount > 0}}" bindtap="switchPerson">⇄\n换形象</view>
   </view>
 
   <!-- 底部按钮 -->

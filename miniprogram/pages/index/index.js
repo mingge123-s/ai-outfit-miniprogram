@@ -25,6 +25,7 @@ Page({
     person: null,
     personPhotoId: null,
     personUrl: null,
+    personCount: 0,
     items: [
       { key: 'top', label: '上衣', icon: '👕', path: null },
       { key: 'pants', label: '裤子', icon: '👖', path: null },
@@ -71,7 +72,30 @@ Page({
     this.setData({ person: null, personPhotoId: null, personUrl: null });
   },
 
+  async loadPersonPhotos() {
+    try {
+      const { items } = await api.personPhotos.list();
+      this._personList = items;
+      const update = { personCount: items.length };
+      if (items.length && !this.data.person && !this.data.personPhotoId) {
+        this._personIdx = 0;
+        update.personPhotoId = items[0].id;
+        update.personUrl = `${API_BASE_URL}${items[0].imageUrl}`;
+      }
+      this.setData(update);
+    } catch (e) { /* 未登录等情况忽略 */ }
+  },
+
+  switchPerson() {
+    const list = this._personList || [];
+    if (!list.length) return;
+    this._personIdx = ((this._personIdx || 0) + 1) % list.length;
+    const p = list[this._personIdx];
+    this.setData({ person: null, personPhotoId: p.id, personUrl: `${API_BASE_URL}${p.imageUrl}` });
+  },
+
   onShow() {
+    this.loadPersonPhotos();
     // 从「我的」页选中的模特照
     const photo = app.globalData.personPhotoPick;
     if (photo) {
