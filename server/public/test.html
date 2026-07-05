@@ -20,6 +20,8 @@
   .slot span { font-size: 13px; color: #8a8a99; z-index: 1; background: rgba(255,255,255,.8); padding: 2px 8px; border-radius: 8px; }
   .slot .fav { position: absolute; top: 6px; left: 6px; z-index: 2; background: #6c5ce7; color: #fff;
                border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
+  .slot .slot-del { position: absolute; top: 6px; right: 6px; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
+                    border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
   .person { height: 140px; }
   .styles { display: flex; flex-wrap: wrap; gap: 8px; }
   .style-btn { flex: 0 0 calc((100% - 24px) / 4); padding: 10px 0; border-radius: 10px; border: 1.5px solid #d5d5e0; background: #fff; font-size: 14px; cursor: pointer; }
@@ -222,14 +224,32 @@ async function refreshWardrobe() {
   }
 }
 
+function clearSlot(key) {
+  delete images[key];
+  const slot = document.querySelector(`.slot[data-key="${key}"]`);
+  slot.querySelector("img")?.remove();
+  slot.querySelector(".fav")?.remove();
+  slot.querySelector(".slot-del")?.remove();
+}
+function setSlotImage(key, src) {
+  const slot = document.querySelector(`.slot[data-key="${key}"]`);
+  slot.querySelector("img")?.remove();
+  slot.querySelector(".fav")?.remove();
+  slot.querySelector(".slot-del")?.remove();
+  const img = document.createElement("img");
+  img.src = src;
+  slot.prepend(img);
+  const del = document.createElement("button");
+  del.className = "slot-del"; del.textContent = "×"; del.title = "移除";
+  del.onclick = (e) => { e.stopPropagation(); clearSlot(key); };
+  slot.appendChild(del);
+  return slot;
+}
+
 function useWardrobeItem(it) {
   ensureMoreOpen(it.category);
   images[it.category] = { wardrobeId: it.id, imageUrl: it.imageUrl };
-  const slot = document.querySelector(`.slot[data-key="${it.category}"]`);
-  slot.querySelector("img")?.remove();
-  const img = document.createElement("img");
-  img.src = it.imageUrl;
-  slot.prepend(img);
+  setSlotImage(it.category, it.imageUrl);
   showTab("gen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -270,11 +290,7 @@ async function refreshPersonPhotos() {
 
 function usePersonPhoto(p) {
   images.person = { personPhotoId: p.id };
-  const slot = document.querySelector('.slot[data-key="person"]');
-  slot.querySelector("img")?.remove();
-  const img = document.createElement("img");
-  img.src = p.imageUrl;
-  slot.prepend(img);
+  setSlotImage("person", p.imageUrl);
   showTab("gen");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -329,11 +345,7 @@ async function refreshOutfits() {
         const { cat, url } = t.dataset;
         ensureMoreOpen(cat);
         images[cat] = { data: await urlToB64(url), mimeType: "image/png" };
-        const slot = document.querySelector(`.slot[data-key="${cat}"]`);
-        slot.querySelector("img")?.remove();
-        const img = document.createElement("img");
-        img.src = url;
-        slot.prepend(img);
+        setSlotImage(cat, url);
       }
       showTab("gen");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -344,7 +356,7 @@ async function refreshOutfits() {
 
 document.querySelectorAll(".slot").forEach(el => {
   el.addEventListener("click", (e) => {
-    if (e.target.classList.contains("fav") || e.target.classList.contains("del")) return;
+    if (e.target.classList.contains("fav") || e.target.classList.contains("del") || e.target.classList.contains("slot-del")) return;
     currentKey = el.dataset.key; fileInput.click();
   });
 });
@@ -362,12 +374,7 @@ fileInput.addEventListener("change", () => {
       return;
     }
     images[currentKey] = { data: dataUrl.split(",")[1], mimeType: f.type || "image/jpeg" };
-    const slot = document.querySelector(`.slot[data-key="${currentKey}"]`);
-    slot.querySelector("img")?.remove();
-    slot.querySelector(".fav")?.remove();
-    const img = document.createElement("img");
-    img.src = dataUrl;
-    slot.prepend(img);
+    const slot = setSlotImage(currentKey, dataUrl);
     if (currentKey !== "person") {
       const key = currentKey;
       const fav = document.createElement("button");
