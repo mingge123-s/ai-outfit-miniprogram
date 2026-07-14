@@ -367,10 +367,10 @@ async function generateWithArk(prompt, images) {
     model: MODEL_ID,
     prompt,
     image: images.map((img) => `data:${img.mimeType || "image/jpeg"};base64,${img.data}`),
-    sequential_image_generation: "disabled",
-    response_format: "b64_json",
+    response_format: process.env.ARK_RESPONSE_FORMAT || "url",
     size: process.env.ARK_SIZE || "2k",
-    watermark: false,
+    stream: false,
+    watermark: process.env.ARK_WATERMARK === "1",
   };
   const resp = await fetch(`${ARK_BASE_URL}/images/generations`, {
     method: "POST",
