@@ -21,7 +21,7 @@ const MODEL_ID =
   (PROVIDER === "openai"
     ? "gpt-image-2"
     : PROVIDER === "ark"
-      ? "doubao-seedream-5-0-260128"
+      ? "doubao-seedream-5-0-pro-260628"
       : "gemini-2.5-flash-image-preview");
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
