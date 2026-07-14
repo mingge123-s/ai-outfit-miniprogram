@@ -38,6 +38,36 @@
     </view>
   </view>
 
+  <view class="history card">
+    <view class="history-head">
+      <text class="photos-title">生成历史（未收藏也会保留）</text>
+      <text class="history-count">{{history.length}} 条</text>
+    </view>
+    <scroll-view class="history-row" scroll-x enable-flex wx:if="{{history.length}}">
+      <view class="history-item" wx:for="{{history}}" wx:key="id">
+        <image
+          class="history-img"
+          wx:if="{{item.imageUrl}}"
+          src="{{baseUrl}}{{item.imageUrl}}"
+          mode="aspectFill"
+          data-url="{{item.imageUrl}}"
+          bindtap="previewHistory"
+        />
+        <view class="history-placeholder" wx:else>
+          <text>{{item.status === 'failed' ? '生成失败' : item.status === 'processing' ? '生成中…' : '排队中…'}}</text>
+        </view>
+        <text class="history-status {{item.status}}">{{item.status === 'done' ? '已完成' : item.status === 'failed' ? '失败' : item.status === 'processing' ? '生成中' : '排队中'}}</text>
+        <view
+          class="history-del"
+          wx:if="{{item.status === 'done' || item.status === 'failed'}}"
+          data-id="{{item.id}}"
+          catchtap="removeHistory"
+        >×</view>
+      </view>
+    </scroll-view>
+    <text class="history-empty" wx:else>还没有生成记录</text>
+  </view>
+
   <view class="vip card" bindtap="openVip">
     <view class="vip-left">
       <text class="vip-title">👑 开通会员</text>

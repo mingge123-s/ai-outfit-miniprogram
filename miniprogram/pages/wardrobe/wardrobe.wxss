@@ -1,4 +1,4 @@
-.page { padding: 24rpx 32rpx 60rpx; }
+.page { padding: 24rpx 32rpx 180rpx; }
 
 .tip { font-size: 26rpx; color: #5c7c8d; background: #eef3f5; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
 
@@ -15,6 +15,11 @@
   position: relative; height: 210rpx; border-radius: 16rpx; overflow: hidden; background: #fff;
 }
 .item-img { width: 100%; height: 100%; }
+.item-card.selected { box-shadow: inset 0 0 0 6rpx #5c7c8d; }
+.selected-check {
+  position: absolute; left: 10rpx; top: 10rpx; width: 42rpx; height: 42rpx; line-height: 42rpx;
+  text-align: center; border-radius: 50%; background: #5c7c8d; color: #fff; font-size: 26rpx; z-index: 2;
+}
 .add-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   border: 2rpx dashed #c9c9dc; background: #fbfbfe;
@@ -29,3 +34,11 @@
 }
 
 .empty { margin-top: 80rpx; text-align: center; color: #8a8a99; font-size: 26rpx; padding: 0 40rpx; }
+.bottom-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(248, 249, 250, 0.96); box-shadow: 0 -8rpx 30rpx rgba(92,124,141,.08); z-index: 20;
+}
+.use-selected {
+  height: 96rpx; line-height: 96rpx; border-radius: 20rpx; background: #5c7c8d; color: #fff;
+  font-size: 30rpx; font-weight: 600;
+}

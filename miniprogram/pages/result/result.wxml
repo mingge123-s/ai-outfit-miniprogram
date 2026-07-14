@@ -21,9 +21,14 @@
 
   <!-- 底部按钮 -->
   <view class="bottom-bar">
-    <button class="save-btn gradient-btn" bindtap="saveToAlbum">⬇ 保存到相册</button>
-    <button class="collect-btn" bindtap="collectOutfit" disabled="{{collecting || collected}}">{{collected ? '★ 已收藏' : collecting ? '收藏中…' : '☆ 收藏套装'}}</button>
-    <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating}}">{{regenerating ? '生成中…' : '重新生成'}}</button>
+    <view class="action-row">
+      <button class="save-btn gradient-btn" bindtap="saveToAlbum">保存到相册</button>
+      <button class="collect-btn" bindtap="collectOutfit" disabled="{{collecting || collected}}">{{collected ? '已收藏' : collecting ? '收藏中…' : '收藏套装'}}</button>
+    </view>
+    <view class="action-row">
+      <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating}}">{{regenerating ? '生成中…' : '重新生成'}}</button>
+      <button class="edit-btn" bindtap="editOutfit" disabled="{{regenerating}}">返回编辑</button>
+    </view>
   </view>
 
   <!-- 生成中遮罩 -->

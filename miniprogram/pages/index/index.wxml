@@ -81,13 +81,14 @@
       class="generate-btn gradient-btn {{canGenerate && !loading ? '' : 'disabled'}}"
       disabled="{{!canGenerate || loading}}"
       bindtap="generate"
-    >✨ {{loading ? '生成中…' : '生成穿搭'}}</button>
+    >✨ {{loading ? '生成中…' : backgroundStyle === 'custom' && !customBackground ? '请填写自定义背景' : '生成穿搭'}}</button>
+    <text class="quota-hint" wx:if="{{quotaLoaded}}">今日剩余免费生成 {{remainingToday}} / {{dailyLimit}} 次</text>
   </view>
 
   <!-- 生成中遮罩 -->
   <view class="loading-overlay" wx:if="{{loading}}">
     <view class="loading-circle gradient-btn">✨</view>
     <text class="loading-text">AI 正在为你生成穿搭…</text>
-    <text class="loading-hint">大约需要 10~30 秒</text>
+    <text class="loading-hint">通常需要 1~3 分钟，可在「我的」查看生成历史</text>
   </view>
 </view>

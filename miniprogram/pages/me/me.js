@@ -23,6 +23,7 @@ Page({
   data: {
     me: null,
     photos: [],
+    history: [],
     baseUrl: api.API_BASE_URL,
     loading: false
   },
@@ -34,9 +35,12 @@ Page({
   async refresh() {
     this.setData({ loading: true });
     try {
-      const me = await api.authedRequest('GET', '/api/me');
-      const { items: photos } = await api.personPhotos.list();
-      this.setData({ me, photos });
+      const [me, photoData, historyData] = await Promise.all([
+        api.authedRequest('GET', '/api/me'),
+        api.personPhotos.list(),
+        api.history.list()
+      ]);
+      this.setData({ me, photos: photoData.items, history: historyData.items });
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {
@@ -79,6 +83,28 @@ Page({
     const photo = e.currentTarget.dataset.photo;
     app.globalData.personPhotoPick = photo;
     wx.switchTab({ url: '/pages/index/index' });
+  },
+
+  previewHistory(e) {
+    const url = e.currentTarget.dataset.url;
+    if (url) wx.previewImage({ urls: [this.data.baseUrl + url] });
+  },
+
+  removeHistory(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.showModal({
+      title: '删除生成记录',
+      content: '删除后无法恢复，确定删除吗？',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await api.history.remove(id);
+          this.refresh();
+        } catch (err) {
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        }
+      }
+    });
   },
 
   openVip() {

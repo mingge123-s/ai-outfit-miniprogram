@@ -1,5 +1,7 @@
 const api = require('../../utils/api');
 
+const app = getApp();
+
 const CATEGORIES = [
   { key: 'top', label: '上衣', icon: '👕' },
   { key: 'pants', label: '裤子', icon: '👖' },
@@ -28,7 +30,9 @@ Page({
     category: 'top',
     items: [],
     loading: false,
-    baseUrl: api.API_BASE_URL
+    baseUrl: api.API_BASE_URL,
+    selected: {},
+    selectedCount: 0
   },
 
   onShow() {
@@ -74,9 +78,31 @@ Page({
     });
   },
 
-  tapItem(e) {
+  previewItem(e) {
     const item = e.currentTarget.dataset.item;
     wx.previewImage({ urls: [this.data.baseUrl + item.imageUrl] });
+  },
+
+  tapItem(e) {
+    const item = e.currentTarget.dataset.item;
+    const selected = Object.assign({}, this.data.selected);
+    if (selected[item.category] && selected[item.category].id === item.id) {
+      delete selected[item.category];
+    } else {
+      selected[item.category] = item;
+    }
+    this.setData({ selected, selectedCount: Object.keys(selected).length });
+  },
+
+  useSelected() {
+    const picks = Object.keys(this.data.selected).map((key) => ({
+      key,
+      item: this.data.selected[key]
+    }));
+    if (!picks.length) return;
+    app.globalData.wardrobeBatchPick = picks;
+    this.setData({ selected: {}, selectedCount: 0 });
+    wx.switchTab({ url: '/pages/index/index' });
   },
 
   removeItem(e) {
@@ -88,6 +114,11 @@ Page({
         if (!res.confirm) return;
         try {
           await api.wardrobe.remove(id);
+          const selected = Object.assign({}, this.data.selected);
+          for (const key of Object.keys(selected)) {
+            if (selected[key].id === id) delete selected[key];
+          }
+          this.setData({ selected, selectedCount: Object.keys(selected).length });
           this.refresh();
         } catch (err) {
           wx.showToast({ title: err.message || '删除失败', icon: 'none' });

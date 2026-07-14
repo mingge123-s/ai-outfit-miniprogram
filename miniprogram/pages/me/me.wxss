@@ -10,6 +10,26 @@
 .photo-del { position: absolute; top: 6rpx; right: 6rpx; width: 36rpx; height: 36rpx; line-height: 32rpx; text-align: center; background: rgba(0,0,0,0.55); color: #fff; border-radius: 50%; font-size: 24rpx; }
 .photo-add { display: flex; align-items: center; justify-content: center; border: 2rpx dashed #d5d5e0; }
 .photo-plus { font-size: 48rpx; color: #8a8a99; }
+.history { padding: 24rpx; }
+.history-head { display: flex; justify-content: space-between; align-items: center; }
+.history-count { color: #8a8a99; font-size: 22rpx; margin-bottom: 16rpx; }
+.history-row { white-space: nowrap; display: flex; }
+.history-item {
+  position: relative; display: inline-block; width: 180rpx; height: 240rpx; margin-right: 16rpx;
+  border-radius: 14rpx; overflow: hidden; background: #eef3f5;
+}
+.history-img { width: 100%; height: 100%; }
+.history-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #777587; font-size: 24rpx; }
+.history-status {
+  position: absolute; left: 8rpx; bottom: 8rpx; padding: 4rpx 12rpx; border-radius: 999rpx;
+  background: rgba(71,97,111,.88); color: #fff; font-size: 20rpx;
+}
+.history-status.failed { background: rgba(110,85,85,.88); }
+.history-del {
+  position: absolute; right: 8rpx; top: 8rpx; width: 36rpx; height: 36rpx; line-height: 32rpx;
+  text-align: center; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 24rpx;
+}
+.history-empty { display: block; color: #8a8a99; font-size: 24rpx; padding: 10rpx 0; }
 .avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #eef3f5; display: flex; align-items: center; justify-content: center; font-size: 48rpx; margin-right: 24rpx; }
 .info { flex: 1; display: flex; flex-direction: column; }
 .name { font-size: 32rpx; font-weight: 600; }
