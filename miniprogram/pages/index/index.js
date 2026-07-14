@@ -51,7 +51,10 @@ Page({
     backgroundStyle: 'street',
     customBackground: '',
     canGenerate: false,
-    loading: false
+    loading: false,
+    remainingToday: null,
+    dailyLimit: null,
+    quotaLoaded: false
   },
 
   chooseImage(cb) {
@@ -86,6 +89,13 @@ Page({
     } catch (e) { /* 未登录等情况忽略 */ }
   },
 
+  async loadQuota() {
+    try {
+      const me = await api.authedRequest('GET', '/api/me');
+      this.setData({ remainingToday: me.remainingToday, dailyLimit: me.dailyLimit, quotaLoaded: true });
+    } catch (e) { /* 登录或网络失败时不阻塞生成 */ }
+  },
+
   switchPerson() {
     const list = this._personList || [];
     if (!list.length) return;
@@ -96,6 +106,7 @@ Page({
 
   onShow() {
     this.loadPersonPhotos();
+    this.loadQuota();
     // 从「我的」页选中的模特照
     const photo = app.globalData.personPhotoPick;
     if (photo) {
@@ -119,6 +130,23 @@ Page({
       }
       this.setData(update, () => this.updateCanGenerate());
       wx.showToast({ title: `已填入 ${parts.length} 件配件`, icon: 'success' });
+    }
+
+    // 从衣柜页统一回传的多件单品
+    const batchPick = app.globalData.wardrobeBatchPick;
+    if (batchPick && batchPick.length) {
+      app.globalData.wardrobeBatchPick = null;
+      const update = {};
+      for (const pick of batchPick) {
+        const index = this.data.items.findIndex((i) => i.key === pick.key);
+        if (index >= 0) {
+          update[`items[${index}].path`] = null;
+          update[`items[${index}].wardrobeId`] = pick.item.id;
+          update[`items[${index}].imageUrl`] = `${API_BASE_URL}${pick.item.imageUrl}`;
+        }
+      }
+      this.setData(update, () => this.updateCanGenerate());
+      wx.showToast({ title: `已填入 ${batchPick.length} 件单品`, icon: 'success' });
     }
 
     // 从衣柜选择页回传
@@ -188,15 +216,17 @@ Page({
 
 
   chooseStyle(e) {
-    this.setData({ backgroundStyle: e.currentTarget.dataset.key });
+    this.setData({ backgroundStyle: e.currentTarget.dataset.key }, () => this.updateCanGenerate());
   },
 
   onCustomBgInput(e) {
-    this.setData({ customBackground: e.detail.value });
+    this.setData({ customBackground: e.detail.value }, () => this.updateCanGenerate());
   },
 
   updateCanGenerate() {
-    this.setData({ canGenerate: this.data.items.some((i) => i.path || i.wardrobeId) });
+    const hasItem = this.data.items.some((i) => i.path || i.wardrobeId);
+    const hasBackground = this.data.backgroundStyle !== 'custom' || this.data.customBackground.trim().length > 0;
+    this.setData({ canGenerate: hasItem && hasBackground });
   },
 
   async generate() {
@@ -226,7 +256,8 @@ Page({
         };
       }
 
-      const { imageUrl, taskId } = await api.generateOutfit(body);
+      const { imageUrl, taskId, remainingToday } = await api.generateOutfit(body);
+      this.setData({ remainingToday });
 
       app.globalData.lastResult = {
         image: imageUrl,

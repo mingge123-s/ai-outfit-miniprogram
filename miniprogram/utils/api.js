@@ -71,11 +71,13 @@ async function authedRequest(method, path, data) {
 
 // 异步生成：提交任务后轮询直到完成/失败，返回 { imageUrl, taskId }
 async function generateOutfit(body) {
-  const { taskId } = await authedRequest('POST', '/api/tryon', body);
+  const { taskId, remainingToday } = await authedRequest('POST', '/api/tryon', body);
   while (true) {
     await new Promise((r) => setTimeout(r, 2500));
     const task = await authedRequest('GET', `/api/tryon/${taskId}`);
-    if (task.status === 'done') return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId };
+    if (task.status === 'done') {
+      return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId, remainingToday };
+    }
     if (task.status === 'failed') throw new Error(task.error || '生成失败');
   }
 }
@@ -96,6 +98,10 @@ module.exports = {
     list: () => authedRequest('GET', '/api/person-photos'),
     add: (image) => authedRequest('POST', '/api/person-photos', { image }),
     remove: (id) => authedRequest('DELETE', `/api/person-photos/${id}`)
+  },
+  history: {
+    list: () => authedRequest('GET', '/api/history'),
+    remove: (id) => authedRequest('DELETE', `/api/history/${id}`)
   },
   outfits: {
     list: () => authedRequest('GET', '/api/outfits'),

@@ -1,4 +1,6 @@
 <view class="page">
+  <view class="tip">点击单品先选中，可跨分类各选 1 件；长按可预览</view>
+
   <!-- 分类 -->
   <view class="chips">
     <view
@@ -16,13 +18,25 @@
       <text class="add-plus">＋</text>
       <text class="add-label">添加单品</text>
     </view>
-    <view class="item-card" wx:for="{{items}}" wx:key="id" data-item="{{item}}" bindtap="tapItem">
+    <view
+      class="item-card {{selected[item.category] && selected[item.category].id === item.id ? 'selected' : ''}}"
+      wx:for="{{items}}"
+      wx:key="id"
+      data-item="{{item}}"
+      bindtap="tapItem"
+      bindlongpress="previewItem"
+    >
       <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
+      <view class="selected-check" wx:if="{{selected[item.category] && selected[item.category].id === item.id}}">✓</view>
       <view class="remove-btn" catchtap="removeItem" data-id="{{item.id}}">×</view>
     </view>
   </view>
 
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
     <text>衣柜里还没有单品，点击上方「添加单品」收藏你的衣物</text>
+  </view>
+
+  <view class="bottom-bar" wx:if="{{selectedCount > 0}}">
+    <button class="use-selected" bindtap="useSelected">将选中的 {{selectedCount}} 件单品用于生成</button>
   </view>
 </view>

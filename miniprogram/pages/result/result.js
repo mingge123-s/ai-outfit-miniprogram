@@ -135,5 +135,10 @@ Page({
     } finally {
       this.setData({ regenerating: false });
     }
+  },
+
+  editOutfit() {
+    if (this.data.regenerating) return;
+    wx.navigateBack();
   }
 });

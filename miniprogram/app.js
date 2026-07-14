@@ -10,6 +10,12 @@ App({
     lastResult: null,
     lastRequest: null,
     // 衣柜选择回传：{ key, item }
-    wardrobePick: null
+    wardrobePick: null,
+    // 衣柜页批量选择回传：[{ key, item }]
+    wardrobeBatchPick: null,
+    // 收藏套装的配件回传：[{ key, path }]
+    outfitPartsPick: null,
+    // 「我的」页选择的形象照
+    personPhotoPick: null
   }
 });

@@ -241,6 +241,13 @@
 .generate-btn.disabled {
   opacity: 0.5;
 }
+.quota-hint {
+  display: block;
+  margin-top: 10rpx;
+  text-align: center;
+  color: #777587;
+  font-size: 22rpx;
+}
 
 /* 加载遮罩 */
 .loading-overlay {
