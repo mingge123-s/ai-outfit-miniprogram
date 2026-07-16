@@ -27,7 +27,7 @@
       <block wx:else>
         <text class="item-icon">{{item.icon}}</text>
         <text class="item-label">{{item.label}}</text>
-        <text class="item-hint">CLICK TO UPLOAD</text>
+        <text class="item-hint">点击上传</text>
       </block>
     </view>
   </view>
@@ -81,7 +81,7 @@
       class="generate-btn gradient-btn {{canGenerate && !loading ? '' : 'disabled'}}"
       disabled="{{!canGenerate || loading}}"
       bindtap="generate"
-    >✨ {{loading ? '生成中…' : backgroundStyle === 'custom' && !customBackground ? '请填写自定义背景' : '生成穿搭'}}</button>
+    >✨ {{loading ? '生成中…' : backgroundStyle === 'custom' && !customBackground ? '请填写自定义背景' : !canGenerate ? '请先上传单品' : '生成穿搭'}}</button>
     <text class="quota-hint" wx:if="{{quotaLoaded}}">今日剩余免费生成 {{remainingToday}} / {{dailyLimit}} 次</text>
   </view>
 

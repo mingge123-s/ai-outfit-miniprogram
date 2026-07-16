@@ -145,7 +145,7 @@
   font-size: 18rpx;
   color: rgba(92, 124, 141, 0.8);
   margin-top: 8rpx;
-  letter-spacing: 1rpx;
+  white-space: nowrap;
 }
 .item-tag {
   position: absolute;
@@ -239,7 +239,10 @@
   box-shadow: 0 12rpx 30rpx rgba(92, 124, 141, 0.3);
 }
 .generate-btn.disabled {
-  opacity: 0.5;
+  background: #e1e6e8;
+  color: #71808a;
+  opacity: 1;
+  box-shadow: none;
 }
 .quota-hint {
   display: block;
