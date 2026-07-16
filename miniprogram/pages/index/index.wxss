@@ -145,7 +145,7 @@
   font-size: 18rpx;
   color: rgba(92, 124, 141, 0.8);
   margin-top: 8rpx;
-  letter-spacing: 1rpx;
+  white-space: nowrap;
 }
 .item-tag {
   position: absolute;

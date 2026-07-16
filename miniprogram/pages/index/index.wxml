@@ -27,7 +27,7 @@
       <block wx:else>
         <text class="item-icon">{{item.icon}}</text>
         <text class="item-label">{{item.label}}</text>
-        <text class="item-hint">CLICK TO UPLOAD</text>
+        <text class="item-hint">点击上传</text>
       </block>
     </view>
   </view>
