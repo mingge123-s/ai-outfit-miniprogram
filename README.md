@@ -62,15 +62,15 @@ npm start              # 默认 http://localhost:3000
 
 支持三种生图提供方（由 `.env` 自动选择，优先 ark）：
 
-- **火山方舟 豆包 Seedream**：配置 `ARK_API_KEY`，走 `/api/v3/images/generations` 多参考图接口，默认模型 `doubao-seedream-5-0-260128`，国内直连无需代理，适合小程序正式上线。可用 `ARK_SIZE` 调整分辨率（默认 `2k`）。
+- **火山方舟 豆包 Seedream**：配置 `ARK_API_KEY`，走 `/api/v3/images/generations` 多参考图接口，默认模型 `doubao-seedream-5-0-pro-260628`，国内直连无需代理，适合小程序正式上线。可用 `ARK_SIZE` 调整分辨率（默认 `2k`）。
 - **OpenAI 兼容网关**（如 `https://ai.gs88.shop`）：配置 `OPENAI_API_KEY` + `OPENAI_BASE_URL`，走 `/v1/images/edits` 多图编辑接口，默认模型 `gpt-image-2`。Cloudflare 网关下高质量档易 524 超时，默认 `IMAGE_QUALITY=low`。
 - **Google Gemini**：配置 `GEMINI_API_KEY`，默认模型 `gemini-2.5-flash-image-preview`。
 
 ## 运行小程序
 
 1. 用[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)导入本项目根目录（已含 `project.config.json`）。
-2. 本地调试：详情 → 本地设置 → 勾选「不校验合法域名」（因为默认后端是 `http://localhost:3000`）。
-3. 上线前：把后端部署到 HTTPS 域名，修改 `miniprogram/config.js` 中的 `API_BASE_URL`，并在小程序后台把该域名加入 request 合法域名。
+2. 默认后端为 `https://api.mingge.asia/outfit`；在小程序后台把 `https://api.mingge.asia` 加入 request 合法域名。
+3. 如需调试本地后端，把 `miniprogram/config.js` 临时改为 `http://localhost:3000`，并在开发者工具勾选「不校验合法域名」。
 
 ## 使用流程
 
