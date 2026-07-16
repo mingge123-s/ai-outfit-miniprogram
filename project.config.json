@@ -2,7 +2,7 @@
   "description": "AI 穿搭生成小程序",
   "miniprogramRoot": "miniprogram/",
   "compileType": "miniprogram",
-  "appid": "touristappid",
+  "appid": "wx4da1d4863ab8ae9a",
   "projectname": "ai-outfit-miniprogram",
   "setting": {
     "urlCheck": false,
