@@ -32,7 +32,16 @@ Page({
     loading: false,
     baseUrl: api.API_BASE_URL,
     selected: {},
-    selectedCount: 0
+    selectedCount: 0,
+    // 淘宝商品链接导入
+    tbVisible: false,
+    tbStep: 'input',
+    tbUrl: '',
+    tbLoading: false,
+    tbTitle: '',
+    tbImages: [],
+    tbSelectedIndex: -1,
+    tbCategory: 'top'
   },
 
   onShow() {
@@ -56,6 +65,16 @@ Page({
   },
 
   addItem() {
+    wx.showActionSheet({
+      itemList: ['从相册上传', '淘宝商品链接导入'],
+      success: (res) => {
+        if (res.tapIndex === 0) this.chooseFromAlbum();
+        else if (res.tapIndex === 1) this.openTaobao();
+      }
+    });
+  },
+
+  chooseFromAlbum() {
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -76,6 +95,88 @@ Page({
         }
       }
     });
+  },
+
+  // ===== 淘宝商品链接导入 =====
+  openTaobao() {
+    this.setData({
+      tbVisible: true,
+      tbStep: 'input',
+      tbUrl: '',
+      tbTitle: '',
+      tbImages: [],
+      tbSelectedIndex: -1,
+      tbCategory: this.data.category
+    });
+  },
+
+  closeTaobao() {
+    this.setData({ tbVisible: false });
+  },
+
+  noop() {},
+
+  onTbUrlInput(e) {
+    this.setData({ tbUrl: e.detail.value });
+  },
+
+  async resolveTaobao() {
+    const url = (this.data.tbUrl || '').trim();
+    if (!url) {
+      wx.showToast({ title: '请粘贴商品链接', icon: 'none' });
+      return;
+    }
+    this.setData({ tbLoading: true });
+    try {
+      const data = await api.taobao.resolve(url);
+      const images = (data.images || []).map((img) => img.url);
+      if (!images.length) {
+        wx.showToast({ title: '未获取到商品图片', icon: 'none' });
+        return;
+      }
+      this.setData({
+        tbStep: 'pick',
+        tbTitle: data.title || '',
+        tbImages: images,
+        tbSelectedIndex: 0,
+        tbCategory: data.suggestedCategory || this.data.category
+      });
+    } catch (e) {
+      wx.showToast({ title: e.message || '解析失败', icon: 'none' });
+    } finally {
+      this.setData({ tbLoading: false });
+    }
+  },
+
+  selectTbImage(e) {
+    this.setData({ tbSelectedIndex: Number(e.currentTarget.dataset.index) });
+  },
+
+  previewTbImage(e) {
+    const idx = Number(e.currentTarget.dataset.index);
+    wx.previewImage({ current: this.data.tbImages[idx], urls: this.data.tbImages });
+  },
+
+  selectTbCategory(e) {
+    this.setData({ tbCategory: e.currentTarget.dataset.key });
+  },
+
+  async importTaobao() {
+    const { tbImages, tbSelectedIndex, tbCategory } = this.data;
+    if (tbSelectedIndex < 0 || !tbImages[tbSelectedIndex]) {
+      wx.showToast({ title: '请选择一张商品图', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '导入中…' });
+    try {
+      await api.taobao.import(tbCategory, tbImages[tbSelectedIndex]);
+      this.setData({ tbVisible: false, category: tbCategory }, () => this.refresh());
+      wx.showToast({ title: '已加入衣柜', icon: 'success' });
+    } catch (e) {
+      wx.showToast({ title: e.message || '导入失败', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   previewItem(e) {

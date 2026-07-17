@@ -39,4 +39,60 @@
   <view class="bottom-bar" wx:if="{{selectedCount > 0}}">
     <button class="use-selected" bindtap="useSelected">将选中的 {{selectedCount}} 件单品用于生成</button>
   </view>
+
+  <!-- 淘宝商品链接导入 -->
+  <view class="tb-mask" wx:if="{{tbVisible}}" bindtap="closeTaobao">
+    <view class="tb-panel" catchtap="noop">
+      <view class="tb-header">
+        <text class="tb-title">商品链接导入</text>
+        <text class="tb-close" bindtap="closeTaobao">×</text>
+      </view>
+
+      <block wx:if="{{tbStep === 'input'}}">
+        <view class="tb-desc">粘贴淘宝/天猫商品链接，自动获取商品图片</view>
+        <textarea
+          class="tb-input"
+          placeholder="例如 https://item.taobao.com/item.htm?id=..."
+          value="{{tbUrl}}"
+          bindinput="onTbUrlInput"
+          maxlength="500"
+          auto-height
+        />
+        <button class="tb-primary {{tbLoading ? 'disabled' : ''}}" disabled="{{tbLoading}}" bindtap="resolveTaobao">{{tbLoading ? '解析中…' : '获取商品图片'}}</button>
+      </block>
+
+      <block wx:if="{{tbStep === 'pick'}}">
+        <view class="tb-goods-title" wx:if="{{tbTitle}}">{{tbTitle}}</view>
+        <view class="tb-sub">选择要加入衣柜的图片（长按可预览）</view>
+        <scroll-view scroll-y class="tb-imgs">
+          <view class="tb-img-grid">
+            <view
+              class="tb-img-cell {{tbSelectedIndex === index ? 'tb-img-selected' : ''}}"
+              wx:for="{{tbImages}}"
+              wx:key="*this"
+              data-index="{{index}}"
+              bindtap="selectTbImage"
+              bindlongpress="previewTbImage"
+            >
+              <image class="tb-img" src="{{item}}" mode="aspectFill" />
+              <view class="tb-img-check" wx:if="{{tbSelectedIndex === index}}">✓</view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="tb-sub">选择分类</view>
+        <view class="tb-cats">
+          <view
+            wx:for="{{categories}}"
+            wx:key="key"
+            class="chip {{tbCategory === item.key ? 'chip-active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="selectTbCategory"
+          >{{item.icon}} {{item.label}}</view>
+        </view>
+
+        <button class="tb-primary" bindtap="importTaobao">加入衣柜</button>
+      </block>
+    </view>
+  </view>
 </view>

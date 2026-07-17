@@ -94,6 +94,11 @@ module.exports = {
     add: (category, image) => authedRequest('POST', '/api/wardrobe', { category, image }),
     remove: (id) => authedRequest('DELETE', `/api/wardrobe/${id}`)
   },
+  taobao: {
+    resolve: (url) => authedRequest('POST', '/api/taobao/resolve', { url }),
+    import: (category, imageUrl) => authedRequest('POST', '/api/taobao/import', { category, imageUrl })
+  },
+  me: () => authedRequest('GET', '/api/me'),
   personPhotos: {
     list: () => authedRequest('GET', '/api/person-photos'),
     add: (image) => authedRequest('POST', '/api/person-photos', { image }),
