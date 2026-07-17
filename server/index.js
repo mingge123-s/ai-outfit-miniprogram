@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations } from "./db.js";
+import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -93,6 +94,7 @@ app.get("/api/me", requireAuth, (req, res) => {
     dailyLimit: DAILY_FREE_LIMIT,
     usedToday,
     remainingToday: Math.max(0, DAILY_FREE_LIMIT - usedToday),
+    taobaoImport: taobaoConfigured(),
   });
 });
 
@@ -166,6 +168,37 @@ app.post("/api/wardrobe", requireAuth, async (req, res) => {
 app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
   const ok = wardrobe.remove(req.user.id, Number(req.params.id));
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 淘宝/天猫商品链接导入衣柜（第三方聚合 API，仅后端持有 key/secret）
+// 解析链接 -> 返回可选商品图；不改动图片，仅供用户挑选
+app.post("/api/taobao/resolve", requireAuth, async (req, res) => {
+  const { url } = req.body || {};
+  if (!url) return res.status(400).json({ error: "缺少商品链接" });
+  try {
+    const result = await resolveItem(url);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "解析失败" });
+  }
+});
+
+// 导入选中的商品图 -> 服务端下载 -> 自动抠图 -> 存入衣柜（复用现有逻辑）
+app.post("/api/taobao/import", requireAuth, async (req, res) => {
+  const { category, imageUrl: remoteUrl } = req.body || {};
+  if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
+  if (!remoteUrl) return res.status(400).json({ error: "缺少 imageUrl" });
+  if (!taobaoConfigured()) return res.status(503).json({ error: "商品链接导入未配置" });
+  try {
+    const { base64, mimeType } = await downloadImage(remoteUrl);
+    let file = saveImage(base64, mimeType);
+    const cut = await removeBackground(file).catch(() => null);
+    if (cut) file = cut;
+    const it = wardrobe.add(req.user.id, category, file);
+    res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, cutout: !!cut } });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "导入失败" });
+  }
 });
 
 // 套装收藏
