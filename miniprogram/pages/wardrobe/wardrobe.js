@@ -65,13 +65,7 @@ Page({
   },
 
   addItem() {
-    wx.showActionSheet({
-      itemList: ['从相册上传', '淘宝商品链接导入'],
-      success: (res) => {
-        if (res.tapIndex === 0) this.chooseFromAlbum();
-        else if (res.tapIndex === 1) this.openTaobao();
-      }
-    });
+    this.chooseFromAlbum();
   },
 
   chooseFromAlbum() {
