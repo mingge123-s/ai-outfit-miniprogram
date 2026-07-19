@@ -3,6 +3,7 @@ const api = require('../../utils/api');
 const app = getApp();
 
 const CATEGORIES = [
+  { key: 'all', label: '全部', icon: '🗂️' },
   { key: 'top', label: '上衣', icon: '👕' },
   { key: 'pants', label: '裤子', icon: '👖' },
   { key: 'shoes', label: '鞋子', icon: '👟' },
@@ -27,7 +28,7 @@ function pathToBase64(path) {
 Page({
   data: {
     categories: CATEGORIES,
-    category: 'top',
+    category: 'all',
     items: [],
     loading: false,
     baseUrl: api.API_BASE_URL,
@@ -51,7 +52,8 @@ Page({
   async refresh() {
     this.setData({ loading: true });
     try {
-      const data = await api.wardrobe.list(this.data.category);
+      const cat = this.data.category === 'all' ? '' : this.data.category;
+      const data = await api.wardrobe.list(cat);
       this.setData({ items: data.items });
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
@@ -79,7 +81,8 @@ Page({
         try {
           const data = await pathToBase64(path);
           const mimeType = /\.png$/i.test(path) ? 'image/png' : 'image/jpeg';
-          const resp = await api.wardrobe.add(this.data.category, { data, mimeType });
+          const uploadCategory = this.data.category === 'all' ? 'top' : this.data.category;
+          const resp = await api.wardrobe.add(uploadCategory, { data, mimeType });
           wx.hideLoading();
           await this.refresh();
           if (resp && resp.item && resp.item.status === 'processing') {
@@ -106,7 +109,11 @@ Page({
           const cat = r.item.category;
           const c = CATEGORIES.find((x) => x.key === cat);
           wx.showToast({ title: `AI识别为「${c ? c.label : cat}」`, icon: 'none' });
-          this.setData({ category: cat }, () => this.refresh());
+          if (this.data.category === 'all') {
+            this.refresh();
+          } else {
+            this.setData({ category: cat }, () => this.refresh());
+          }
           return;
         }
       } catch (e) {}

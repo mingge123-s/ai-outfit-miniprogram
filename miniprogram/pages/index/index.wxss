@@ -232,10 +232,14 @@
 .generate-btn {
   width: 100%;
   height: 112rpx;
-  line-height: 112rpx;
   border-radius: 24rpx;
   font-size: 36rpx;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
   box-shadow: 0 12rpx 30rpx rgba(92, 124, 141, 0.3);
 }
 .generate-btn.disabled,
@@ -244,7 +248,7 @@
   color: #5f7078 !important;
   border: 2rpx solid #c4cdd1 !important;
   opacity: 1 !important;
-  box-shadow: none !important;
+  box-shadow: 0 10rpx 26rpx rgba(92, 124, 141, 0.18) !important;
 }
 .quota-hint {
   display: block;
