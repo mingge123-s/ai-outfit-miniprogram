@@ -79,16 +79,39 @@ Page({
         try {
           const data = await pathToBase64(path);
           const mimeType = /\.png$/i.test(path) ? 'image/png' : 'image/jpeg';
-          await api.wardrobe.add(this.data.category, { data, mimeType });
-          await this.refresh();
-          wx.showToast({ title: '已加入衣柜', icon: 'success' });
-        } catch (e) {
-          wx.showToast({ title: e.message || '上传失败', icon: 'none' });
-        } finally {
+          const resp = await api.wardrobe.add(this.data.category, { data, mimeType });
           wx.hideLoading();
+          await this.refresh();
+          if (resp && resp.item && resp.item.status === 'processing') {
+            wx.showToast({ title: '已入柜，AI识别中…', icon: 'none' });
+            this.pollItem(resp.item.id, 0);
+          } else {
+            wx.showToast({ title: '已加入衣柜', icon: 'success' });
+          }
+        } catch (e) {
+          wx.hideLoading();
+          wx.showToast({ title: e.message || '上传失败', icon: 'none' });
         }
       }
     });
+  },
+
+  // 轮询后台处理结果（抠图 + AI 识别类别），完成后跳到识别出的分类
+  pollItem(id, tries) {
+    if (tries >= 15) { this.refresh(); return; }
+    setTimeout(async () => {
+      try {
+        const r = await api.wardrobe.get(id);
+        if (r && r.item && r.item.status !== 'processing') {
+          const cat = r.item.category;
+          const c = CATEGORIES.find((x) => x.key === cat);
+          wx.showToast({ title: `AI识别为「${c ? c.label : cat}」`, icon: 'none' });
+          this.setData({ category: cat }, () => this.refresh());
+          return;
+        }
+      } catch (e) {}
+      this.pollItem(id, tries + 1);
+    }, 1500);
   },
 
   // ===== 淘宝商品链接导入 =====

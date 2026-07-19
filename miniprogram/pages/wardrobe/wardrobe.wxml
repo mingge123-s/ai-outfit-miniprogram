@@ -27,6 +27,7 @@
       bindlongpress="previewItem"
     >
       <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
+      <view class="processing-mask" wx:if="{{item.status === 'processing'}}"><text>处理中…</text></view>
       <view class="selected-check" wx:if="{{selected[item.category] && selected[item.category].id === item.id}}">✓</view>
       <view class="remove-btn" catchtap="removeItem" data-id="{{item.id}}">×</view>
     </view>
