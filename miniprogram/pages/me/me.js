@@ -107,8 +107,31 @@ Page({
     });
   },
 
+  redeem() {
+    wx.showModal({
+      title: '兑换码',
+      editable: true,
+      placeholderText: '请输入兑换码',
+      success: async (res) => {
+        if (!res.confirm) return;
+        const code = (res.content || '').trim();
+        if (!code) return;
+        wx.showLoading({ title: '兑换中…' });
+        try {
+          const r = await api.credits.redeem(code);
+          wx.hideLoading();
+          wx.showToast({ title: `已到账 ${r.credits} 次`, icon: 'success' });
+          this.refresh();
+        } catch (err) {
+          wx.hideLoading();
+          wx.showModal({ title: '兑换失败', content: err.message || '兑换码无效', showCancel: false });
+        }
+      }
+    });
+  },
+
   openVip() {
-    wx.showToast({ title: '会员/充值功能开发中', icon: 'none' });
+    wx.showToast({ title: '充值功能开发中，可先用兑换码', icon: 'none' });
   },
 
   goWardrobe() {

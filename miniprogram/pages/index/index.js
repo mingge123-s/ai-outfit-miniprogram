@@ -54,6 +54,8 @@ Page({
     loading: false,
     remainingToday: null,
     dailyLimit: null,
+    remainingFreeToday: null,
+    credits: null,
     quotaLoaded: false
   },
 
@@ -92,8 +94,19 @@ Page({
   async loadQuota() {
     try {
       const me = await api.authedRequest('GET', '/api/me');
-      this.setData({ remainingToday: me.remainingToday, dailyLimit: me.dailyLimit, quotaLoaded: true });
+      this.applyQuota(me);
     } catch (e) { /* 登录或网络失败时不阻塞生成 */ }
+  },
+
+  applyQuota(q) {
+    if (!q) return;
+    this.setData({
+      remainingToday: q.remainingToday,
+      dailyLimit: q.dailyLimit,
+      remainingFreeToday: q.remainingFreeToday,
+      credits: q.credits,
+      quotaLoaded: true
+    });
   },
 
   switchPerson() {
@@ -256,8 +269,8 @@ Page({
         };
       }
 
-      const { imageUrl, taskId, remainingToday } = await api.generateOutfit(body);
-      this.setData({ remainingToday });
+      const { imageUrl, taskId, quota } = await api.generateOutfit(body);
+      this.applyQuota(quota);
 
       app.globalData.lastResult = {
         image: imageUrl,

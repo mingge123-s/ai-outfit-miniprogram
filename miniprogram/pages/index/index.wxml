@@ -82,7 +82,7 @@
       disabled="{{!canGenerate || loading}}"
       bindtap="generate"
     >✨ {{loading ? '生成中…' : backgroundStyle === 'custom' && !customBackground ? '请填写自定义背景' : !canGenerate ? '请先上传单品' : '生成穿搭'}}</button>
-    <text class="quota-hint" wx:if="{{quotaLoaded}}">今日剩余免费生成 {{remainingToday}} / {{dailyLimit}} 次</text>
+    <text class="quota-hint" wx:if="{{quotaLoaded}}">今日免费剩余 {{remainingFreeToday}}/{{dailyLimit}} 次 · 积分 {{credits}}（约可生成 {{remainingToday}} 次）</text>
   </view>
 
   <!-- 生成中遮罩 -->
