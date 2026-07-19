@@ -23,6 +23,11 @@
       <text class="num">{{me.remainingToday}}</text>
       <text class="label">今日剩余次数</text>
     </view>
+    <view class="divider" />
+    <view class="stat">
+      <text class="num">{{me.credits}}</text>
+      <text class="label">剩余积分</text>
+    </view>
   </view>
 
   <view class="photos card">
@@ -68,12 +73,20 @@
     <text class="history-empty" wx:else>还没有生成记录</text>
   </view>
 
+  <view class="vip card" bindtap="redeem">
+    <view class="vip-left">
+      <text class="vip-title">🎁 兑换码充值</text>
+      <text class="vip-sub">今日免费 {{me.remainingFreeToday}}/{{me.dailyLimit}} 次，用尽后消耗积分</text>
+    </view>
+    <text class="vip-btn">兑换</text>
+  </view>
+
   <view class="vip card" bindtap="openVip">
     <view class="vip-left">
       <text class="vip-title">👑 开通会员</text>
-      <text class="vip-sub">解锁高清生成、更多次数与专属背景</text>
+      <text class="vip-sub">解锁高清生成、更多次数与专属背景（即将开放）</text>
     </view>
-    <text class="vip-btn">充值</text>
+    <text class="vip-btn">敬请期待</text>
   </view>
 
   <view class="menu card">

@@ -54,6 +54,46 @@ CREATE TABLE IF NOT EXISTS person_photos (
 try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
+try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free'"); } catch {}
+
+// 次数/积分系统（不涉及真实支付；用于兑换码、管理员充值，未来可平滑接入微信支付）
+db.exec(`
+CREATE TABLE IF NOT EXISTS credit_accounts (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  balance INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS credit_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  amount INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  reference TEXT,
+  reason TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS redeem_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT UNIQUE NOT NULL,
+  credits INTEGER NOT NULL,
+  max_uses INTEGER NOT NULL DEFAULT 1,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'active',
+  reason TEXT,
+  expires_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS redeem_code_uses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_id INTEGER NOT NULL REFERENCES redeem_codes(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (code_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, id);
+`);
 
 export function saveImage(base64, mimeType = "image/png") {
   const ext = (mimeType.split("/")[1] || "png").replace("jpeg", "jpg");
@@ -139,8 +179,8 @@ export const personPhotos = {
 };
 
 export const generations = {
-  create(userId, background) {
-    const info = db.prepare("INSERT INTO generations (user_id, status, background) VALUES (?, 'pending', ?)").run(userId, background || null);
+  create(userId, background, chargeType = "free") {
+    const info = db.prepare("INSERT INTO generations (user_id, status, background, charge_type) VALUES (?, 'pending', ?, ?)").run(userId, background || null, chargeType);
     return db.prepare("SELECT * FROM generations WHERE id = ?").get(info.lastInsertRowid);
   },
   setStatus(id, status) {
@@ -163,6 +203,10 @@ export const generations = {
   },
   countToday(userId) {
     return db.prepare("SELECT COUNT(*) AS c FROM generations WHERE user_id = ? AND status != 'failed' AND date(created_at) = date('now')").get(userId).c;
+  },
+  // 今日已用的「免费额度」生成数（不含积分扣减的生成、不含失败）
+  countTodayFree(userId) {
+    return db.prepare("SELECT COUNT(*) AS c FROM generations WHERE user_id = ? AND status != 'failed' AND (charge_type = 'free' OR charge_type IS NULL) AND date(created_at) = date('now')").get(userId).c;
   },
   remove(userId, id) {
     const item = this.get(userId, id);
@@ -196,4 +240,116 @@ export const outfits = {
     } catch {}
     return true;
   },
+};
+
+// ============ 次数/积分账户 ============
+// 每次生成消耗 1 积分（可配）；不涉及真实支付。
+const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 3); // 新用户注册赠送积分
+
+function _applyDelta(userId, amount, type, reference, reason) {
+  // 需在事务中调用
+  const row = db.prepare("SELECT balance FROM credit_accounts WHERE user_id = ?").get(userId);
+  const before = row ? row.balance : 0;
+  const after = before + amount;
+  if (row) {
+    db.prepare("UPDATE credit_accounts SET balance = ?, updated_at = datetime('now') WHERE user_id = ?").run(after, userId);
+  } else {
+    db.prepare("INSERT INTO credit_accounts (user_id, balance) VALUES (?, ?)").run(userId, after);
+  }
+  db.prepare("INSERT INTO credit_transactions (user_id, amount, balance_after, type, reference, reason) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(userId, amount, after, type, reference != null ? String(reference) : null, reason || null);
+  return after;
+}
+
+export const credits = {
+  // 确保账户存在；首次创建时发放注册赠送积分
+  ensureAccount: db.transaction((userId, initial = FREE_SIGNUP_CREDITS) => {
+    const row = db.prepare("SELECT balance FROM credit_accounts WHERE user_id = ?").get(userId);
+    if (row) return row.balance;
+    db.prepare("INSERT INTO credit_accounts (user_id, balance) VALUES (?, 0)").run(userId);
+    if (initial > 0) return _applyDelta(userId, initial, "signup_grant", null, "新用户注册赠送");
+    return 0;
+  }),
+
+  balance(userId) {
+    const row = db.prepare("SELECT balance FROM credit_accounts WHERE user_id = ?").get(userId);
+    return row ? row.balance : 0;
+  },
+
+  // 预扣：余额充足则扣减并记录 hold，返回 { ok, balance }
+  hold: db.transaction((userId, reference, amount = 1) => {
+    const row = db.prepare("SELECT balance FROM credit_accounts WHERE user_id = ?").get(userId);
+    const before = row ? row.balance : 0;
+    if (before < amount) return { ok: false, balance: before };
+    const after = _applyDelta(userId, -amount, "hold", reference, "生成预扣");
+    return { ok: true, balance: after };
+  }),
+
+  // 生成成功：把预扣转为消费（余额不变，仅记录，便于审计）
+  consume: db.transaction((userId, reference, amount = 1) => {
+    const done = db.prepare("SELECT 1 FROM credit_transactions WHERE reference = ? AND type IN ('consume','refund') LIMIT 1").get(String(reference));
+    if (done) return; // 幂等：已结算过
+    _applyDelta(userId, 0, "consume", reference, "生成成功扣减");
+  }),
+
+  // 生成失败：返还预扣的积分（幂等，避免重复返还）
+  refund: db.transaction((userId, reference, amount = 1) => {
+    const held = db.prepare("SELECT 1 FROM credit_transactions WHERE reference = ? AND type = 'hold' LIMIT 1").get(String(reference));
+    if (!held) return { refunded: false, balance: credits.balance(userId) };
+    const settled = db.prepare("SELECT 1 FROM credit_transactions WHERE reference = ? AND type IN ('consume','refund') LIMIT 1").get(String(reference));
+    if (settled) return { refunded: false, balance: credits.balance(userId) };
+    const after = _applyDelta(userId, amount, "refund", reference, "生成失败返还");
+    return { refunded: true, balance: after };
+  }),
+
+  // 管理员/兑换充值
+  grant: db.transaction((userId, amount, type = "admin_adjust", reason = null, reference = null) => {
+    return _applyDelta(userId, amount, type, reference, reason);
+  }),
+
+  transactions(userId, limit = 50) {
+    return db.prepare("SELECT * FROM credit_transactions WHERE user_id = ? ORDER BY id DESC LIMIT ?").all(userId, limit);
+  },
+
+  // 服务重启后：把「已预扣但对应生成已失败/中断且未结算」的积分返还
+  refundStale: db.transaction(() => {
+    const holds = db.prepare(`
+      SELECT ct.user_id, ct.reference, ct.amount
+      FROM credit_transactions ct
+      JOIN generations g ON g.id = CAST(ct.reference AS INTEGER)
+      WHERE ct.type = 'hold' AND g.status = 'failed'
+        AND NOT EXISTS (
+          SELECT 1 FROM credit_transactions s WHERE s.reference = ct.reference AND s.type IN ('consume','refund')
+        )
+    `).all();
+    for (const h of holds) {
+      _applyDelta(h.user_id, -h.amount, "refund", h.reference, "生成中断返还");
+    }
+    return holds.length;
+  }),
+};
+
+export const redeemCodes = {
+  create(code, creditsAmount, maxUses = 1, expiresAt = null, reason = null) {
+    const info = db.prepare("INSERT INTO redeem_codes (code, credits, max_uses, expires_at, reason) VALUES (?, ?, ?, ?, ?)")
+      .run(code, creditsAmount, maxUses, expiresAt, reason);
+    return db.prepare("SELECT * FROM redeem_codes WHERE id = ?").get(info.lastInsertRowid);
+  },
+
+  // 兑换：事务内校验并加积分。返回 { ok, error?, credits?, remainingCredits? }
+  redeem: db.transaction((userId, code) => {
+    const rc = db.prepare("SELECT * FROM redeem_codes WHERE code = ?").get(code);
+    if (!rc) return { ok: false, error: "兑换码无效" };
+    if (rc.status !== "active") return { ok: false, error: "兑换码已失效" };
+    if (rc.expires_at && rc.expires_at < new Date().toISOString()) return { ok: false, error: "兑换码已过期" };
+    if (rc.used_count >= rc.max_uses) return { ok: false, error: "兑换码已被使用" };
+    const used = db.prepare("SELECT 1 FROM redeem_code_uses WHERE code_id = ? AND user_id = ?").get(rc.id, userId);
+    if (used) return { ok: false, error: "你已使用过该兑换码" };
+    db.prepare("INSERT INTO redeem_code_uses (code_id, user_id) VALUES (?, ?)").run(rc.id, userId);
+    const usedCount = rc.used_count + 1;
+    db.prepare("UPDATE redeem_codes SET used_count = ?, status = ? WHERE id = ?")
+      .run(usedCount, usedCount >= rc.max_uses ? "used" : "active", rc.id);
+    const after = _applyDelta(userId, rc.credits, "redeem", `code:${rc.id}`, `兑换码 ${rc.code}`);
+    return { ok: true, credits: rc.credits, remainingCredits: after };
+  }),
 };

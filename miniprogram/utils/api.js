@@ -71,12 +71,13 @@ async function authedRequest(method, path, data) {
 
 // 异步生成：提交任务后轮询直到完成/失败，返回 { imageUrl, taskId }
 async function generateOutfit(body) {
-  const { taskId, remainingToday } = await authedRequest('POST', '/api/tryon', body);
+  const resp = await authedRequest('POST', '/api/tryon', body);
+  const { taskId } = resp;
   while (true) {
     await new Promise((r) => setTimeout(r, 2500));
     const task = await authedRequest('GET', `/api/tryon/${taskId}`);
     if (task.status === 'done') {
-      return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId, remainingToday };
+      return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId, quota: resp };
     }
     if (task.status === 'failed') throw new Error(task.error || '生成失败');
   }
@@ -100,6 +101,10 @@ module.exports = {
     import: (category, imageUrl) => authedRequest('POST', '/api/taobao/import', { category, imageUrl })
   },
   me: () => authedRequest('GET', '/api/me'),
+  credits: {
+    get: () => authedRequest('GET', '/api/credits'),
+    redeem: (code) => authedRequest('POST', '/api/credits/redeem', { code })
+  },
   personPhotos: {
     list: () => authedRequest('GET', '/api/person-photos'),
     add: (image) => authedRequest('POST', '/api/person-photos', { image }),

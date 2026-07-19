@@ -5,7 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations, credits, redeemCodes } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 
 const PORT = process.env.PORT || 3000;
@@ -28,6 +28,15 @@ const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
 const DAILY_FREE_LIMIT = Number(process.env.DAILY_FREE_LIMIT || 10); // 每用户每日免费生成次数
+const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 3); // 新用户注册赠送积分
+const CREDITS_PER_GENERATION = Number(process.env.CREDITS_PER_GENERATION || 1); // 每次生成消耗积分
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ""; // 管理员接口令牌（未配置则关闭管理接口）
+// 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
+const CREDIT_PACKAGES = [
+  { id: "starter", priceFen: 100, credits: 3, label: "体验包" },
+  { id: "standard", priceFen: 990, credits: 20, label: "标准包" },
+  { id: "pro", priceFen: 2990, credits: 80, label: "超值包" },
+];
 const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
 // 上传后 AI 自动识别衣物类别（OpenAI 兼容视觉模型）
 const VISION_API_KEY = process.env.VISION_API_KEY || "";
@@ -78,15 +87,40 @@ function requireAuth(req, res, next) {
   const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   const user = userByToken(token);
   if (!user) return res.status(401).json({ error: "未登录" });
+  credits.ensureAccount(user.id, FREE_SIGNUP_CREDITS); // 幂等：确保积分账户存在
   req.user = user;
   next();
+}
+
+// 管理员接口鉴权：需配置 ADMIN_TOKEN，并在请求头 x-admin-token 携带
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) return res.status(503).json({ error: "管理接口未开启（未配置 ADMIN_TOKEN）" });
+  const token = req.headers["x-admin-token"];
+  if (token !== ADMIN_TOKEN) return res.status(403).json({ error: "管理员校验失败" });
+  next();
+}
+
+// 计算余额/额度快照
+function quotaSnapshot(userId) {
+  const usedFreeToday = generations.countTodayFree(userId);
+  const remainingFreeToday = Math.max(0, DAILY_FREE_LIMIT - usedFreeToday);
+  const creditBalance = credits.balance(userId);
+  return {
+    dailyLimit: DAILY_FREE_LIMIT,
+    usedFreeToday,
+    remainingFreeToday,
+    credits: creditBalance,
+    creditsPerGeneration: CREDITS_PER_GENERATION,
+    // 今日实际还能生成的次数（免费 + 积分可支撑）
+    remainingToday: remainingFreeToday + Math.floor(creditBalance / CREDITS_PER_GENERATION),
+  };
 }
 
 const imageUrl = (file) => `/uploads/${file}`;
 
 // 我的信息
 app.get("/api/me", requireAuth, (req, res) => {
-  const usedToday = generations.countToday(req.user.id);
+  const q = quotaSnapshot(req.user.id);
   res.json({
     userId: req.user.id,
     nickname: req.user.nickname || null,
@@ -96,11 +130,61 @@ app.get("/api/me", requireAuth, (req, res) => {
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
     memberLevel: "free", // 会员/充值功能预留
-    dailyLimit: DAILY_FREE_LIMIT,
-    usedToday,
-    remainingToday: Math.max(0, DAILY_FREE_LIMIT - usedToday),
+    ...q,
     taobaoImport: taobaoConfigured(),
   });
+});
+
+// 积分账户：余额、额度、套餐（套餐仅展示，暂不收真钱）
+app.get("/api/credits", requireAuth, (req, res) => {
+  res.json({
+    ...quotaSnapshot(req.user.id),
+    transactions: credits.transactions(req.user.id, 30).map((t) => ({
+      amount: t.amount, balanceAfter: t.balance_after, type: t.type, reason: t.reason, createdAt: t.created_at,
+    })),
+    packages: CREDIT_PACKAGES, // 未来接入微信支付后开放购买
+    purchaseEnabled: false,
+  });
+});
+
+// 兑换码兑换
+app.post("/api/credits/redeem", requireAuth, (req, res) => {
+  const code = String((req.body || {}).code || "").trim();
+  if (!code) return res.status(400).json({ error: "请输入兑换码" });
+  const r = redeemCodes.redeem(req.user.id, code);
+  if (!r.ok) return res.status(400).json({ error: r.error });
+  res.json({ credits: r.credits, remainingCredits: r.remainingCredits, ...quotaSnapshot(req.user.id) });
+});
+
+// ===== 管理员接口（需 ADMIN_TOKEN；不涉及真实支付）=====
+// 给指定用户充值积分
+app.post("/api/admin/credits/grant", requireAdmin, (req, res) => {
+  const { userId, amount, reason } = req.body || {};
+  const uid = Number(userId);
+  const amt = Number(amount);
+  if (!uid || !userByToken) return res.status(400).json({ error: "缺少 userId" });
+  if (!Number.isInteger(amt) || amt === 0) return res.status(400).json({ error: "amount 必须为非零整数" });
+  credits.ensureAccount(uid, 0);
+  const balance = credits.grant(uid, amt, "admin_adjust", reason || "管理员充值");
+  res.json({ userId: uid, amount: amt, balance });
+});
+
+// 生成兑换码
+app.post("/api/admin/redeem-codes", requireAdmin, (req, res) => {
+  const { credits: creditsAmount, count = 1, maxUses = 1, expiresAt = null, reason = null } = req.body || {};
+  const amt = Number(creditsAmount);
+  const n = Math.min(Math.max(1, Number(count) || 1), 200);
+  if (!Number.isInteger(amt) || amt <= 0) return res.status(400).json({ error: "credits 必须为正整数" });
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let code;
+    for (let t = 0; t < 5; t++) {
+      code = "WF" + Math.random().toString(36).slice(2, 10).toUpperCase();
+      try { const rc = redeemCodes.create(code, amt, Number(maxUses) || 1, expiresAt, reason); out.push({ code: rc.code, credits: rc.credits }); break; }
+      catch { code = null; }
+    }
+  }
+  res.json({ codes: out });
 });
 
 // 自动抠图（rembg，开源本地去背景）；不可用或失败时回退原图
@@ -532,9 +616,11 @@ async function pumpQueue() {
       }
       const file = saveImage(result.imageData, result.imageMimeType);
       generations.finish(task.id, file);
+      if (task.charged) credits.consume(task.userId, task.id, CREDITS_PER_GENERATION);
     } catch (err) {
       console.error(`generation #${task.id} 失败:`, err);
       generations.fail(task.id, err instanceof Error ? err.message : String(err));
+      if (task.charged) credits.refund(task.userId, task.id, CREDITS_PER_GENERATION);
     }
   }
   queueRunning = false;
@@ -562,10 +648,14 @@ app.post("/api/tryon", requireAuth, (req, res) => {
     let { items = {}, personImage, backgroundStyle, customBackground } = req.body || {};
     const user = req.user;
 
-    // 每日免费次数限额
-    const usedToday = generations.countToday(user.id);
-    if (usedToday >= DAILY_FREE_LIMIT) {
-      return res.status(429).json({ error: `今日免费生成次数已用完（${DAILY_FREE_LIMIT} 次/天），请明天再来` });
+    // 额度判定：优先使用当日免费额度，用尽后扣积分
+    const usedFreeToday = generations.countTodayFree(user.id);
+    const useFree = usedFreeToday < DAILY_FREE_LIMIT;
+    if (!useFree && credits.balance(user.id) < CREDITS_PER_GENERATION) {
+      return res.status(402).json({
+        error: "生成次数不足，请用兑换码充值后再试",
+        ...quotaSnapshot(user.id),
+      });
     }
 
     // 支持 { personPhotoId } 引用「我的模特照」
@@ -602,10 +692,20 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       images.push({ mimeType: personImage.mimeType || "image/jpeg", data: personImage.data });
     }
 
-    const g = generations.create(user.id, backgroundStyle || null);
-    taskQueue.push({ id: g.id, prompt, images });
+    const g = generations.create(user.id, backgroundStyle || null, useFree ? "free" : "credit");
+    let charged = false;
+    if (!useFree) {
+      const held = credits.hold(user.id, g.id, CREDITS_PER_GENERATION);
+      if (!held.ok) {
+        // 极端并发下余额被其他请求占用：取消本次任务
+        generations.fail(g.id, "积分不足");
+        return res.status(402).json({ error: "生成次数不足，请用兑换码充值后再试", ...quotaSnapshot(user.id) });
+      }
+      charged = true;
+    }
+    taskQueue.push({ id: g.id, userId: user.id, prompt, images, charged });
     pumpQueue();
-    return res.status(202).json({ taskId: g.id, status: "pending", remainingToday: Math.max(0, DAILY_FREE_LIMIT - usedToday - 1) });
+    return res.status(202).json({ taskId: g.id, status: "pending", ...quotaSnapshot(user.id) });
   } catch (err) {
     console.error("tryon error:", err);
     return res.status(err.statusCode || 500).json({ error: "生成失败", details: err instanceof Error ? err.message : String(err) });
@@ -630,6 +730,7 @@ app.delete("/api/history/:id", requireAuth, (req, res) => {
 
 // 启动时把上次进程遗留的未完成任务标记为失败（内存队列不跨进程）
 generations.failStale?.();
+credits.refundStale?.(); // 重启后返还中断任务已预扣的积分
 
 app.listen(PORT, () => {
   checkRembg();
