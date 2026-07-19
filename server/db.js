@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS person_photos (
 `);
 try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
+try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
 
 export function saveImage(base64, mimeType = "image/png") {
   const ext = (mimeType.split("/")[1] || "png").replace("jpeg", "jpg");
@@ -92,9 +93,18 @@ export const wardrobe = {
       ? db.prepare("SELECT * FROM wardrobe_items WHERE user_id = ? AND category = ? ORDER BY id DESC").all(userId, category)
       : db.prepare("SELECT * FROM wardrobe_items WHERE user_id = ? ORDER BY id DESC").all(userId);
   },
-  add(userId, category, imageFile) {
-    const info = db.prepare("INSERT INTO wardrobe_items (user_id, category, image_file) VALUES (?, ?, ?)").run(userId, category, imageFile);
+  add(userId, category, imageFile, status = "ready") {
+    const info = db.prepare("INSERT INTO wardrobe_items (user_id, category, image_file, status) VALUES (?, ?, ?, ?)").run(userId, category, imageFile, status);
     return db.prepare("SELECT * FROM wardrobe_items WHERE id = ?").get(info.lastInsertRowid);
+  },
+  update(userId, id, fields = {}) {
+    const cur = this.get(userId, id);
+    if (!cur) return null;
+    const category = fields.category ?? cur.category;
+    const imageFile = fields.imageFile ?? cur.image_file;
+    const status = fields.status ?? cur.status;
+    db.prepare("UPDATE wardrobe_items SET category = ?, image_file = ?, status = ? WHERE id = ?").run(category, imageFile, status, id);
+    return this.get(userId, id);
   },
   get(userId, id) {
     return db.prepare("SELECT * FROM wardrobe_items WHERE id = ? AND user_id = ?").get(id, userId) || null;

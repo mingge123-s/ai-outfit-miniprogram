@@ -91,6 +91,7 @@ module.exports = {
   authedRequest,
   wardrobe: {
     list: (category) => authedRequest('GET', `/api/wardrobe${category ? `?category=${category}` : ''}`),
+    get: (id) => authedRequest('GET', `/api/wardrobe/${id}`),
     add: (category, image) => authedRequest('POST', '/api/wardrobe', { category, image }),
     remove: (id) => authedRequest('DELETE', `/api/wardrobe/${id}`)
   },

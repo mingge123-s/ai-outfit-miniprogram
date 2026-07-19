@@ -29,6 +29,11 @@ const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
 const DAILY_FREE_LIMIT = Number(process.env.DAILY_FREE_LIMIT || 10); // 每用户每日免费生成次数
 const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
+// 上传后 AI 自动识别衣物类别（OpenAI 兼容视觉模型）
+const VISION_API_KEY = process.env.VISION_API_KEY || "";
+const VISION_BASE_URL = (process.env.VISION_BASE_URL || "https://ai.gs88.shop/v1").replace(/\/+$/, "");
+const VISION_MODEL = process.env.VISION_MODEL || "gpt-5.4-mini";
+const AUTO_CATEGORY = process.env.AUTO_CATEGORY !== "0";
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
   console.error("Missing GEMINI_API_KEY environment variable.");
@@ -129,6 +134,64 @@ async function removeBackground(file) {
   return null;
 }
 
+// AI 识别衣物类别（返回 wardrobe 支持的分类键；失败返回 null 回退用户所选分类）
+const WARDROBE_CATS = ["top", "pants", "shoes", "hat", "coat", "dress", "accessory", "socks"];
+async function classifyCategory(file) {
+  if (!AUTO_CATEGORY || !VISION_API_KEY) return null;
+  const input = path.join(UPLOADS_DIR, file);
+  if (!fs.existsSync(input)) return null;
+  try {
+    const b64 = fs.readFileSync(input).toString("base64");
+    const mime = /\.png$/i.test(file) ? "image/png" : "image/jpeg";
+    const prompt =
+      "这是一张衣物或配件的商品图。请判断它属于以下哪一类，只输出一个英文小写单词，不要多余文字：" +
+      "top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
+    const resp = await fetch(`${VISION_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${VISION_API_KEY}` },
+      body: JSON.stringify({
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    let out = String(data?.choices?.[0]?.message?.content || "").toLowerCase();
+    const m = out.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
+    if (!m) return null;
+    let cat = m[0];
+    if (cat === "skirt") cat = "dress"; // 半身裙归入裙装
+    if (cat === "bag") cat = "accessory"; // 包归入配饰/包包分类
+    return WARDROBE_CATS.includes(cat) ? cat : null;
+  } catch {
+    return null;
+  }
+}
+
+// 后台异步处理单品：AI 识别类别 + 抠图，完成后更新入柜记录
+async function processWardrobeItem(userId, id, file, fallbackCategory) {
+  let category = fallbackCategory;
+  let imageFile = file;
+  try {
+    const aiCat = await classifyCategory(file).catch(() => null);
+    if (aiCat) category = aiCat;
+    const cut = await removeBackground(file).catch(() => null);
+    if (cut) imageFile = cut;
+  } catch (e) {
+    console.error("processWardrobeItem error:", e?.message || e);
+  } finally {
+    wardrobe.update(userId, id, { category, imageFile, status: "ready" });
+  }
+}
+
 // 我的模特照（全身照，可多张）
 app.get("/api/person-photos", requireAuth, (req, res) => {
   const items = personPhotos.list(req.user.id).map((p) => ({
@@ -151,7 +214,7 @@ app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
   const items = wardrobe.list(req.user.id, req.query.category).map((it) => ({
-    id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at,
+    id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status || "ready",
   }));
   res.json({ items });
 });
@@ -159,11 +222,17 @@ app.post("/api/wardrobe", requireAuth, async (req, res) => {
   const { category, image } = req.body || {};
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
-  let file = saveImage(image.data, image.mimeType || "image/jpeg");
-  const cut = await removeBackground(file).catch(() => null);
-  if (cut) file = cut;
-  const it = wardrobe.add(req.user.id, category, file);
-  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, cutout: !!cut } });
+  const file = saveImage(image.data, image.mimeType || "image/jpeg");
+  // 先秒回入柜（标记处理中），抠图/AI 识别类别放后台异步执行，避免前端久等
+  const needsProcess = (AUTO_CUTOUT || AUTO_CATEGORY);
+  const it = wardrobe.add(req.user.id, category, file, needsProcess ? "processing" : "ready");
+  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status } });
+  if (needsProcess) processWardrobeItem(req.user.id, it.id, file, category);
+});
+app.get("/api/wardrobe/:id", requireAuth, (req, res) => {
+  const it = wardrobe.get(req.user.id, Number(req.params.id));
+  if (!it) return res.status(404).json({ error: "不存在" });
+  res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status || "ready" } });
 });
 app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
   const ok = wardrobe.remove(req.user.id, Number(req.params.id));
