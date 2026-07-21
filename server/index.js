@@ -39,7 +39,7 @@ const CREDIT_PACKAGES = [
 ];
 const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
 // 上传后使用低成本豆包视觉模型识别衣物类别，复用火山方舟 ARK_API_KEY。
-const ARK_VISION_MODEL = process.env.ARK_VISION_MODEL || "doubao-seed-2-0-mini-260428";
+const ARK_VISION_MODEL = process.env.ARK_VISION_MODEL || "doubao-seed-2-0-mini-260215";
 const AUTO_CATEGORY = process.env.AUTO_CATEGORY !== "0";
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
