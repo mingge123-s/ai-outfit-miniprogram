@@ -622,10 +622,13 @@ Core constraints:
 3. REALISTIC INTEGRATION: Simulate physically plausible draping, folding and fit of every garment on the body. Scale each item correctly to body proportions. Handle occlusion correctly (e.g. top over pants waistband, hat over hair).
 4. BACKGROUND: Place the model in a ${background}. The background must be photorealistic and must not distract from the outfit.
 5. LIGHTING: Apply consistent lighting, shadows and highlights across the model, all garments and the background.
+6. COMPOSITION (ABSOLUTE CRITICAL): Use a vertical 9:16 fashion photograph. Zoom the camera OUT far enough to show the COMPLETE person from the top of the hair to the soles of both shoes. Keep the model centered and no taller than 82% of the image height, with clear empty margin above the hair and below the feet.
+7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.
 
 Prohibitions:
 - DO NOT alter the intrinsic appearance of any provided garment.
-- DO NOT crop out the shoes or hat; the full outfit from head to toe must be visible.
+- DO NOT crop the head, hair, forehead, face, chin, hands, legs, shoes or any part of the body.
+- DO NOT use a close-up, medium shot, waist-up shot, top-cropped framing or edge-to-edge body framing.
 - DO NOT add extra clothing items or accessories that conflict with the provided ones.
 - DO NOT produce collage-like or split images; output a single coherent photograph.
 `;
@@ -718,7 +721,7 @@ async function generateWithArk(prompt, images) {
     prompt,
     image: images.map((img) => `data:${img.mimeType || "image/jpeg"};base64,${img.data}`),
     response_format: process.env.ARK_RESPONSE_FORMAT || "url",
-    size: process.env.ARK_SIZE || "2k",
+    size: process.env.ARK_SIZE || "1152x2048",
     stream: false,
     watermark: process.env.ARK_WATERMARK === "1",
   };

@@ -48,7 +48,7 @@
   background: rgba(248, 249, 250, 0.96); box-shadow: 0 -8rpx 30rpx rgba(92,124,141,.08); z-index: 20;
 }
 .use-selected {
-  height: 96rpx; line-height: 96rpx; border-radius: 20rpx; background: #5c7c8d; color: #fff;
+  height: 96rpx; border-radius: 20rpx; background: #5c7c8d; color: #fff;
   font-size: 30rpx; font-weight: 600;
 }
 
@@ -71,7 +71,7 @@
   border-radius: 16rpx; padding: 20rpx; font-size: 26rpx; color: #33334d; background: #fbfbfe;
 }
 .tb-primary {
-  margin-top: 24rpx; height: 92rpx; line-height: 92rpx; border-radius: 20rpx;
+  margin-top: 24rpx; height: 92rpx; border-radius: 20rpx;
   background: #5c7c8d; color: #fff; font-size: 30rpx; font-weight: 600;
 }
 .tb-primary.disabled { background: #d7dde0 !important; color: #5f7078 !important; opacity: 1 !important; }

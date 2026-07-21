@@ -66,7 +66,7 @@ npm start              # 默认 http://localhost:3000
 
 支持三种生图提供方（由 `.env` 自动选择，优先 ark）：
 
-- **火山方舟 豆包 Seedream**：配置 `ARK_API_KEY`，走 `/api/v3/images/generations` 多参考图接口，默认模型 `doubao-seedream-5-0-pro-260628`，国内直连无需代理，适合小程序正式上线。可用 `ARK_SIZE` 调整分辨率（默认 `2k`）。
+- **火山方舟 豆包 Seedream**：配置 `ARK_API_KEY`，走 `/api/v3/images/generations` 多参考图接口，默认模型 `doubao-seedream-5-0-pro-260628`，国内直连无需代理，适合小程序正式上线。默认 `ARK_SIZE=1152x2048`，以较低计费档生成 9:16 全身构图；可按需调整。
 - **OpenAI 兼容网关**（如 `https://ai.gs88.shop`）：配置 `OPENAI_API_KEY` + `OPENAI_BASE_URL`，走 `/v1/images/edits` 多图编辑接口，默认模型 `gpt-image-2`。Cloudflare 网关下高质量档易 524 超时，默认 `IMAGE_QUALITY=low`。
 - **Google Gemini**：配置 `GEMINI_API_KEY`，默认模型 `gemini-2.5-flash-image-preview`。
 
