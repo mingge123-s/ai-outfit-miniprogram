@@ -786,7 +786,8 @@ async function pumpQueue() {
       if (task.charged) credits.consume(task.userId, task.id, CREDITS_PER_GENERATION);
     } catch (err) {
       console.error(`generation #${task.id} 失败:`, err);
-      generations.fail(task.id, err instanceof Error ? err.message : String(err));
+      // 详细供应商错误只写服务端日志，客户端统一使用中性提示。
+      generations.fail(task.id, "生成失败，请稍后重试");
       if (task.charged) credits.refund(task.userId, task.id, CREDITS_PER_GENERATION);
     }
   }

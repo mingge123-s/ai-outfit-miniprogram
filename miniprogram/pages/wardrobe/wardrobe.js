@@ -171,7 +171,7 @@ Page({
     this.pollBatchItems(uploadedIds);
   },
 
-  // 每轮只拉一次衣柜列表，批量等待豆包识别和抠图完成。
+  // 每轮只拉一次衣柜列表，批量等待智能识别和抠图完成。
   pollBatchItems(ids) {
     const token = Date.now();
     const idSet = new Set(ids.map(Number));
@@ -192,7 +192,7 @@ Page({
         if (!pending.length) {
           this._batchPollToken = null;
           await this.refresh();
-          wx.showToast({ title: '豆包识别归类完成', icon: 'success' });
+          wx.showToast({ title: '智能识别归类完成', icon: 'success' });
           return;
         }
       } catch (e) {}
