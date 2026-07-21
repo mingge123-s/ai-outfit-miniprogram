@@ -7,6 +7,10 @@ const limits = {
   memberDailyLimit: 10,
   freeWardrobeLimit: 10,
   memberWardrobeLimit: 30,
+  freePersonPhotoLimit: 10,
+  memberPersonPhotoLimit: 30,
+  freeOutfitLimit: 20,
+  memberOutfitLimit: 40,
 };
 
 test("free users receive free limits", () => {
@@ -15,6 +19,8 @@ test("free users receive free limits", () => {
     memberExpiresAt: null,
     dailyLimit: 3,
     wardrobeLimit: 10,
+    personPhotoLimit: 10,
+    outfitLimit: 20,
   });
 });
 
@@ -24,6 +30,8 @@ test("permanent members receive member limits", () => {
     memberExpiresAt: null,
     dailyLimit: 10,
     wardrobeLimit: 30,
+    personPhotoLimit: 30,
+    outfitLimit: 40,
   });
 });
 

@@ -31,7 +31,7 @@
   </view>
 
   <view class="photos card">
-    <text class="photos-title">我的模特照（全身照，可多张，点击直接用于生成）</text>
+    <text class="photos-title">我的模特照 {{me.personPhotoCount}}/{{me.personPhotoLimit}}（全身照，点击直接用于生成）</text>
     <view class="photos-grid">
       <view class="photo" wx:for="{{photos}}" wx:key="id" data-photo="{{item}}" bindtap="usePhoto">
         <image class="photo-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
@@ -95,8 +95,7 @@
   <view class="vip card" bindtap="openVip">
     <view class="vip-left">
       <text class="vip-title">{{me.memberLevel === 'member' ? '👑 会员权益' : '👑 开通会员'}}</text>
-      <text class="vip-sub" wx:if="{{me.memberLevel === 'member'}}">每日 10 次免费生图 · 衣柜上限 30 件</text>
-      <text class="vip-sub" wx:else>每日 10 次免费生图 · 衣柜扩容至 30 件</text>
+      <text class="vip-sub">每日 10 次 · 衣柜 30 件 · 模特照 30 张 · 收藏 40 套</text>
     </view>
     <text class="vip-btn">{{me.memberLevel === 'member' ? '已开通' : '敬请期待'}}</text>
   </view>

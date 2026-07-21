@@ -32,6 +32,10 @@ const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
 const MEMBER_DAILY_LIMIT = Number(process.env.MEMBER_DAILY_LIMIT || 10);
 const FREE_WARDROBE_LIMIT = Number(process.env.FREE_WARDROBE_LIMIT || 10);
 const MEMBER_WARDROBE_LIMIT = Number(process.env.MEMBER_WARDROBE_LIMIT || 30);
+const FREE_PERSON_PHOTO_LIMIT = Number(process.env.FREE_PERSON_PHOTO_LIMIT || 10);
+const MEMBER_PERSON_PHOTO_LIMIT = Number(process.env.MEMBER_PERSON_PHOTO_LIMIT || 30);
+const FREE_OUTFIT_LIMIT = Number(process.env.FREE_OUTFIT_LIMIT || 20);
+const MEMBER_OUTFIT_LIMIT = Number(process.env.MEMBER_OUTFIT_LIMIT || 40);
 const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 0);
 const CREDITS_PER_GENERATION = Number(process.env.CREDITS_PER_GENERATION || 1); // 每次生成消耗积分
 const REWARDED_AD_ENABLED = process.env.REWARDED_AD_ENABLED === "1";
@@ -43,6 +47,10 @@ const ENTITLEMENT_LIMITS = {
   memberDailyLimit: MEMBER_DAILY_LIMIT,
   freeWardrobeLimit: FREE_WARDROBE_LIMIT,
   memberWardrobeLimit: MEMBER_WARDROBE_LIMIT,
+  freePersonPhotoLimit: FREE_PERSON_PHOTO_LIMIT,
+  memberPersonPhotoLimit: MEMBER_PERSON_PHOTO_LIMIT,
+  freeOutfitLimit: FREE_OUTFIT_LIMIT,
+  memberOutfitLimit: MEMBER_OUTFIT_LIMIT,
 };
 // 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
 const CREDIT_PACKAGES = [
@@ -372,14 +380,31 @@ async function pumpWardrobeProcessQueue() {
 
 // 我的模特照（全身照，可多张）
 app.get("/api/person-photos", requireAuth, (req, res) => {
-  const items = personPhotos.list(req.user.id).map((p) => ({
+  const rows = personPhotos.list(req.user.id);
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((p) => ({
     id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at,
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: rows.length,
+    limit: entitlement.personPhotoLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/person-photos", requireAuth, (req, res) => {
   const { image } = req.body || {};
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const photoCount = personPhotos.list(req.user.id).length;
+  if (photoCount >= entitlement.personPhotoLimit) {
+    return res.status(403).json({
+      error: `模特照已达上限（${photoCount}/${entitlement.personPhotoLimit}）`,
+      personPhotoCount: photoCount,
+      personPhotoLimit: entitlement.personPhotoLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
   const p = personPhotos.add(req.user.id, file);
   res.json({ item: { id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at } });
@@ -483,14 +508,31 @@ const parseOutfitItems = (o) => {
   } catch { return []; }
 };
 app.get("/api/outfits", requireAuth, (req, res) => {
-  const items = outfits.list(req.user.id).map((o) => ({
+  const rows = outfits.list(req.user.id);
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((o) => ({
     id: o.id, name: o.name || null, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description,
     items: parseOutfitItems(o), createdAt: o.created_at,
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: rows.length,
+    limit: entitlement.outfitLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/outfits", requireAuth, (req, res) => {
   const { image, generationId, backgroundStyle, description, items, name } = req.body || {};
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const outfitCount = outfits.list(req.user.id).length;
+  if (outfitCount >= entitlement.outfitLimit) {
+    return res.status(403).json({
+      error: `收藏套餐已达上限（${outfitCount}/${entitlement.outfitLimit}）`,
+      outfitCount,
+      outfitLimit: entitlement.outfitLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   let file;
   if (generationId) {
     const g = generations.get(req.user.id, Number(generationId));

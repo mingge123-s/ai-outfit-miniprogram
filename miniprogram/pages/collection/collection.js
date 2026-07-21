@@ -9,6 +9,9 @@ Page({
     openId: null,
     selected: {},
     selectedCount: 0,
+    outfitCount: 0,
+    outfitLimit: 20,
+    memberLevel: 'free',
     labels: { top: '上衣', pants: '裤子', shoes: '鞋子', hat: '帽子', coat: '外套', dress: '裙装', bag: '包包', accessory: '配饰/包包', socks: '袜子' },
     baseUrl: api.API_BASE_URL
   },
@@ -21,7 +24,12 @@ Page({
     this.setData({ loading: true });
     try {
       const data = await api.outfits.list();
-      this.setData({ items: data.items });
+      this.setData({
+        items: data.items,
+        outfitCount: data.count == null ? data.items.length : data.count,
+        outfitLimit: data.limit == null ? this.data.outfitLimit : data.limit,
+        memberLevel: data.memberLevel || this.data.memberLevel
+      });
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {

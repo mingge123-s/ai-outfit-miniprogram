@@ -90,6 +90,15 @@ Page({
   },
 
   addPhoto() {
+    const me = this.data.me || {};
+    if (me.personPhotoCount >= me.personPhotoLimit) {
+      wx.showModal({
+        title: '模特照已满',
+        content: `当前 ${me.personPhotoCount}/${me.personPhotoLimit} 张，请删除照片${me.memberLevel === 'free' ? '或开通会员扩容至 30 张' : '后再上传'}`,
+        showCancel: false
+      });
+      return;
+    }
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],

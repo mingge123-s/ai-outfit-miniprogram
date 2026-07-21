@@ -21,5 +21,7 @@ export function entitlementsFor(user, limits, now = Date.now()) {
     memberExpiresAt: isMember ? (user.member_expires_at || null) : null,
     dailyLimit: isMember ? limits.memberDailyLimit : limits.freeDailyLimit,
     wardrobeLimit: isMember ? limits.memberWardrobeLimit : limits.freeWardrobeLimit,
+    personPhotoLimit: isMember ? limits.memberPersonPhotoLimit : limits.freePersonPhotoLimit,
+    outfitLimit: isMember ? limits.memberOutfitLimit : limits.freeOutfitLimit,
   };
 }

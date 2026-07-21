@@ -1,4 +1,6 @@
 <view class="page">
+  <view class="quota-tip">{{memberLevel === 'member' ? '会员' : '免费版'}}收藏 {{outfitCount}}/{{outfitLimit}} 套</view>
+
   <view class="grid">
     <view class="card" wx:for="{{items}}" wx:key="id">
       <view class="card-name" data-item="{{item}}" bindtap="rename">

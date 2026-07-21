@@ -1,4 +1,8 @@
 .page { padding: 24rpx 32rpx 60rpx; }
+.quota-tip {
+  margin-bottom: 20rpx; padding: 16rpx 20rpx; border-radius: 12rpx;
+  background: #eef3f5; color: #5c7c8d; font-size: 26rpx;
+}
 
 .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
 .card { background: #fff; border-radius: 20rpx; overflow: hidden; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05); }
