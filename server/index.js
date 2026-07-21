@@ -5,8 +5,9 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations, credits, redeemCodes } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
+import { entitlementsFor } from "./entitlements.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -27,10 +28,22 @@ const MODEL_ID =
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
-const DAILY_FREE_LIMIT = Number(process.env.DAILY_FREE_LIMIT || 10); // 每用户每日免费生成次数
-const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 3); // 新用户注册赠送积分
+const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
+const MEMBER_DAILY_LIMIT = Number(process.env.MEMBER_DAILY_LIMIT || 10);
+const FREE_WARDROBE_LIMIT = Number(process.env.FREE_WARDROBE_LIMIT || 10);
+const MEMBER_WARDROBE_LIMIT = Number(process.env.MEMBER_WARDROBE_LIMIT || 30);
+const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 0);
 const CREDITS_PER_GENERATION = Number(process.env.CREDITS_PER_GENERATION || 1); // 每次生成消耗积分
+const REWARDED_AD_ENABLED = process.env.REWARDED_AD_ENABLED === "1";
+const AD_REWARD_CREDITS = Number(process.env.AD_REWARD_CREDITS || 1);
+const AD_DAILY_REWARD_LIMIT = Number(process.env.AD_DAILY_REWARD_LIMIT || 1);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ""; // 管理员接口令牌（未配置则关闭管理接口）
+const ENTITLEMENT_LIMITS = {
+  freeDailyLimit: FREE_DAILY_LIMIT,
+  memberDailyLimit: MEMBER_DAILY_LIMIT,
+  freeWardrobeLimit: FREE_WARDROBE_LIMIT,
+  memberWardrobeLimit: MEMBER_WARDROBE_LIMIT,
+};
 // 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
 const CREDIT_PACKAGES = [
   { id: "starter", priceFen: 100, credits: 3, label: "体验包" },
@@ -99,16 +112,23 @@ function requireAdmin(req, res, next) {
 }
 
 // 计算余额/额度快照
-function quotaSnapshot(userId) {
-  const usedFreeToday = generations.countTodayFree(userId);
-  const remainingFreeToday = Math.max(0, DAILY_FREE_LIMIT - usedFreeToday);
-  const creditBalance = credits.balance(userId);
+function quotaSnapshot(user) {
+  const entitlement = entitlementsFor(user, ENTITLEMENT_LIMITS);
+  const usedFreeToday = generations.countTodayFree(user.id);
+  const remainingFreeToday = Math.max(0, entitlement.dailyLimit - usedFreeToday);
+  const creditBalance = credits.balance(user.id);
+  const adRewardsUsedToday = adRewards.countToday(user.id);
   return {
-    dailyLimit: DAILY_FREE_LIMIT,
+    ...entitlement,
     usedFreeToday,
     remainingFreeToday,
     credits: creditBalance,
     creditsPerGeneration: CREDITS_PER_GENERATION,
+    rewardedAdEnabled: REWARDED_AD_ENABLED,
+    adRewardCredits: AD_REWARD_CREDITS,
+    adDailyRewardLimit: AD_DAILY_REWARD_LIMIT,
+    adRewardsUsedToday,
+    adRewardsRemainingToday: Math.max(0, AD_DAILY_REWARD_LIMIT - adRewardsUsedToday),
     // 今日实际还能生成的次数（免费 + 积分可支撑）
     remainingToday: remainingFreeToday + Math.floor(creditBalance / CREDITS_PER_GENERATION),
   };
@@ -118,7 +138,7 @@ const imageUrl = (file) => `/uploads/${file}`;
 
 // 我的信息
 app.get("/api/me", requireAuth, (req, res) => {
-  const q = quotaSnapshot(req.user.id);
+  const q = quotaSnapshot(req.user);
   res.json({
     userId: req.user.id,
     nickname: req.user.nickname || null,
@@ -127,7 +147,6 @@ app.get("/api/me", requireAuth, (req, res) => {
     wardrobeCount: wardrobe.list(req.user.id).length,
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
-    memberLevel: "free", // 会员/充值功能预留
     ...q,
     taobaoImport: taobaoConfigured(),
   });
@@ -136,7 +155,7 @@ app.get("/api/me", requireAuth, (req, res) => {
 // 积分账户：余额、额度、套餐（套餐仅展示，暂不收真钱）
 app.get("/api/credits", requireAuth, (req, res) => {
   res.json({
-    ...quotaSnapshot(req.user.id),
+    ...quotaSnapshot(req.user),
     transactions: credits.transactions(req.user.id, 30).map((t) => ({
       amount: t.amount, balanceAfter: t.balance_after, type: t.type, reason: t.reason, createdAt: t.created_at,
     })),
@@ -151,7 +170,29 @@ app.post("/api/credits/redeem", requireAuth, (req, res) => {
   if (!code) return res.status(400).json({ error: "请输入兑换码" });
   const r = redeemCodes.redeem(req.user.id, code);
   if (!r.ok) return res.status(400).json({ error: r.error });
-  res.json({ credits: r.credits, remainingCredits: r.remainingCredits, ...quotaSnapshot(req.user.id) });
+  res.json({ credits: r.credits, remainingCredits: r.remainingCredits, ...quotaSnapshot(req.user) });
+});
+
+// 激励广告：先创建短期凭证，客户端确认完整看完后凭此领取一次机会。
+app.post("/api/ad-rewards/session", requireAuth, (req, res) => {
+  if (!REWARDED_AD_ENABLED) return res.status(503).json({ error: "激励广告暂未开放" });
+  const result = adRewards.createSession(req.user.id, AD_DAILY_REWARD_LIMIT);
+  if (!result.ok) return res.status(429).json({ error: result.error, ...quotaSnapshot(req.user) });
+  res.json({
+    token: result.token,
+    expiresAt: result.expiresAt,
+    rewardCredits: AD_REWARD_CREDITS,
+    ...quotaSnapshot(req.user),
+  });
+});
+
+app.post("/api/ad-rewards/claim", requireAuth, (req, res) => {
+  if (!REWARDED_AD_ENABLED) return res.status(503).json({ error: "激励广告暂未开放" });
+  const token = String((req.body || {}).token || "").trim();
+  if (!token) return res.status(400).json({ error: "缺少广告奖励凭证" });
+  const result = adRewards.claim(req.user.id, token, AD_DAILY_REWARD_LIMIT, AD_REWARD_CREDITS);
+  if (!result.ok) return res.status(400).json({ error: result.error, ...quotaSnapshot(req.user) });
+  res.json({ granted: result.credits, balance: result.balance, ...quotaSnapshot(req.user) });
 });
 
 // ===== 管理员接口（需 ADMIN_TOKEN；不涉及真实支付）=====
@@ -160,11 +201,36 @@ app.post("/api/admin/credits/grant", requireAdmin, (req, res) => {
   const { userId, amount, reason } = req.body || {};
   const uid = Number(userId);
   const amt = Number(amount);
-  if (!uid || !userByToken) return res.status(400).json({ error: "缺少 userId" });
+  if (!uid) return res.status(400).json({ error: "缺少 userId" });
+  if (!userById(uid)) return res.status(404).json({ error: "用户不存在" });
   if (!Number.isInteger(amt) || amt === 0) return res.status(400).json({ error: "amount 必须为非零整数" });
   credits.ensureAccount(uid, 0);
   const balance = credits.grant(uid, amt, "admin_adjust", reason || "管理员充值");
   res.json({ userId: uid, amount: amt, balance });
+});
+
+// 设置会员等级；member 不传有效期时为永久会员。
+app.post("/api/admin/membership", requireAdmin, (req, res) => {
+  const { userId, level, days, expiresAt } = req.body || {};
+  const uid = Number(userId);
+  if (!uid) return res.status(400).json({ error: "缺少 userId" });
+  if (!["free", "member"].includes(level)) return res.status(400).json({ error: "level 必须为 free/member" });
+  const target = userById(uid);
+  if (!target) return res.status(404).json({ error: "用户不存在" });
+
+  let expiry = null;
+  if (level === "member" && days != null) {
+    const duration = Number(days);
+    if (!Number.isFinite(duration) || duration <= 0) return res.status(400).json({ error: "days 必须为正数" });
+    expiry = new Date(Date.now() + duration * 86400000).toISOString();
+  } else if (level === "member" && expiresAt) {
+    const timestamp = Date.parse(expiresAt);
+    if (!Number.isFinite(timestamp) || timestamp <= Date.now()) return res.status(400).json({ error: "expiresAt 必须是未来时间" });
+    expiry = new Date(timestamp).toISOString();
+  }
+
+  const updated = memberships.set(uid, level, expiry);
+  res.json({ userId: uid, ...entitlementsFor(updated, ENTITLEMENT_LIMITS) });
 });
 
 // 生成兑换码
@@ -325,15 +391,33 @@ app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
 
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
-  const items = wardrobe.list(req.user.id, req.query.category).map((it) => ({
+  const allItems = wardrobe.list(req.user.id);
+  const rows = req.query.category ? wardrobe.list(req.user.id, req.query.category) : allItems;
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((it) => ({
     id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status || "ready",
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: allItems.length,
+    limit: entitlement.wardrobeLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/wardrobe", requireAuth, async (req, res) => {
   const { category, image } = req.body || {};
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const wardrobeCount = wardrobe.list(req.user.id).length;
+  if (wardrobeCount >= entitlement.wardrobeLimit) {
+    return res.status(403).json({
+      error: `衣柜已达上限（${wardrobeCount}/${entitlement.wardrobeLimit}）`,
+      wardrobeCount,
+      wardrobeLimit: entitlement.wardrobeLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
   // 先秒回入柜（标记处理中），抠图/AI 识别类别放后台异步执行，避免前端久等
   const needsProcess = (AUTO_CUTOUT || AUTO_CATEGORY);
@@ -370,6 +454,16 @@ app.post("/api/taobao/import", requireAuth, async (req, res) => {
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!remoteUrl) return res.status(400).json({ error: "缺少 imageUrl" });
   if (!taobaoConfigured()) return res.status(503).json({ error: "商品链接导入未配置" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const wardrobeCount = wardrobe.list(req.user.id).length;
+  if (wardrobeCount >= entitlement.wardrobeLimit) {
+    return res.status(403).json({
+      error: `衣柜已达上限（${wardrobeCount}/${entitlement.wardrobeLimit}）`,
+      wardrobeCount,
+      wardrobeLimit: entitlement.wardrobeLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   try {
     const { base64, mimeType } = await downloadImage(remoteUrl);
     let file = saveImage(base64, mimeType);
@@ -677,12 +771,13 @@ app.post("/api/tryon", requireAuth, (req, res) => {
     const user = req.user;
 
     // 额度判定：优先使用当日免费额度，用尽后扣积分
+    const entitlement = entitlementsFor(user, ENTITLEMENT_LIMITS);
     const usedFreeToday = generations.countTodayFree(user.id);
-    const useFree = usedFreeToday < DAILY_FREE_LIMIT;
+    const useFree = usedFreeToday < entitlement.dailyLimit;
     if (!useFree && credits.balance(user.id) < CREDITS_PER_GENERATION) {
       return res.status(402).json({
         error: "生成次数不足，请用兑换码充值后再试",
-        ...quotaSnapshot(user.id),
+        ...quotaSnapshot(user),
       });
     }
 
@@ -727,13 +822,13 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       if (!held.ok) {
         // 极端并发下余额被其他请求占用：取消本次任务
         generations.fail(g.id, "积分不足");
-        return res.status(402).json({ error: "生成次数不足，请用兑换码充值后再试", ...quotaSnapshot(user.id) });
+        return res.status(402).json({ error: "生成次数不足，请用兑换码充值后再试", ...quotaSnapshot(user) });
       }
       charged = true;
     }
     taskQueue.push({ id: g.id, userId: user.id, prompt, images, charged });
     pumpQueue();
-    return res.status(202).json({ taskId: g.id, status: "pending", ...quotaSnapshot(user.id) });
+    return res.status(202).json({ taskId: g.id, status: "pending", ...quotaSnapshot(user) });
   } catch (err) {
     console.error("tryon error:", err);
     return res.status(err.statusCode || 500).json({ error: "生成失败", details: err instanceof Error ? err.message : String(err) });

@@ -70,6 +70,26 @@ npm start              # 默认 http://localhost:3000
 - **OpenAI 兼容网关**（如 `https://ai.gs88.shop`）：配置 `OPENAI_API_KEY` + `OPENAI_BASE_URL`，走 `/v1/images/edits` 多图编辑接口，默认模型 `gpt-image-2`。Cloudflare 网关下高质量档易 524 超时，默认 `IMAGE_QUALITY=low`。
 - **Google Gemini**：配置 `GEMINI_API_KEY`，默认模型 `gemini-2.5-flash-image-preview`。
 
+## 权限与激励广告
+
+| 权限 | 每日免费生图 | 衣柜上限 |
+| --- | ---: | ---: |
+| 免费版 | 3 次 | 10 件 |
+| 会员 | 10 次 | 30 件 |
+
+兑换码、管理员充值和广告奖励会增加额外积分；当日免费次数用完后才扣积分。设置会员：
+
+```bash
+node server/scripts/credits.js membership <用户ID> member 30  # 开通 30 天
+node server/scripts/credits.js membership <用户ID> member     # 永久会员
+node server/scripts/credits.js membership <用户ID> free       # 恢复免费版
+```
+
+激励广告默认关闭。先在微信流量主后台创建激励视频广告位，把广告位 ID 写入
+`miniprogram/config.js` 的 `REWARDED_VIDEO_AD_UNIT_ID`，再配置后端
+`REWARDED_AD_ENABLED=1`。默认每人每天最多看广告领取 1 次，每次增加 1 次生图机会。
+服务端使用短期单次凭证和每日上限防止重复领取；正式大规模运营建议同时在流量主后台开启激励广告服务端验证。
+
 ## 运行小程序
 
 1. 用[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)导入本项目根目录（已含 `project.config.json`）。

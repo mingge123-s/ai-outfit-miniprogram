@@ -3,7 +3,8 @@
 //   node server/scripts/credits.js grant <userId> <amount> [原因]
 //   node server/scripts/credits.js gen-code <credits> [数量=1] [每码可用次数=1]
 //   node server/scripts/credits.js list-codes
-import { credits, redeemCodes } from "../db.js";
+//   node server/scripts/credits.js membership <userId> <free|member> [天数]
+import { credits, redeemCodes, memberships, userById } from "../db.js";
 
 const [cmd, ...args] = process.argv.slice(2);
 
@@ -12,7 +13,8 @@ function usage() {
   node server/scripts/credits.js balance <userId>
   node server/scripts/credits.js grant <userId> <amount> [原因]
   node server/scripts/credits.js gen-code <credits> [数量=1] [每码可用次数=1]
-  node server/scripts/credits.js list-codes`);
+  node server/scripts/credits.js list-codes
+  node server/scripts/credits.js membership <userId> <free|member> [天数]`);
 }
 
 if (cmd === "balance") {
@@ -48,6 +50,23 @@ if (cmd === "balance") {
   for (const r of db.prepare("SELECT code, credits, used_count, max_uses, status FROM redeem_codes ORDER BY id DESC LIMIT 100").all()) {
     console.log(`${r.code}\t+${r.credits}\t${r.used_count}/${r.max_uses}\t${r.status}`);
   }
+} else if (cmd === "membership") {
+  const uid = Number(args[0]);
+  const level = args[1];
+  const days = args[2] == null ? null : Number(args[2]);
+  if (!uid || !["free", "member"].includes(level) || (days != null && (!Number.isFinite(days) || days <= 0))) {
+    usage();
+    process.exit(1);
+  }
+  if (!userById(uid)) {
+    console.error(`用户 #${uid} 不存在`);
+    process.exit(1);
+  }
+  const expiresAt = level === "member" && days != null
+    ? new Date(Date.now() + days * 86400000).toISOString()
+    : null;
+  memberships.set(uid, level, expiresAt);
+  console.log(`用户 #${uid} 已设为${level === "member" ? "会员" : "免费版"}${expiresAt ? `，到期时间 ${expiresAt}` : ""}`);
 } else {
   usage();
 }

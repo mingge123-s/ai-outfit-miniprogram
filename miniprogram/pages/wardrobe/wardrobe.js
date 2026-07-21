@@ -34,6 +34,9 @@ Page({
     baseUrl: api.API_BASE_URL,
     selected: {},
     selectedCount: 0,
+    wardrobeCount: 0,
+    wardrobeLimit: 10,
+    memberLevel: 'free',
     batchUploading: false,
     batchTotal: 0,
     batchCompleted: 0,
@@ -60,7 +63,12 @@ Page({
     try {
       const cat = this.data.category === 'all' ? '' : this.data.category;
       const data = await api.wardrobe.list(cat);
-      this.setData({ items: data.items });
+      this.setData({
+        items: data.items,
+        wardrobeCount: data.count == null ? data.items.length : data.count,
+        wardrobeLimit: data.limit == null ? this.data.wardrobeLimit : data.limit,
+        memberLevel: data.memberLevel || this.data.memberLevel
+      });
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {
@@ -77,12 +85,21 @@ Page({
       wx.showToast({ title: '当前批次仍在上传', icon: 'none' });
       return;
     }
+    if (this.data.wardrobeCount >= this.data.wardrobeLimit) {
+      wx.showModal({
+        title: '衣柜已满',
+        content: `当前 ${this.data.wardrobeCount}/${this.data.wardrobeLimit} 件，请删除单品${this.data.memberLevel === 'free' ? '或开通会员扩容至 30 件' : '后再上传'}`,
+        showCancel: false
+      });
+      return;
+    }
     this.chooseFromAlbum();
   },
 
   chooseFromAlbum() {
+    const remaining = Math.max(1, this.data.wardrobeLimit - this.data.wardrobeCount);
     wx.chooseMedia({
-      count: 9,
+      count: Math.min(9, remaining),
       mediaType: ['image'],
       sizeType: ['compressed'],
       success: (res) => this.uploadBatch(res.tempFiles || [])

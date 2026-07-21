@@ -1,5 +1,8 @@
 <view class="page">
-  <view class="tip">可一次上传 9 张，豆包会自动识别分类；点击单品可跨分类各选 1 件</view>
+  <view class="tip">
+    <text>{{memberLevel === 'member' ? '会员' : '免费版'}}衣柜 {{wardrobeCount}}/{{wardrobeLimit}} 件</text>
+    <text> · 可批量上传，豆包自动分类</text>
+  </view>
 
   <view class="batch-status" wx:if="{{batchUploading || batchProcessingCount > 0}}">
     <view class="batch-status-row">

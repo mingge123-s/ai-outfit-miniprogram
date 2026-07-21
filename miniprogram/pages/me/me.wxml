@@ -5,12 +5,12 @@
       <text class="name">账号 #{{me.userId}}</text>
       <text class="sub">{{me.devMode ? '开发模式登录' : '微信登录'}} · {{me.createdAt}}</text>
     </view>
-    <view class="level">{{me.memberLevel === 'free' ? '免费版' : me.memberLevel}}</view>
+    <view class="level {{me.memberLevel === 'member' ? 'level-member' : ''}}">{{me.memberLevel === 'member' ? '会员' : '免费版'}}</view>
   </view>
 
   <view class="stats card">
     <view class="stat" bindtap="goWardrobe">
-      <text class="num">{{me.wardrobeCount}}</text>
+      <text class="num">{{me.wardrobeCount}}/{{me.wardrobeLimit}}</text>
       <text class="label">衣柜单品</text>
     </view>
     <view class="divider" />
@@ -73,6 +73,17 @@
     <text class="history-empty" wx:else>还没有生成记录</text>
   </view>
 
+  <view class="ad-reward card" bindtap="watchAd">
+    <view class="vip-left">
+      <text class="vip-title ad-title">🎬 看广告领生图机会</text>
+      <text class="vip-sub ad-sub" wx:if="{{me.rewardedAdEnabled && adConfigured}}">
+        完整观看奖励 {{me.adRewardCredits}} 次 · 今日剩余可领 {{me.adRewardsRemainingToday}} 次
+      </text>
+      <text class="vip-sub ad-sub" wx:else>广告位配置完成后开放</text>
+    </view>
+    <text class="vip-btn ad-btn">{{!adConfigured || !me.rewardedAdEnabled ? '待配置' : adLoading ? '加载中' : me.adRewardsRemainingToday ? '观看' : '已领取'}}</text>
+  </view>
+
   <view class="vip card" bindtap="redeem">
     <view class="vip-left">
       <text class="vip-title">🎁 兑换码充值</text>
@@ -83,10 +94,11 @@
 
   <view class="vip card" bindtap="openVip">
     <view class="vip-left">
-      <text class="vip-title">👑 开通会员</text>
-      <text class="vip-sub">解锁高清生成、更多次数与专属背景（即将开放）</text>
+      <text class="vip-title">{{me.memberLevel === 'member' ? '👑 会员权益' : '👑 开通会员'}}</text>
+      <text class="vip-sub" wx:if="{{me.memberLevel === 'member'}}">每日 10 次免费生图 · 衣柜上限 30 件</text>
+      <text class="vip-sub" wx:else>每日 10 次免费生图 · 衣柜扩容至 30 件</text>
     </view>
-    <text class="vip-btn">敬请期待</text>
+    <text class="vip-btn">{{me.memberLevel === 'member' ? '已开通' : '敬请期待'}}</text>
   </view>
 
   <view class="menu card">
