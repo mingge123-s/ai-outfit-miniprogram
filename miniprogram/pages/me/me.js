@@ -1,6 +1,8 @@
 const api = require('../../utils/api');
+const { REWARDED_VIDEO_AD_UNIT_ID } = require('../../config');
 
 const app = getApp();
+let rewardedVideoAd = null;
 
 function pathToBase64(path) {
   return new Promise((resolve, reject) => {
@@ -25,11 +27,50 @@ Page({
     photos: [],
     history: [],
     baseUrl: api.API_BASE_URL,
-    loading: false
+    loading: false,
+    adLoading: false,
+    adConfigured: Boolean(REWARDED_VIDEO_AD_UNIT_ID)
+  },
+
+  onLoad() {
+    this.initRewardedAd();
   },
 
   onShow() {
     this.refresh();
+  },
+
+  onUnload() {
+    if (rewardedVideoAd && rewardedVideoAd.destroy) rewardedVideoAd.destroy();
+    rewardedVideoAd = null;
+  },
+
+  initRewardedAd() {
+    if (!REWARDED_VIDEO_AD_UNIT_ID || !wx.createRewardedVideoAd) return;
+    rewardedVideoAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID });
+    rewardedVideoAd.onError((err) => {
+      this._adError = err;
+    });
+    rewardedVideoAd.onClose(async (res) => {
+      const token = this._adRewardToken;
+      this._adRewardToken = null;
+      if (!res || !res.isEnded) {
+        wx.showToast({ title: '完整看完广告才能领取', icon: 'none' });
+        return;
+      }
+      if (!token) return;
+      wx.showLoading({ title: '奖励到账中…' });
+      try {
+        const result = await api.adRewards.claim(token);
+        await this.refresh();
+        wx.hideLoading();
+        wx.showToast({ title: `已获得 ${result.granted} 次`, icon: 'success' });
+      } catch (e) {
+        wx.hideLoading();
+        wx.showModal({ title: '领取失败', content: e.message || '请稍后重试', showCancel: false });
+      }
+    });
+    rewardedVideoAd.load().catch(() => {});
   },
 
   async refresh() {
@@ -49,6 +90,15 @@ Page({
   },
 
   addPhoto() {
+    const me = this.data.me || {};
+    if (me.personPhotoCount >= me.personPhotoLimit) {
+      wx.showModal({
+        title: '模特照已满',
+        content: `当前 ${me.personPhotoCount}/${me.personPhotoLimit} 张，请删除照片${me.memberLevel === 'free' ? '或开通会员扩容至 30 张' : '后再上传'}`,
+        showCancel: false
+      });
+      return;
+    }
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -130,7 +180,53 @@ Page({
     });
   },
 
+  async watchAd() {
+    const me = this.data.me || {};
+    if (!REWARDED_VIDEO_AD_UNIT_ID) {
+      wx.showToast({ title: '激励广告位尚未配置', icon: 'none' });
+      return;
+    }
+    if (!me.rewardedAdEnabled) {
+      wx.showToast({ title: '激励广告暂未开放', icon: 'none' });
+      return;
+    }
+    if (!me.adRewardsRemainingToday) {
+      wx.showToast({ title: '今日广告奖励已领取', icon: 'none' });
+      return;
+    }
+    if (!rewardedVideoAd || this.data.adLoading) return;
+
+    this.setData({ adLoading: true });
+    try {
+      const session = await api.adRewards.createSession();
+      this._adRewardToken = session.token;
+      if (rewardedVideoAd.setServerSideVerificationData) {
+        rewardedVideoAd.setServerSideVerificationData({
+          userId: String(me.userId),
+          rewardItem: 'generation_credit',
+          rewardAmount: session.rewardCredits,
+          customData: session.token
+        });
+      }
+      try {
+        await rewardedVideoAd.show();
+      } catch (e) {
+        await rewardedVideoAd.load();
+        await rewardedVideoAd.show();
+      }
+    } catch (e) {
+      this._adRewardToken = null;
+      wx.showModal({ title: '广告暂不可用', content: e.message || '请稍后重试', showCancel: false });
+    } finally {
+      this.setData({ adLoading: false });
+    }
+  },
+
   openVip() {
+    if (this.data.me && this.data.me.memberLevel === 'member') {
+      wx.showToast({ title: '会员权益已生效', icon: 'success' });
+      return;
+    }
     wx.showToast({ title: '充值功能开发中，可先用兑换码', icon: 'none' });
   },
 

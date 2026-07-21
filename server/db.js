@@ -55,6 +55,8 @@ try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
 try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free'"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN member_level TEXT DEFAULT 'free'"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN member_expires_at TEXT"); } catch {}
 
 // 次数/积分系统（不涉及真实支付；用于兑换码、管理员充值，未来可平滑接入微信支付）
 db.exec(`
@@ -92,7 +94,33 @@ CREATE TABLE IF NOT EXISTS redeem_code_uses (
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE (code_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS ad_reward_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  token TEXT UNIQUE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  expires_at TEXT NOT NULL,
+  claimed_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS daily_outfit_recommendations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  date_key TEXT NOT NULL,
+  occasion TEXT NOT NULL,
+  location_key TEXT NOT NULL,
+  weather_json TEXT NOT NULL,
+  selected_ids_json TEXT NOT NULL,
+  title TEXT,
+  reason TEXT,
+  background TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (user_id, date_key, occasion, location_key)
+);
 CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, id);
+CREATE INDEX IF NOT EXISTS idx_ad_reward_user ON ad_reward_sessions(user_id, id);
+CREATE INDEX IF NOT EXISTS idx_daily_outfit_user ON daily_outfit_recommendations(user_id, date_key);
 `);
 
 export function saveImage(base64, mimeType = "image/png") {
@@ -126,6 +154,18 @@ export function userByToken(token) {
   if (!token) return null;
   return db.prepare("SELECT * FROM users WHERE token = ?").get(token) || null;
 }
+
+export function userById(id) {
+  return db.prepare("SELECT * FROM users WHERE id = ?").get(id) || null;
+}
+
+export const memberships = {
+  set(userId, level, expiresAt = null) {
+    const info = db.prepare("UPDATE users SET member_level = ?, member_expires_at = ? WHERE id = ?")
+      .run(level, level === "member" ? expiresAt : null, userId);
+    return info.changes ? userById(userId) : null;
+  },
+};
 
 export const wardrobe = {
   list(userId, category) {
@@ -244,7 +284,7 @@ export const outfits = {
 
 // ============ 次数/积分账户 ============
 // 每次生成消耗 1 积分（可配）；不涉及真实支付。
-const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 3); // 新用户注册赠送积分
+const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 0); // 默认不额外赠送，免费次数由会员等级控制
 
 function _applyDelta(userId, amount, type, reference, reason) {
   // 需在事务中调用
@@ -326,6 +366,95 @@ export const credits = {
       _applyDelta(h.user_id, -h.amount, "refund", h.reference, "生成中断返还");
     }
     return holds.length;
+  }),
+};
+
+export const adRewards = {
+  countToday(userId) {
+    return db.prepare(`
+      SELECT COUNT(*) AS c
+      FROM ad_reward_sessions
+      WHERE user_id = ? AND status = 'claimed' AND date(claimed_at) = date('now')
+    `).get(userId).c;
+  },
+
+  createSession: db.transaction((userId, dailyLimit = 1) => {
+    const usedToday = adRewards.countToday(userId);
+    if (usedToday >= dailyLimit) {
+      return { ok: false, error: "今日广告奖励已领取", usedToday };
+    }
+    db.prepare(`
+      DELETE FROM ad_reward_sessions
+      WHERE user_id = ? AND status = 'pending' AND expires_at <= datetime('now')
+    `).run(userId);
+    const token = crypto.randomBytes(24).toString("hex");
+    const info = db.prepare(`
+      INSERT INTO ad_reward_sessions (user_id, token, expires_at)
+      VALUES (?, ?, datetime('now', '+10 minutes'))
+    `).run(userId, token);
+    const row = db.prepare("SELECT * FROM ad_reward_sessions WHERE id = ?").get(info.lastInsertRowid);
+    return { ok: true, token: row.token, expiresAt: row.expires_at, usedToday };
+  }),
+
+  claim: db.transaction((userId, token, dailyLimit = 1, rewardCredits = 1) => {
+    const session = db.prepare(`
+      SELECT *,
+        expires_at > datetime('now') AS is_valid,
+        created_at <= datetime('now', '-5 seconds') AS is_mature
+      FROM ad_reward_sessions
+      WHERE token = ? AND user_id = ?
+    `).get(token, userId);
+    if (!session) return { ok: false, error: "广告奖励凭证无效" };
+    if (session.status !== "pending") return { ok: false, error: "该广告奖励已领取" };
+    if (!session.is_valid) return { ok: false, error: "广告奖励凭证已过期" };
+    if (!session.is_mature) return { ok: false, error: "广告尚未完成" };
+    const usedToday = adRewards.countToday(userId);
+    if (usedToday >= dailyLimit) return { ok: false, error: "今日广告奖励已领取" };
+
+    const updated = db.prepare(`
+      UPDATE ad_reward_sessions
+      SET status = 'claimed', claimed_at = datetime('now')
+      WHERE id = ? AND status = 'pending'
+    `).run(session.id);
+    if (!updated.changes) return { ok: false, error: "该广告奖励已领取" };
+    const balance = _applyDelta(userId, rewardCredits, "ad_reward", `ad:${session.id}`, "完整观看激励广告");
+    return { ok: true, credits: rewardCredits, balance, usedToday: usedToday + 1 };
+  }),
+};
+
+export const dailyOutfitRecommendations = {
+  get(userId, dateKey, occasion, locationKey) {
+    return db.prepare(`
+      SELECT * FROM daily_outfit_recommendations
+      WHERE user_id = ? AND date_key = ? AND occasion = ? AND location_key = ?
+    `).get(userId, dateKey, occasion, locationKey) || null;
+  },
+
+  save: db.transaction((userId, dateKey, occasion, locationKey, data) => {
+    db.prepare(`
+      INSERT INTO daily_outfit_recommendations (
+        user_id, date_key, occasion, location_key, weather_json,
+        selected_ids_json, title, reason, background
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, date_key, occasion, location_key) DO UPDATE SET
+        weather_json = excluded.weather_json,
+        selected_ids_json = excluded.selected_ids_json,
+        title = excluded.title,
+        reason = excluded.reason,
+        background = excluded.background,
+        updated_at = datetime('now')
+    `).run(
+      userId,
+      dateKey,
+      occasion,
+      locationKey,
+      JSON.stringify(data.weather),
+      JSON.stringify(data.selectedIds),
+      data.title || null,
+      data.reason || null,
+      data.background || null,
+    );
+    return dailyOutfitRecommendations.get(userId, dateKey, occasion, locationKey);
   }),
 };
 

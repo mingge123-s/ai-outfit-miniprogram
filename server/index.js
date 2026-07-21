@@ -5,8 +5,10 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, wardrobe, outfits, personPhotos, generations, credits, redeemCodes } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
+import { entitlementsFor } from "./entitlements.js";
+import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -14,6 +16,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/+$/, "");
 const ARK_API_KEY = process.env.ARK_API_KEY || "";
 const ARK_BASE_URL = (process.env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3").replace(/\/+$/, "");
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || "https://api.mingge.asia/outfit").replace(/\/+$/, "");
 // PROVIDER: "gemini" | "openai"（openai 兼容接口，如 ai.gs88.shop 等代理网关）| "ark"（火山方舟 豆包 Seedream）
 const PROVIDER =
   process.env.PROVIDER || (ARK_API_KEY ? "ark" : OPENAI_API_KEY ? "openai" : "gemini");
@@ -27,10 +30,30 @@ const MODEL_ID =
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
-const DAILY_FREE_LIMIT = Number(process.env.DAILY_FREE_LIMIT || 10); // 每用户每日免费生成次数
-const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 3); // 新用户注册赠送积分
+const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
+const MEMBER_DAILY_LIMIT = Number(process.env.MEMBER_DAILY_LIMIT || 10);
+const FREE_WARDROBE_LIMIT = Number(process.env.FREE_WARDROBE_LIMIT || 10);
+const MEMBER_WARDROBE_LIMIT = Number(process.env.MEMBER_WARDROBE_LIMIT || 30);
+const FREE_PERSON_PHOTO_LIMIT = Number(process.env.FREE_PERSON_PHOTO_LIMIT || 10);
+const MEMBER_PERSON_PHOTO_LIMIT = Number(process.env.MEMBER_PERSON_PHOTO_LIMIT || 30);
+const FREE_OUTFIT_LIMIT = Number(process.env.FREE_OUTFIT_LIMIT || 20);
+const MEMBER_OUTFIT_LIMIT = Number(process.env.MEMBER_OUTFIT_LIMIT || 40);
+const FREE_SIGNUP_CREDITS = Number(process.env.FREE_SIGNUP_CREDITS || 0);
 const CREDITS_PER_GENERATION = Number(process.env.CREDITS_PER_GENERATION || 1); // 每次生成消耗积分
+const REWARDED_AD_ENABLED = process.env.REWARDED_AD_ENABLED === "1";
+const AD_REWARD_CREDITS = Number(process.env.AD_REWARD_CREDITS || 1);
+const AD_DAILY_REWARD_LIMIT = Number(process.env.AD_DAILY_REWARD_LIMIT || 1);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || ""; // 管理员接口令牌（未配置则关闭管理接口）
+const ENTITLEMENT_LIMITS = {
+  freeDailyLimit: FREE_DAILY_LIMIT,
+  memberDailyLimit: MEMBER_DAILY_LIMIT,
+  freeWardrobeLimit: FREE_WARDROBE_LIMIT,
+  memberWardrobeLimit: MEMBER_WARDROBE_LIMIT,
+  freePersonPhotoLimit: FREE_PERSON_PHOTO_LIMIT,
+  memberPersonPhotoLimit: MEMBER_PERSON_PHOTO_LIMIT,
+  freeOutfitLimit: FREE_OUTFIT_LIMIT,
+  memberOutfitLimit: MEMBER_OUTFIT_LIMIT,
+};
 // 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
 const CREDIT_PACKAGES = [
   { id: "starter", priceFen: 100, credits: 3, label: "体验包" },
@@ -38,10 +61,8 @@ const CREDIT_PACKAGES = [
   { id: "pro", priceFen: 2990, credits: 80, label: "超值包" },
 ];
 const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
-// 上传后 AI 自动识别衣物类别（OpenAI 兼容视觉模型）
-const VISION_API_KEY = process.env.VISION_API_KEY || "";
-const VISION_BASE_URL = (process.env.VISION_BASE_URL || "https://ai.gs88.shop/v1").replace(/\/+$/, "");
-const VISION_MODEL = process.env.VISION_MODEL || "gpt-5.4-mini";
+// 上传后使用低成本豆包视觉模型识别衣物类别，复用火山方舟 ARK_API_KEY。
+const ARK_VISION_MODEL = process.env.ARK_VISION_MODEL || "doubao-seed-2-0-mini-260215";
 const AUTO_CATEGORY = process.env.AUTO_CATEGORY !== "0";
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
@@ -101,16 +122,23 @@ function requireAdmin(req, res, next) {
 }
 
 // 计算余额/额度快照
-function quotaSnapshot(userId) {
-  const usedFreeToday = generations.countTodayFree(userId);
-  const remainingFreeToday = Math.max(0, DAILY_FREE_LIMIT - usedFreeToday);
-  const creditBalance = credits.balance(userId);
+function quotaSnapshot(user) {
+  const entitlement = entitlementsFor(user, ENTITLEMENT_LIMITS);
+  const usedFreeToday = generations.countTodayFree(user.id);
+  const remainingFreeToday = Math.max(0, entitlement.dailyLimit - usedFreeToday);
+  const creditBalance = credits.balance(user.id);
+  const adRewardsUsedToday = adRewards.countToday(user.id);
   return {
-    dailyLimit: DAILY_FREE_LIMIT,
+    ...entitlement,
     usedFreeToday,
     remainingFreeToday,
     credits: creditBalance,
     creditsPerGeneration: CREDITS_PER_GENERATION,
+    rewardedAdEnabled: REWARDED_AD_ENABLED,
+    adRewardCredits: AD_REWARD_CREDITS,
+    adDailyRewardLimit: AD_DAILY_REWARD_LIMIT,
+    adRewardsUsedToday,
+    adRewardsRemainingToday: Math.max(0, AD_DAILY_REWARD_LIMIT - adRewardsUsedToday),
     // 今日实际还能生成的次数（免费 + 积分可支撑）
     remainingToday: remainingFreeToday + Math.floor(creditBalance / CREDITS_PER_GENERATION),
   };
@@ -120,7 +148,7 @@ const imageUrl = (file) => `/uploads/${file}`;
 
 // 我的信息
 app.get("/api/me", requireAuth, (req, res) => {
-  const q = quotaSnapshot(req.user.id);
+  const q = quotaSnapshot(req.user);
   res.json({
     userId: req.user.id,
     nickname: req.user.nickname || null,
@@ -129,7 +157,6 @@ app.get("/api/me", requireAuth, (req, res) => {
     wardrobeCount: wardrobe.list(req.user.id).length,
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
-    memberLevel: "free", // 会员/充值功能预留
     ...q,
     taobaoImport: taobaoConfigured(),
   });
@@ -138,7 +165,7 @@ app.get("/api/me", requireAuth, (req, res) => {
 // 积分账户：余额、额度、套餐（套餐仅展示，暂不收真钱）
 app.get("/api/credits", requireAuth, (req, res) => {
   res.json({
-    ...quotaSnapshot(req.user.id),
+    ...quotaSnapshot(req.user),
     transactions: credits.transactions(req.user.id, 30).map((t) => ({
       amount: t.amount, balanceAfter: t.balance_after, type: t.type, reason: t.reason, createdAt: t.created_at,
     })),
@@ -153,7 +180,29 @@ app.post("/api/credits/redeem", requireAuth, (req, res) => {
   if (!code) return res.status(400).json({ error: "请输入兑换码" });
   const r = redeemCodes.redeem(req.user.id, code);
   if (!r.ok) return res.status(400).json({ error: r.error });
-  res.json({ credits: r.credits, remainingCredits: r.remainingCredits, ...quotaSnapshot(req.user.id) });
+  res.json({ credits: r.credits, remainingCredits: r.remainingCredits, ...quotaSnapshot(req.user) });
+});
+
+// 激励广告：先创建短期凭证，客户端确认完整看完后凭此领取一次机会。
+app.post("/api/ad-rewards/session", requireAuth, (req, res) => {
+  if (!REWARDED_AD_ENABLED) return res.status(503).json({ error: "激励广告暂未开放" });
+  const result = adRewards.createSession(req.user.id, AD_DAILY_REWARD_LIMIT);
+  if (!result.ok) return res.status(429).json({ error: result.error, ...quotaSnapshot(req.user) });
+  res.json({
+    token: result.token,
+    expiresAt: result.expiresAt,
+    rewardCredits: AD_REWARD_CREDITS,
+    ...quotaSnapshot(req.user),
+  });
+});
+
+app.post("/api/ad-rewards/claim", requireAuth, (req, res) => {
+  if (!REWARDED_AD_ENABLED) return res.status(503).json({ error: "激励广告暂未开放" });
+  const token = String((req.body || {}).token || "").trim();
+  if (!token) return res.status(400).json({ error: "缺少广告奖励凭证" });
+  const result = adRewards.claim(req.user.id, token, AD_DAILY_REWARD_LIMIT, AD_REWARD_CREDITS);
+  if (!result.ok) return res.status(400).json({ error: result.error, ...quotaSnapshot(req.user) });
+  res.json({ granted: result.credits, balance: result.balance, ...quotaSnapshot(req.user) });
 });
 
 // ===== 管理员接口（需 ADMIN_TOKEN；不涉及真实支付）=====
@@ -162,11 +211,36 @@ app.post("/api/admin/credits/grant", requireAdmin, (req, res) => {
   const { userId, amount, reason } = req.body || {};
   const uid = Number(userId);
   const amt = Number(amount);
-  if (!uid || !userByToken) return res.status(400).json({ error: "缺少 userId" });
+  if (!uid) return res.status(400).json({ error: "缺少 userId" });
+  if (!userById(uid)) return res.status(404).json({ error: "用户不存在" });
   if (!Number.isInteger(amt) || amt === 0) return res.status(400).json({ error: "amount 必须为非零整数" });
   credits.ensureAccount(uid, 0);
   const balance = credits.grant(uid, amt, "admin_adjust", reason || "管理员充值");
   res.json({ userId: uid, amount: amt, balance });
+});
+
+// 设置会员等级；member 不传有效期时为永久会员。
+app.post("/api/admin/membership", requireAdmin, (req, res) => {
+  const { userId, level, days, expiresAt } = req.body || {};
+  const uid = Number(userId);
+  if (!uid) return res.status(400).json({ error: "缺少 userId" });
+  if (!["free", "member"].includes(level)) return res.status(400).json({ error: "level 必须为 free/member" });
+  const target = userById(uid);
+  if (!target) return res.status(404).json({ error: "用户不存在" });
+
+  let expiry = null;
+  if (level === "member" && days != null) {
+    const duration = Number(days);
+    if (!Number.isFinite(duration) || duration <= 0) return res.status(400).json({ error: "days 必须为正数" });
+    expiry = new Date(Date.now() + duration * 86400000).toISOString();
+  } else if (level === "member" && expiresAt) {
+    const timestamp = Date.parse(expiresAt);
+    if (!Number.isFinite(timestamp) || timestamp <= Date.now()) return res.status(400).json({ error: "expiresAt 必须是未来时间" });
+    expiry = new Date(timestamp).toISOString();
+  }
+
+  const updated = memberships.set(uid, level, expiry);
+  res.json({ userId: uid, ...entitlementsFor(updated, ENTITLEMENT_LIMITS) });
 });
 
 // 生成兑换码
@@ -218,10 +292,10 @@ async function removeBackground(file) {
   return null;
 }
 
-// AI 识别衣物类别（返回 wardrobe 支持的分类键；失败返回 null 回退用户所选分类）
+// 豆包识别衣物类别（返回 wardrobe 支持的分类键；失败返回 null 回退用户所选分类）
 const WARDROBE_CATS = ["top", "pants", "shoes", "hat", "coat", "dress", "accessory", "socks"];
 async function classifyCategory(file) {
-  if (!AUTO_CATEGORY || !VISION_API_KEY) return null;
+  if (!AUTO_CATEGORY || !ARK_API_KEY) return null;
   const input = path.join(UPLOADS_DIR, file);
   if (!fs.existsSync(input)) return null;
   try {
@@ -230,23 +304,30 @@ async function classifyCategory(file) {
     const prompt =
       "这是一张衣物或配件的商品图。请判断它属于以下哪一类，只输出一个英文小写单词，不要多余文字：" +
       "top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
-    const resp = await fetch(`${VISION_BASE_URL}/chat/completions`, {
+    const resp = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${VISION_API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: ARK_VISION_MODEL,
+        thinking: { type: "disabled" },
+        max_tokens: 16,
+        temperature: 0,
         messages: [
           {
             role: "user",
             content: [
               { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
+              { type: "image_url", image_url: { url: `data:${mime};base64,${b64}`, detail: "low" } },
             ],
           },
         ],
       }),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const details = await resp.text().catch(() => "");
+      console.error(`豆包衣物识别失败 (${resp.status}):`, details.slice(0, 300));
+      return null;
+    }
     const data = await resp.json();
     let out = String(data?.choices?.[0]?.message?.content || "").toLowerCase();
     const m = out.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
@@ -255,7 +336,8 @@ async function classifyCategory(file) {
     if (cat === "skirt") cat = "dress"; // 半身裙归入裙装
     if (cat === "bag") cat = "accessory"; // 包归入配饰/包包分类
     return WARDROBE_CATS.includes(cat) ? cat : null;
-  } catch {
+  } catch (e) {
+    console.error("豆包衣物识别异常:", e?.message || e);
     return null;
   }
 }
@@ -276,16 +358,182 @@ async function processWardrobeItem(userId, id, file, fallbackCategory) {
   }
 }
 
+// 批量上传时串行处理，避免同时启动多个 rembg 进程挤占服务器内存。
+const wardrobeProcessQueue = [];
+let wardrobeProcessRunning = false;
+function enqueueWardrobeItem(task) {
+  wardrobeProcessQueue.push(task);
+  void pumpWardrobeProcessQueue().catch((e) => {
+    console.error("衣柜后台处理队列异常:", e?.message || e);
+  });
+}
+async function pumpWardrobeProcessQueue() {
+  if (wardrobeProcessRunning) return;
+  wardrobeProcessRunning = true;
+  try {
+    while (wardrobeProcessQueue.length) {
+      const task = wardrobeProcessQueue.shift();
+      await processWardrobeItem(task.userId, task.id, task.file, task.fallbackCategory);
+    }
+  } finally {
+    wardrobeProcessRunning = false;
+  }
+}
+
+const OCCASION_LABELS = {
+  daily: "日常",
+  work: "通勤",
+  date: "约会",
+  sport: "运动",
+  travel: "旅行",
+};
+
+async function fetchCurrentWeather(latitude, longitude) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+    const error = new Error("位置信息无效");
+    error.statusCode = 400;
+    throw error;
+  }
+  const params = new URLSearchParams({
+    latitude: lat.toFixed(3),
+    longitude: lon.toFixed(3),
+    current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
+    timezone: "auto",
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`weather ${response.status}`);
+    const data = await response.json();
+    if (!data.current) throw new Error("weather payload missing");
+    return summarizeWeather(data.current, data.timezone || "auto");
+  } catch (error) {
+    console.error("天气查询失败:", error?.message || error);
+    const wrapped = new Error("天气查询暂时不可用，请选择手动天气");
+    wrapped.statusCode = 502;
+    throw wrapped;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function weatherDateKey(weather) {
+  if (weather.observedAt) return String(weather.observedAt).slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
+}
+
+function recommendationBackground(weather, occasion) {
+  const scene = occasion === "work"
+    ? "a modern business district"
+    : occasion === "date"
+      ? "an elegant city cafe street"
+      : occasion === "sport"
+        ? "a clean urban park path"
+        : occasion === "travel"
+          ? "a scenic pedestrian travel destination"
+          : "a stylish city sidewalk";
+  const climate = weather.isRain
+    ? "light rainy weather with a sheltered dry walking area"
+    : weather.isSnow
+      ? "a bright winter scene with light snow"
+      : weather.condition === "clear"
+        ? "clear natural daylight"
+        : "soft overcast daylight";
+  return `${scene}, ${climate}, temperature around ${weather.temperature}°C, photorealistic and suitable for a full-body fashion photo`;
+}
+
+function parseRecommendationContent(content) {
+  const text = String(content || "").replace(/```(?:json)?|```/gi, "").trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
+async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []) {
+  const variation = excludedIds.length
+    ? `这是“换一套”请求，尽量不要选择上一套的这些 ID：${excludedIds.join(", ")}。`
+    : "";
+  const content = [{
+    type: "text",
+    text: `你是专业穿搭顾问。根据天气和场景，从候选衣柜图片中选择一套协调、完整、实穿的穿搭。
+天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C，湿度 ${weather.humidity}%，风速 ${weather.windSpeed}km/h，降水 ${weather.precipitation}mm。
+场景：${OCCASION_LABELS[occasion]}。
+规则：
+1. 必须选择 dress（裙装），或者同时选择 top（上衣）+ pants（裤子）。
+2. 必须选择 shoes（鞋子）。
+3. 体感不高于16°C、雨雪或大风时，衣柜有 coat（外套）就必须选择。
+4. 每个类别最多一件；总数 3-6 件；颜色和风格要协调。
+5. 只能使用候选列表中的 ID。
+${variation}
+只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由"}`,
+  }];
+  for (const item of candidates) {
+    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}` });
+    content.push({
+      type: "image_url",
+      image_url: { url: `${PUBLIC_BASE_URL}${imageUrl(item.image_file)}`, detail: "low" },
+    });
+  }
+
+  if (!ARK_API_KEY) return null;
+  try {
+    const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
+      body: JSON.stringify({
+        model: ARK_VISION_MODEL,
+        thinking: { type: "disabled" },
+        max_tokens: 300,
+        temperature: 0.2,
+        messages: [{ role: "user", content }],
+      }),
+    });
+    if (!response.ok) {
+      console.error(`今日搭配分析失败 (${response.status}):`, (await response.text()).slice(0, 300));
+      return null;
+    }
+    const data = await response.json();
+    return parseRecommendationContent(data?.choices?.[0]?.message?.content);
+  } catch (error) {
+    console.error("今日搭配分析异常:", error?.message || error);
+    return null;
+  }
+}
+
 // 我的模特照（全身照，可多张）
 app.get("/api/person-photos", requireAuth, (req, res) => {
-  const items = personPhotos.list(req.user.id).map((p) => ({
+  const rows = personPhotos.list(req.user.id);
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((p) => ({
     id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at,
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: rows.length,
+    limit: entitlement.personPhotoLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/person-photos", requireAuth, (req, res) => {
   const { image } = req.body || {};
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const photoCount = personPhotos.list(req.user.id).length;
+  if (photoCount >= entitlement.personPhotoLimit) {
+    return res.status(403).json({
+      error: `模特照已达上限（${photoCount}/${entitlement.personPhotoLimit}）`,
+      personPhotoCount: photoCount,
+      personPhotoLimit: entitlement.personPhotoLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
   const p = personPhotos.add(req.user.id, file);
   res.json({ item: { id: p.id, imageUrl: imageUrl(p.image_file), createdAt: p.created_at } });
@@ -297,21 +545,39 @@ app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
 
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
-  const items = wardrobe.list(req.user.id, req.query.category).map((it) => ({
+  const allItems = wardrobe.list(req.user.id);
+  const rows = req.query.category ? wardrobe.list(req.user.id, req.query.category) : allItems;
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((it) => ({
     id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status || "ready",
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: allItems.length,
+    limit: entitlement.wardrobeLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/wardrobe", requireAuth, async (req, res) => {
   const { category, image } = req.body || {};
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!image?.data) return res.status(400).json({ error: "缺少图片数据" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const wardrobeCount = wardrobe.list(req.user.id).length;
+  if (wardrobeCount >= entitlement.wardrobeLimit) {
+    return res.status(403).json({
+      error: `衣柜已达上限（${wardrobeCount}/${entitlement.wardrobeLimit}）`,
+      wardrobeCount,
+      wardrobeLimit: entitlement.wardrobeLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
   // 先秒回入柜（标记处理中），抠图/AI 识别类别放后台异步执行，避免前端久等
   const needsProcess = (AUTO_CUTOUT || AUTO_CATEGORY);
   const it = wardrobe.add(req.user.id, category, file, needsProcess ? "processing" : "ready");
   res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status } });
-  if (needsProcess) processWardrobeItem(req.user.id, it.id, file, category);
+  if (needsProcess) enqueueWardrobeItem({ userId: req.user.id, id: it.id, file, fallbackCategory: category });
 });
 app.get("/api/wardrobe/:id", requireAuth, (req, res) => {
   const it = wardrobe.get(req.user.id, Number(req.params.id));
@@ -321,6 +587,100 @@ app.get("/api/wardrobe/:id", requireAuth, (req, res) => {
 app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
   const ok = wardrobe.remove(req.user.id, Number(req.params.id));
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 今日搭配：结合天气、场景和衣柜图片选择一套完整穿搭。
+app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
+  try {
+    const { latitude, longitude, manualWeather, occasion = "daily", force = false } = req.body || {};
+    if (!OCCASIONS.has(occasion)) return res.status(400).json({ error: "场景选项无效" });
+
+    let weather;
+    let locationBase;
+    if (manualWeather) {
+      weather = weatherFromPreset(manualWeather);
+      if (!weather) return res.status(400).json({ error: "手动天气选项无效" });
+      locationBase = `manual:${manualWeather}`;
+    } else {
+      weather = await fetchCurrentWeather(latitude, longitude);
+      locationBase = `geo:${Number(latitude).toFixed(1)},${Number(longitude).toFixed(1)}`;
+    }
+
+    const allItems = wardrobe.list(req.user.id).filter((item) => (item.status || "ready") === "ready");
+    const requirements = wardrobeRequirements(allItems, weather);
+    if (!requirements.complete) {
+      return res.status(422).json({
+        error: `衣柜还缺少：${requirements.missing.join("、")}，补齐后才能生成完整搭配`,
+        missing: requirements.missing,
+        wardrobeCount: allItems.length,
+      });
+    }
+
+    const dateKey = weatherDateKey(weather);
+    const weatherBucket = `${weather.condition}:${Math.round(weather.apparentTemperature / 5) * 5}`;
+    const locationKey = `${locationBase}:${weatherBucket}`;
+    const background = recommendationBackground(weather, occasion);
+    const itemJson = (item) => ({
+      id: item.id,
+      category: item.category,
+      imageUrl: imageUrl(item.image_file),
+      createdAt: item.created_at,
+    });
+
+    const cached = dailyOutfitRecommendations.get(req.user.id, dateKey, occasion, locationKey);
+    let previousIds = [];
+    if (cached) {
+      try { previousIds = JSON.parse(cached.selected_ids_json || "[]"); } catch {}
+    }
+    if (!force) {
+      if (cached) {
+        const selected = normalizeSelection(previousIds, allItems, weather);
+        if (selected.length >= 3) {
+          return res.json({
+            date: dateKey,
+            occasion,
+            occasionLabel: OCCASION_LABELS[occasion],
+            weather,
+            title: cached.title || "今日推荐",
+            reason: cached.reason || "根据当前天气和衣柜搭配",
+            generationBackground: cached.background || background,
+            items: selected.map(itemJson),
+            cached: true,
+          });
+        }
+      }
+    }
+
+    const candidates = buildCandidatePool(allItems);
+    const recommendation = await selectTodayOutfit(candidates, weather, occasion, force ? previousIds : []);
+    const selected = normalizeSelection(recommendation?.selectedIds, candidates, weather);
+    const title = String(recommendation?.title || `${weather.conditionLabel}${OCCASION_LABELS[occasion]}穿搭`).slice(0, 20);
+    const reason = String(
+      recommendation?.reason ||
+      `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${OCCASION_LABELS[occasion]}场景搭配`,
+    ).slice(0, 120);
+    dailyOutfitRecommendations.save(req.user.id, dateKey, occasion, locationKey, {
+      weather,
+      selectedIds: selected.map((item) => item.id),
+      title,
+      reason,
+      background,
+    });
+    res.json({
+      date: dateKey,
+      occasion,
+      occasionLabel: OCCASION_LABELS[occasion],
+      weather,
+      title,
+      reason,
+      generationBackground: background,
+      items: selected.map(itemJson),
+      cached: false,
+    });
+  } catch (error) {
+    console.error("today outfit error:", error);
+    res.status(error.statusCode || 500).json({ error: error.message || "今日搭配生成失败" });
+  }
 });
 
 // 淘宝/天猫商品链接导入衣柜（第三方聚合 API，仅后端持有 key/secret）
@@ -342,6 +702,16 @@ app.post("/api/taobao/import", requireAuth, async (req, res) => {
   if (!ITEM_LABELS[category]) return res.status(400).json({ error: "category 必须为 " + Object.keys(ITEM_LABELS).join("/") });
   if (!remoteUrl) return res.status(400).json({ error: "缺少 imageUrl" });
   if (!taobaoConfigured()) return res.status(503).json({ error: "商品链接导入未配置" });
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const wardrobeCount = wardrobe.list(req.user.id).length;
+  if (wardrobeCount >= entitlement.wardrobeLimit) {
+    return res.status(403).json({
+      error: `衣柜已达上限（${wardrobeCount}/${entitlement.wardrobeLimit}）`,
+      wardrobeCount,
+      wardrobeLimit: entitlement.wardrobeLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   try {
     const { base64, mimeType } = await downloadImage(remoteUrl);
     let file = saveImage(base64, mimeType);
@@ -361,14 +731,31 @@ const parseOutfitItems = (o) => {
   } catch { return []; }
 };
 app.get("/api/outfits", requireAuth, (req, res) => {
-  const items = outfits.list(req.user.id).map((o) => ({
+  const rows = outfits.list(req.user.id);
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const items = rows.map((o) => ({
     id: o.id, name: o.name || null, imageUrl: imageUrl(o.image_file), background: o.background, description: o.description,
     items: parseOutfitItems(o), createdAt: o.created_at,
   }));
-  res.json({ items });
+  res.json({
+    items,
+    count: rows.length,
+    limit: entitlement.outfitLimit,
+    memberLevel: entitlement.memberLevel,
+  });
 });
 app.post("/api/outfits", requireAuth, (req, res) => {
   const { image, generationId, backgroundStyle, description, items, name } = req.body || {};
+  const entitlement = entitlementsFor(req.user, ENTITLEMENT_LIMITS);
+  const outfitCount = outfits.list(req.user.id).length;
+  if (outfitCount >= entitlement.outfitLimit) {
+    return res.status(403).json({
+      error: `收藏套餐已达上限（${outfitCount}/${entitlement.outfitLimit}）`,
+      outfitCount,
+      outfitLimit: entitlement.outfitLimit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   let file;
   if (generationId) {
     const g = generations.get(req.user.id, Number(generationId));
@@ -458,10 +845,13 @@ Core constraints:
 3. REALISTIC INTEGRATION: Simulate physically plausible draping, folding and fit of every garment on the body. Scale each item correctly to body proportions. Handle occlusion correctly (e.g. top over pants waistband, hat over hair).
 4. BACKGROUND: Place the model in a ${background}. The background must be photorealistic and must not distract from the outfit.
 5. LIGHTING: Apply consistent lighting, shadows and highlights across the model, all garments and the background.
+6. COMPOSITION (ABSOLUTE CRITICAL): Use a vertical 9:16 fashion photograph. Zoom the camera OUT far enough to show the COMPLETE person from the top of the hair to the soles of both shoes. Keep the model centered and no taller than 82% of the image height, with clear empty margin above the hair and below the feet.
+7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.
 
 Prohibitions:
 - DO NOT alter the intrinsic appearance of any provided garment.
-- DO NOT crop out the shoes or hat; the full outfit from head to toe must be visible.
+- DO NOT crop the head, hair, forehead, face, chin, hands, legs, shoes or any part of the body.
+- DO NOT use a close-up, medium shot, waist-up shot, top-cropped framing or edge-to-edge body framing.
 - DO NOT add extra clothing items or accessories that conflict with the provided ones.
 - DO NOT produce collage-like or split images; output a single coherent photograph.
 `;
@@ -554,7 +944,7 @@ async function generateWithArk(prompt, images) {
     prompt,
     image: images.map((img) => `data:${img.mimeType || "image/jpeg"};base64,${img.data}`),
     response_format: process.env.ARK_RESPONSE_FORMAT || "url",
-    size: process.env.ARK_SIZE || "2k",
+    size: process.env.ARK_SIZE || "1152x2048",
     stream: false,
     watermark: process.env.ARK_WATERMARK === "1",
   };
@@ -619,7 +1009,8 @@ async function pumpQueue() {
       if (task.charged) credits.consume(task.userId, task.id, CREDITS_PER_GENERATION);
     } catch (err) {
       console.error(`generation #${task.id} 失败:`, err);
-      generations.fail(task.id, err instanceof Error ? err.message : String(err));
+      // 详细供应商错误只写服务端日志，客户端统一使用中性提示。
+      generations.fail(task.id, "生成失败，请稍后重试");
       if (task.charged) credits.refund(task.userId, task.id, CREDITS_PER_GENERATION);
     }
   }
@@ -649,12 +1040,13 @@ app.post("/api/tryon", requireAuth, (req, res) => {
     const user = req.user;
 
     // 额度判定：优先使用当日免费额度，用尽后扣积分
+    const entitlement = entitlementsFor(user, ENTITLEMENT_LIMITS);
     const usedFreeToday = generations.countTodayFree(user.id);
-    const useFree = usedFreeToday < DAILY_FREE_LIMIT;
+    const useFree = usedFreeToday < entitlement.dailyLimit;
     if (!useFree && credits.balance(user.id) < CREDITS_PER_GENERATION) {
       return res.status(402).json({
         error: "生成次数不足，请用兑换码充值后再试",
-        ...quotaSnapshot(user.id),
+        ...quotaSnapshot(user),
       });
     }
 
@@ -699,13 +1091,13 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       if (!held.ok) {
         // 极端并发下余额被其他请求占用：取消本次任务
         generations.fail(g.id, "积分不足");
-        return res.status(402).json({ error: "生成次数不足，请用兑换码充值后再试", ...quotaSnapshot(user.id) });
+        return res.status(402).json({ error: "生成次数不足，请用兑换码充值后再试", ...quotaSnapshot(user) });
       }
       charged = true;
     }
     taskQueue.push({ id: g.id, userId: user.id, prompt, images, charged });
     pumpQueue();
-    return res.status(202).json({ taskId: g.id, status: "pending", ...quotaSnapshot(user.id) });
+    return res.status(202).json({ taskId: g.id, status: "pending", ...quotaSnapshot(user) });
   } catch (err) {
     console.error("tryon error:", err);
     return res.status(err.statusCode || 500).json({ error: "生成失败", details: err instanceof Error ? err.message : String(err) });

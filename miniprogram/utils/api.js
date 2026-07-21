@@ -105,6 +105,13 @@ module.exports = {
     get: () => authedRequest('GET', '/api/credits'),
     redeem: (code) => authedRequest('POST', '/api/credits/redeem', { code })
   },
+  adRewards: {
+    createSession: () => authedRequest('POST', '/api/ad-rewards/session'),
+    claim: (token) => authedRequest('POST', '/api/ad-rewards/claim', { token })
+  },
+  todayOutfit: {
+    recommend: (data) => authedRequest('POST', '/api/today-outfit/recommend', data)
+  },
   personPhotos: {
     list: () => authedRequest('GET', '/api/person-photos'),
     add: (image) => authedRequest('POST', '/api/person-photos', { image }),

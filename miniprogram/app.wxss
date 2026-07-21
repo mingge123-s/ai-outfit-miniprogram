@@ -10,6 +10,21 @@ page {
   color: #ffffff;
 }
 
+button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 80rpx;
+  padding: 0 24rpx;
+  line-height: 1.2 !important;
+  text-align: center;
+}
+
+button[size='mini'] {
+  min-height: 64rpx;
+}
+
 button::after {
   border: none;
 }

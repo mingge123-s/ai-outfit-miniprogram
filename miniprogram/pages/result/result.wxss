@@ -99,7 +99,6 @@
 .action-row button {
   flex: 1;
   height: 88rpx;
-  line-height: 84rpx;
   border-radius: 20rpx;
   font-size: 28rpx;
   font-weight: 600;

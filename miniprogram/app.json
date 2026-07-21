@@ -1,12 +1,19 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/today/today",
     "pages/wardrobe/wardrobe",
     "pages/collection/collection",
     "pages/me/me",
     "pages/result/result",
     "pages/picker/picker"
   ],
+  "requiredPrivateInfos": ["getFuzzyLocation"],
+  "permission": {
+    "scope.userFuzzyLocation": {
+      "desc": "用于根据当地天气推荐今日穿搭"
+    }
+  },
   "window": {
     "navigationBarBackgroundColor": "#f8f9fa",
     "navigationBarTitleText": "AI 穿搭",

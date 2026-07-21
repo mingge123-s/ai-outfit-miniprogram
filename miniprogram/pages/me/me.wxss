@@ -35,6 +35,7 @@
 .name { font-size: 32rpx; font-weight: 600; }
 .sub { font-size: 22rpx; color: #8a8a99; margin-top: 6rpx; }
 .level { background: #eef3f5; color: #5c7c8d; font-size: 22rpx; padding: 6rpx 20rpx; border-radius: 20rpx; }
+.level-member { background: #fff1d6; color: #a76612; }
 
 .stats { display: flex; padding: 28rpx 0; }
 .stat { flex: 1; display: flex; flex-direction: column; align-items: center; }
@@ -47,6 +48,9 @@
 .vip-title { font-size: 30rpx; font-weight: 600; color: #b45309; }
 .vip-sub { font-size: 22rpx; color: #b45309; opacity: 0.8; margin-top: 6rpx; }
 .vip-btn { background: #b99a5f; color: #fff; font-size: 24rpx; padding: 12rpx 32rpx; border-radius: 30rpx; }
+.ad-reward { display: flex; align-items: center; padding: 28rpx 32rpx; background: linear-gradient(90deg, #eef8f4, #e8f2f8); }
+.ad-title, .ad-sub { color: #397064; }
+.ad-btn { background: #4f8075; }
 
 .menu { padding: 0 32rpx; }
 .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 0; border-bottom: 1rpx solid #f2f2f6; font-size: 28rpx; }

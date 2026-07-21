@@ -34,6 +34,15 @@ Page({
     baseUrl: api.API_BASE_URL,
     selected: {},
     selectedCount: 0,
+    wardrobeCount: 0,
+    wardrobeLimit: 10,
+    memberLevel: 'free',
+    batchUploading: false,
+    batchTotal: 0,
+    batchCompleted: 0,
+    batchFailed: 0,
+    batchProgress: 0,
+    batchProcessingCount: 0,
     // 淘宝商品链接导入
     tbVisible: false,
     tbStep: 'input',
@@ -54,7 +63,12 @@ Page({
     try {
       const cat = this.data.category === 'all' ? '' : this.data.category;
       const data = await api.wardrobe.list(cat);
-      this.setData({ items: data.items });
+      this.setData({
+        items: data.items,
+        wardrobeCount: data.count == null ? data.items.length : data.count,
+        wardrobeLimit: data.limit == null ? this.data.wardrobeLimit : data.limit,
+        memberLevel: data.memberLevel || this.data.memberLevel
+      });
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {
@@ -67,58 +81,137 @@ Page({
   },
 
   addItem() {
+    if (this.data.batchUploading) {
+      wx.showToast({ title: '当前批次仍在上传', icon: 'none' });
+      return;
+    }
+    if (this.data.wardrobeCount >= this.data.wardrobeLimit) {
+      wx.showModal({
+        title: '衣柜已满',
+        content: `当前 ${this.data.wardrobeCount}/${this.data.wardrobeLimit} 件，请删除单品${this.data.memberLevel === 'free' ? '或开通会员扩容至 30 件' : '后再上传'}`,
+        showCancel: false
+      });
+      return;
+    }
     this.chooseFromAlbum();
   },
 
   chooseFromAlbum() {
+    const remaining = Math.max(1, this.data.wardrobeLimit - this.data.wardrobeCount);
     wx.chooseMedia({
-      count: 1,
+      count: Math.min(9, remaining),
       mediaType: ['image'],
       sizeType: ['compressed'],
-      success: async (res) => {
-        const path = res.tempFiles[0].tempFilePath;
-        wx.showLoading({ title: '上传中…' });
-        try {
-          const data = await pathToBase64(path);
-          const mimeType = /\.png$/i.test(path) ? 'image/png' : 'image/jpeg';
-          const uploadCategory = this.data.category === 'all' ? 'top' : this.data.category;
-          const resp = await api.wardrobe.add(uploadCategory, { data, mimeType });
-          wx.hideLoading();
-          await this.refresh();
-          if (resp && resp.item && resp.item.status === 'processing') {
-            wx.showToast({ title: '已入柜，AI识别中…', icon: 'none' });
-            this.pollItem(resp.item.id, 0);
-          } else {
-            wx.showToast({ title: '已加入衣柜', icon: 'success' });
-          }
-        } catch (e) {
-          wx.hideLoading();
-          wx.showToast({ title: e.message || '上传失败', icon: 'none' });
-        }
-      }
+      success: (res) => this.uploadBatch(res.tempFiles || [])
     });
   },
 
-  // 轮询后台处理结果（抠图 + AI 识别类别），完成后跳到识别出的分类
-  pollItem(id, tries) {
-    if (tries >= 15) { this.refresh(); return; }
-    setTimeout(async () => {
+  async uploadBatch(files) {
+    if (!files.length) return;
+
+    const total = files.length;
+    const uploadedIds = [];
+    const uploadCategory = this.data.category === 'all' ? 'top' : this.data.category;
+    let nextIndex = 0;
+    let completed = 0;
+    let failed = 0;
+
+    this._batchPollToken = null;
+    this.setData({
+      batchUploading: true,
+      batchTotal: total,
+      batchCompleted: 0,
+      batchFailed: 0,
+      batchProgress: 0,
+      batchProcessingCount: 0
+    });
+    wx.showToast({ title: `开始上传 ${total} 张`, icon: 'none' });
+
+    const worker = async () => {
+      while (nextIndex < total) {
+        const file = files[nextIndex++];
+        try {
+          const path = file.tempFilePath;
+          const data = await pathToBase64(path);
+          const mimeType = /\.png$/i.test(path) ? 'image/png' : 'image/jpeg';
+          const resp = await api.wardrobe.add(uploadCategory, { data, mimeType });
+          if (resp && resp.item && resp.item.id) uploadedIds.push(resp.item.id);
+        } catch (e) {
+          failed += 1;
+        } finally {
+          completed += 1;
+          this.setData({
+            batchCompleted: completed,
+            batchFailed: failed,
+            batchProgress: Math.round(completed * 100 / total)
+          });
+        }
+      }
+    };
+
+    // 同时上传 2 张，避免大量 Base64 图片挤占手机内存和网络。
+    const workerCount = Math.min(2, total);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    await this.refresh();
+
+    this.setData({
+      batchUploading: false,
+      batchProcessingCount: uploadedIds.length
+    });
+
+    if (!uploadedIds.length) {
+      wx.showToast({ title: '批量上传失败', icon: 'none' });
+      return;
+    }
+
+    wx.showToast({
+      title: failed ? `成功 ${uploadedIds.length}，失败 ${failed}` : `已入柜 ${uploadedIds.length} 张`,
+      icon: failed ? 'none' : 'success'
+    });
+    this.pollBatchItems(uploadedIds);
+  },
+
+  // 每轮只拉一次衣柜列表，批量等待智能识别和抠图完成。
+  pollBatchItems(ids) {
+    const token = Date.now();
+    const idSet = new Set(ids.map(Number));
+    this._batchPollToken = token;
+    let tries = 0;
+
+    const poll = async () => {
+      if (this._batchPollToken !== token) return;
       try {
-        const r = await api.wardrobe.get(id);
-        if (r && r.item && r.item.status !== 'processing') {
-          const cat = r.item.category;
-          const c = CATEGORIES.find((x) => x.key === cat);
-          wx.showToast({ title: `AI识别为「${c ? c.label : cat}」`, icon: 'none' });
-          if (this.data.category === 'all') {
-            this.refresh();
-          } else {
-            this.setData({ category: cat }, () => this.refresh());
-          }
+        const data = await api.wardrobe.list('');
+        const allItems = data.items || [];
+        const pending = allItems.filter((item) => idSet.has(Number(item.id)) && item.status === 'processing');
+        this.setData({ batchProcessingCount: pending.length });
+
+        if (this.data.category === 'all') {
+          this.setData({ items: allItems });
+        }
+        if (!pending.length) {
+          this._batchPollToken = null;
+          await this.refresh();
+          wx.showToast({ title: '智能识别归类完成', icon: 'success' });
           return;
         }
       } catch (e) {}
-      this.pollItem(id, tries + 1);
-    }, 1500);
+
+      tries += 1;
+      if (tries >= 90) {
+        this._batchPollToken = null;
+        this.setData({ batchProcessingCount: 0 });
+        this.refresh();
+        return;
+      }
+      setTimeout(poll, 2000);
+    };
+
+    poll();
+  },
+
+  onUnload() {
+    this._batchPollToken = null;
   },
 
   // ===== 淘宝商品链接导入 =====

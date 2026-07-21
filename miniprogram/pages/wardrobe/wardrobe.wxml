@@ -1,5 +1,19 @@
 <view class="page">
-  <view class="tip">点击单品先选中，可跨分类各选 1 件；长按可预览</view>
+  <view class="tip">
+    <text>{{memberLevel === 'member' ? '会员' : '免费版'}}衣柜 {{wardrobeCount}}/{{wardrobeLimit}} 件</text>
+    <text> · 支持批量上传与智能分类</text>
+  </view>
+
+  <view class="batch-status" wx:if="{{batchUploading || batchProcessingCount > 0}}">
+    <view class="batch-status-row">
+      <text wx:if="{{batchUploading}}">正在上传 {{batchCompleted}}/{{batchTotal}}</text>
+      <text wx:else>正在智能识别并抠图：{{batchProcessingCount}} 件</text>
+      <text class="batch-failed" wx:if="{{batchFailed > 0}}">失败 {{batchFailed}}</text>
+    </view>
+    <view class="batch-progress" wx:if="{{batchUploading}}">
+      <view class="batch-progress-inner" style="width: {{batchProgress}}%;" />
+    </view>
+  </view>
 
   <!-- 分类 -->
   <view class="chips">
@@ -14,9 +28,9 @@
 
   <!-- 列表 -->
   <view class="grid">
-    <view class="item-card add-card dashed" bindtap="addItem">
+    <view class="item-card add-card dashed {{batchUploading ? 'add-card-disabled' : ''}}" bindtap="addItem">
       <text class="add-plus">＋</text>
-      <text class="add-label">添加单品</text>
+      <text class="add-label">{{batchUploading ? '上传中…' : '批量添加'}}</text>
     </view>
     <view
       class="item-card {{selected[item.category] && selected[item.category].id === item.id ? 'selected' : ''}}"
@@ -38,7 +52,7 @@
   </view>
 
   <view class="bottom-bar" wx:if="{{selectedCount > 0}}">
-    <button class="use-selected" bindtap="useSelected">将选中的 {{selectedCount}} 件单品用于生成</button>
+    <button class="use-selected" bindtap="useSelected">添加到生成</button>
   </view>
 
   <!-- 淘宝商品链接导入 -->
