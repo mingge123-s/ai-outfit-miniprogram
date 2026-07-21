@@ -38,10 +38,8 @@ const CREDIT_PACKAGES = [
   { id: "pro", priceFen: 2990, credits: 80, label: "超值包" },
 ];
 const AUTO_CUTOUT = process.env.AUTO_CUTOUT !== "0"; // 衣柜上传自动抠图（需安装 rembg）
-// 上传后 AI 自动识别衣物类别（OpenAI 兼容视觉模型）
-const VISION_API_KEY = process.env.VISION_API_KEY || "";
-const VISION_BASE_URL = (process.env.VISION_BASE_URL || "https://ai.gs88.shop/v1").replace(/\/+$/, "");
-const VISION_MODEL = process.env.VISION_MODEL || "gpt-5.4-mini";
+// 上传后使用低成本豆包视觉模型识别衣物类别，复用火山方舟 ARK_API_KEY。
+const ARK_VISION_MODEL = process.env.ARK_VISION_MODEL || "doubao-seed-2-0-mini-260428";
 const AUTO_CATEGORY = process.env.AUTO_CATEGORY !== "0";
 
 if (PROVIDER === "gemini" && !GEMINI_API_KEY) {
@@ -218,10 +216,10 @@ async function removeBackground(file) {
   return null;
 }
 
-// AI 识别衣物类别（返回 wardrobe 支持的分类键；失败返回 null 回退用户所选分类）
+// 豆包识别衣物类别（返回 wardrobe 支持的分类键；失败返回 null 回退用户所选分类）
 const WARDROBE_CATS = ["top", "pants", "shoes", "hat", "coat", "dress", "accessory", "socks"];
 async function classifyCategory(file) {
-  if (!AUTO_CATEGORY || !VISION_API_KEY) return null;
+  if (!AUTO_CATEGORY || !ARK_API_KEY) return null;
   const input = path.join(UPLOADS_DIR, file);
   if (!fs.existsSync(input)) return null;
   try {
@@ -230,23 +228,30 @@ async function classifyCategory(file) {
     const prompt =
       "这是一张衣物或配件的商品图。请判断它属于以下哪一类，只输出一个英文小写单词，不要多余文字：" +
       "top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
-    const resp = await fetch(`${VISION_BASE_URL}/chat/completions`, {
+    const resp = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${VISION_API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: ARK_VISION_MODEL,
+        thinking: { type: "disabled" },
+        max_tokens: 16,
+        temperature: 0,
         messages: [
           {
             role: "user",
             content: [
               { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
+              { type: "image_url", image_url: { url: `data:${mime};base64,${b64}`, detail: "low" } },
             ],
           },
         ],
       }),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const details = await resp.text().catch(() => "");
+      console.error(`豆包衣物识别失败 (${resp.status}):`, details.slice(0, 300));
+      return null;
+    }
     const data = await resp.json();
     let out = String(data?.choices?.[0]?.message?.content || "").toLowerCase();
     const m = out.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
@@ -255,7 +260,8 @@ async function classifyCategory(file) {
     if (cat === "skirt") cat = "dress"; // 半身裙归入裙装
     if (cat === "bag") cat = "accessory"; // 包归入配饰/包包分类
     return WARDROBE_CATS.includes(cat) ? cat : null;
-  } catch {
+  } catch (e) {
+    console.error("豆包衣物识别异常:", e?.message || e);
     return null;
   }
 }
@@ -273,6 +279,28 @@ async function processWardrobeItem(userId, id, file, fallbackCategory) {
     console.error("processWardrobeItem error:", e?.message || e);
   } finally {
     wardrobe.update(userId, id, { category, imageFile, status: "ready" });
+  }
+}
+
+// 批量上传时串行处理，避免同时启动多个 rembg 进程挤占服务器内存。
+const wardrobeProcessQueue = [];
+let wardrobeProcessRunning = false;
+function enqueueWardrobeItem(task) {
+  wardrobeProcessQueue.push(task);
+  void pumpWardrobeProcessQueue().catch((e) => {
+    console.error("衣柜后台处理队列异常:", e?.message || e);
+  });
+}
+async function pumpWardrobeProcessQueue() {
+  if (wardrobeProcessRunning) return;
+  wardrobeProcessRunning = true;
+  try {
+    while (wardrobeProcessQueue.length) {
+      const task = wardrobeProcessQueue.shift();
+      await processWardrobeItem(task.userId, task.id, task.file, task.fallbackCategory);
+    }
+  } finally {
+    wardrobeProcessRunning = false;
   }
 }
 
@@ -311,7 +339,7 @@ app.post("/api/wardrobe", requireAuth, async (req, res) => {
   const needsProcess = (AUTO_CUTOUT || AUTO_CATEGORY);
   const it = wardrobe.add(req.user.id, category, file, needsProcess ? "processing" : "ready");
   res.json({ item: { id: it.id, category: it.category, imageUrl: imageUrl(it.image_file), createdAt: it.created_at, status: it.status } });
-  if (needsProcess) processWardrobeItem(req.user.id, it.id, file, category);
+  if (needsProcess) enqueueWardrobeItem({ userId: req.user.id, id: it.id, file, fallbackCategory: category });
 });
 app.get("/api/wardrobe/:id", requireAuth, (req, res) => {
   const it = wardrobe.get(req.user.id, Number(req.params.id));

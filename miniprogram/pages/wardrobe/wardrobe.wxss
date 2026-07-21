@@ -1,6 +1,14 @@
 .page { padding: 24rpx 32rpx 180rpx; }
 
 .tip { font-size: 26rpx; color: #5c7c8d; background: #eef3f5; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 20rpx; }
+.batch-status {
+  margin-bottom: 20rpx; padding: 18rpx 20rpx; border-radius: 14rpx;
+  background: #fff; box-shadow: 0 6rpx 20rpx rgba(92,124,141,.10);
+}
+.batch-status-row { display: flex; justify-content: space-between; color: #5c7c8d; font-size: 25rpx; }
+.batch-failed { color: #c75b5b; }
+.batch-progress { height: 10rpx; margin-top: 14rpx; overflow: hidden; border-radius: 8rpx; background: #e5eaed; }
+.batch-progress-inner { height: 100%; border-radius: 8rpx; background: #5c7c8d; transition: width .2s; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 24rpx; }
 .chip {
@@ -24,6 +32,7 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   border: 2rpx dashed #c9c9dc; background: #fbfbfe;
 }
+.add-card-disabled { opacity: .55; }
 .dashed { border: 2rpx dashed #c9c9dc; }
 .add-plus { font-size: 56rpx; color: #5c7c8d; line-height: 1; }
 .add-label { font-size: 24rpx; color: #8a8a99; margin-top: 8rpx; }
