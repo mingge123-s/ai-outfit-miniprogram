@@ -1,0 +1,125 @@
+.page {
+  min-height: 100vh;
+  padding: 28rpx 32rpx 80rpx;
+  box-sizing: border-box;
+  background: #f8f9fa;
+}
+
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx;
+  border-radius: 28rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #47616f, #7894a1);
+  box-shadow: 0 14rpx 36rpx rgba(71, 97, 111, .22);
+}
+.hero-card > view { display: flex; flex-direction: column; }
+.hero-kicker { font-size: 20rpx; letter-spacing: 4rpx; opacity: .75; }
+.hero-title { margin-top: 8rpx; font-size: 44rpx; font-weight: 700; }
+.hero-sub { max-width: 500rpx; margin-top: 10rpx; font-size: 23rpx; line-height: 1.5; opacity: .9; }
+.hero-icon { font-size: 72rpx; }
+
+.section-title { margin: 32rpx 0 16rpx; font-size: 28rpx; font-weight: 600; color: #333b40; }
+.occasion-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12rpx; }
+.occasion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 18rpx 4rpx;
+  border: 2rpx solid #e2e7e9;
+  border-radius: 18rpx;
+  color: #5f6d73;
+  background: #fff;
+  font-size: 23rpx;
+}
+.occasion-icon { font-size: 34rpx; }
+.occasion-active { border-color: #5c7c8d; color: #47616f; background: #eaf0f2; font-weight: 600; }
+
+.manual-card, .weather-card, .recommend-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 22rpx;
+  background: #fff;
+  box-shadow: 0 6rpx 24rpx rgba(71, 97, 111, .08);
+}
+.manual-title { display: block; margin-bottom: 16rpx; font-size: 26rpx; font-weight: 600; }
+.manual-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; }
+.manual-item { padding: 16rpx 4rpx; border-radius: 14rpx; text-align: center; background: #eef2f3; color: #617178; font-size: 24rpx; }
+.manual-active { background: #5c7c8d; color: #fff; }
+
+.recommend-btn {
+  width: 100%;
+  height: 96rpx;
+  margin-top: 28rpx;
+  border-radius: 22rpx;
+  color: #fff;
+  background: #5c7c8d;
+  box-shadow: 0 10rpx 26rpx rgba(92, 124, 141, .22);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.weather-card { display: flex; align-items: center; }
+.weather-icon { margin-right: 20rpx; font-size: 58rpx; }
+.weather-main { display: flex; flex: 1; flex-direction: column; }
+.weather-temp { color: #354d58; font-size: 48rpx; font-weight: 700; }
+.weather-label { color: #66757c; font-size: 23rpx; }
+.weather-extra { display: flex; flex-direction: column; gap: 8rpx; color: #7c898e; font-size: 21rpx; text-align: right; }
+
+.recommend-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.recommend-head > view { display: flex; flex-direction: column; }
+.recommend-title { color: #2f4149; font-size: 34rpx; font-weight: 700; }
+.recommend-scene { margin-top: 6rpx; color: #7a888e; font-size: 22rpx; }
+.recommend-count { padding: 6rpx 16rpx; border-radius: 999rpx; color: #5c7c8d; background: #eaf0f2; font-size: 22rpx; }
+.recommend-reason { display: block; margin-top: 18rpx; color: #59686e; font-size: 24rpx; line-height: 1.6; }
+.outfit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; margin-top: 20rpx; }
+.outfit-item { position: relative; height: 190rpx; overflow: hidden; border-radius: 16rpx; background: #f3f5f6; }
+.outfit-img { width: 100%; height: 100%; }
+.outfit-label {
+  position: absolute;
+  left: 8rpx;
+  bottom: 8rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  color: #fff;
+  background: rgba(54, 68, 74, .72);
+  font-size: 19rpx;
+}
+
+.actions { display: flex; gap: 16rpx; margin-top: 24rpx; }
+.actions button { flex: 1; height: 92rpx; border-radius: 20rpx; font-size: 28rpx; font-weight: 600; }
+.secondary-btn { color: #526b76; border: 2rpx solid #8fa2aa; background: #f5f8f9; }
+.primary-btn { color: #fff; background: #526f7d; box-shadow: 0 10rpx 24rpx rgba(82, 111, 125, .2); }
+.privacy-tip { margin-top: 24rpx; color: #98a1a5; font-size: 21rpx; text-align: center; }
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 249, 250, .96);
+}
+.loading-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: 50%;
+  color: #fff;
+  background: #5c7c8d;
+  font-size: 60rpx;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.loading-title { margin-top: 30rpx; color: #47616f; font-size: 32rpx; font-weight: 600; }
+.loading-sub { margin-top: 10rpx; color: #869399; font-size: 23rpx; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: .72; }
+}

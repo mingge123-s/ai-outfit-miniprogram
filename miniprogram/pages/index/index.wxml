@@ -5,6 +5,15 @@
     <text class="hero-title">即刻开启\n数字时尚之旅</text>
   </view>
 
+  <view class="today-entry" bindtap="goToday">
+    <view class="today-entry-icon">🪄</view>
+    <view class="today-entry-copy">
+      <text class="today-entry-title">今日搭配</text>
+      <text class="today-entry-sub">结合天气、地点与场景，从衣柜智能挑选</text>
+    </view>
+    <text class="today-entry-arrow">›</text>
+  </view>
+
   <!-- 穿搭单品 -->
   <view class="section-head">
     <text class="section-title">① 选穿搭单品</text>

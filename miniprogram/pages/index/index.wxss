@@ -23,6 +23,32 @@
   white-space: pre-line;
 }
 
+.today-entry {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 24rpx;
+  margin-bottom: 22rpx;
+  border-radius: 22rpx;
+  color: #fff;
+  background: linear-gradient(120deg, #496673, #76919d);
+  box-shadow: 0 10rpx 28rpx rgba(73, 102, 115, .2);
+}
+.today-entry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70rpx;
+  height: 70rpx;
+  margin-right: 18rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, .16);
+  font-size: 38rpx;
+}
+.today-entry-copy { display: flex; flex: 1; flex-direction: column; }
+.today-entry-title { font-size: 30rpx; font-weight: 700; }
+.today-entry-sub { margin-top: 5rpx; font-size: 21rpx; opacity: .85; }
+.today-entry-arrow { font-size: 46rpx; opacity: .8; }
+
 /* 虚线卡片 */
 .dashed {
   border: 3rpx dashed #5c7c8d;

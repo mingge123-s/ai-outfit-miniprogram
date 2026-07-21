@@ -1,0 +1,92 @@
+<view class="page">
+  <view class="hero-card">
+    <view>
+      <text class="hero-kicker">TODAY'S LOOK</text>
+      <text class="hero-title">今日搭配</text>
+      <text class="hero-sub">结合天气、体感与场景，从你的衣柜挑选完整穿搭</text>
+    </view>
+    <text class="hero-icon">🪄</text>
+  </view>
+
+  <view class="section-title">今天要去哪里？</view>
+  <view class="occasion-grid">
+    <view
+      wx:for="{{occasions}}"
+      wx:key="key"
+      class="occasion {{occasion === item.key ? 'occasion-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="selectOccasion"
+    >
+      <text class="occasion-icon">{{item.icon}}</text>
+      <text>{{item.label}}</text>
+    </view>
+  </view>
+
+  <view class="manual-card" wx:if="{{manualMode}}">
+    <text class="manual-title">选择当前天气</text>
+    <view class="manual-grid">
+      <view
+        wx:for="{{manualPresets}}"
+        wx:key="key"
+        class="manual-item {{manualWeather === item.key ? 'manual-active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="selectManualWeather"
+      >{{item.icon}} {{item.label}}</view>
+    </view>
+  </view>
+
+  <button
+    class="recommend-btn"
+    wx:if="{{!recommendation}}"
+    bindtap="startRecommend"
+    loading="{{loading}}"
+    disabled="{{loading}}"
+  >{{loading ? '正在分析衣柜…' : manualMode ? '按当前天气推荐' : '获取天气并推荐'}}</button>
+
+  <block wx:if="{{recommendation}}">
+    <view class="weather-card">
+      <text class="weather-icon">{{recommendation.weather.icon}}</text>
+      <view class="weather-main">
+        <text class="weather-temp">{{recommendation.weather.temperature}}°</text>
+        <text class="weather-label">{{recommendation.weather.conditionLabel}} · 体感 {{recommendation.weather.apparentTemperature}}°</text>
+      </view>
+      <view class="weather-extra">
+        <text>湿度 {{recommendation.weather.humidity}}%</text>
+        <text>风速 {{recommendation.weather.windSpeed}}km/h</text>
+      </view>
+    </view>
+
+    <view class="recommend-card">
+      <view class="recommend-head">
+        <view>
+          <text class="recommend-title">{{recommendation.title}}</text>
+          <text class="recommend-scene">{{recommendation.occasionLabel}} · {{recommendation.cached ? '今日推荐' : '新推荐'}}</text>
+        </view>
+        <text class="recommend-count">{{recommendation.items.length}} 件</text>
+      </view>
+      <text class="recommend-reason">{{recommendation.reason}}</text>
+
+      <view class="outfit-grid">
+        <view class="outfit-item" wx:for="{{recommendation.items}}" wx:key="id">
+          <image class="outfit-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFit" />
+          <text class="outfit-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="actions">
+      <button class="secondary-btn" bindtap="changeOutfit" disabled="{{loading || generating}}">换一套</button>
+      <button class="primary-btn" bindtap="generateTodayOutfit" loading="{{generating}}" disabled="{{loading || generating}}">
+        {{generating ? '正在生成…' : '生成今日搭配'}}
+      </button>
+    </view>
+  </block>
+
+  <view class="privacy-tip">仅使用模糊位置查询天气，不保存精确位置</view>
+
+  <view class="loading-overlay" wx:if="{{generating}}">
+    <view class="loading-circle">✨</view>
+    <text class="loading-title">正在生成今日搭配…</text>
+    <text class="loading-sub">可在「我的」查看生成进度</text>
+  </view>
+</view>

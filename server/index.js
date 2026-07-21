@@ -5,9 +5,10 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
+import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -15,6 +16,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || "https://api.openai.com").replace(/\/+$/, "");
 const ARK_API_KEY = process.env.ARK_API_KEY || "";
 const ARK_BASE_URL = (process.env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3").replace(/\/+$/, "");
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || "https://api.mingge.asia/outfit").replace(/\/+$/, "");
 // PROVIDER: "gemini" | "openai"（openai 兼容接口，如 ai.gs88.shop 等代理网关）| "ark"（火山方舟 豆包 Seedream）
 const PROVIDER =
   process.env.PROVIDER || (ARK_API_KEY ? "ark" : OPENAI_API_KEY ? "openai" : "gemini");
@@ -378,6 +380,133 @@ async function pumpWardrobeProcessQueue() {
   }
 }
 
+const OCCASION_LABELS = {
+  daily: "日常",
+  work: "通勤",
+  date: "约会",
+  sport: "运动",
+  travel: "旅行",
+};
+
+async function fetchCurrentWeather(latitude, longitude) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+    const error = new Error("位置信息无效");
+    error.statusCode = 400;
+    throw error;
+  }
+  const params = new URLSearchParams({
+    latitude: lat.toFixed(3),
+    longitude: lon.toFixed(3),
+    current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
+    timezone: "auto",
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`weather ${response.status}`);
+    const data = await response.json();
+    if (!data.current) throw new Error("weather payload missing");
+    return summarizeWeather(data.current, data.timezone || "auto");
+  } catch (error) {
+    console.error("天气查询失败:", error?.message || error);
+    const wrapped = new Error("天气查询暂时不可用，请选择手动天气");
+    wrapped.statusCode = 502;
+    throw wrapped;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function weatherDateKey(weather) {
+  if (weather.observedAt) return String(weather.observedAt).slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
+}
+
+function recommendationBackground(weather, occasion) {
+  const scene = occasion === "work"
+    ? "a modern business district"
+    : occasion === "date"
+      ? "an elegant city cafe street"
+      : occasion === "sport"
+        ? "a clean urban park path"
+        : occasion === "travel"
+          ? "a scenic pedestrian travel destination"
+          : "a stylish city sidewalk";
+  const climate = weather.isRain
+    ? "light rainy weather with a sheltered dry walking area"
+    : weather.isSnow
+      ? "a bright winter scene with light snow"
+      : weather.condition === "clear"
+        ? "clear natural daylight"
+        : "soft overcast daylight";
+  return `${scene}, ${climate}, temperature around ${weather.temperature}°C, photorealistic and suitable for a full-body fashion photo`;
+}
+
+function parseRecommendationContent(content) {
+  const text = String(content || "").replace(/```(?:json)?|```/gi, "").trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
+async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []) {
+  const variation = excludedIds.length
+    ? `这是“换一套”请求，尽量不要选择上一套的这些 ID：${excludedIds.join(", ")}。`
+    : "";
+  const content = [{
+    type: "text",
+    text: `你是专业穿搭顾问。根据天气和场景，从候选衣柜图片中选择一套协调、完整、实穿的穿搭。
+天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C，湿度 ${weather.humidity}%，风速 ${weather.windSpeed}km/h，降水 ${weather.precipitation}mm。
+场景：${OCCASION_LABELS[occasion]}。
+规则：
+1. 必须选择 dress（裙装），或者同时选择 top（上衣）+ pants（裤子）。
+2. 必须选择 shoes（鞋子）。
+3. 体感不高于16°C、雨雪或大风时，衣柜有 coat（外套）就必须选择。
+4. 每个类别最多一件；总数 3-6 件；颜色和风格要协调。
+5. 只能使用候选列表中的 ID。
+${variation}
+只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由"}`,
+  }];
+  for (const item of candidates) {
+    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}` });
+    content.push({
+      type: "image_url",
+      image_url: { url: `${PUBLIC_BASE_URL}${imageUrl(item.image_file)}`, detail: "low" },
+    });
+  }
+
+  if (!ARK_API_KEY) return null;
+  try {
+    const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
+      body: JSON.stringify({
+        model: ARK_VISION_MODEL,
+        thinking: { type: "disabled" },
+        max_tokens: 300,
+        temperature: 0.2,
+        messages: [{ role: "user", content }],
+      }),
+    });
+    if (!response.ok) {
+      console.error(`今日搭配分析失败 (${response.status}):`, (await response.text()).slice(0, 300));
+      return null;
+    }
+    const data = await response.json();
+    return parseRecommendationContent(data?.choices?.[0]?.message?.content);
+  } catch (error) {
+    console.error("今日搭配分析异常:", error?.message || error);
+    return null;
+  }
+}
+
 // 我的模特照（全身照，可多张）
 app.get("/api/person-photos", requireAuth, (req, res) => {
   const rows = personPhotos.list(req.user.id);
@@ -458,6 +587,100 @@ app.get("/api/wardrobe/:id", requireAuth, (req, res) => {
 app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
   const ok = wardrobe.remove(req.user.id, Number(req.params.id));
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 今日搭配：结合天气、场景和衣柜图片选择一套完整穿搭。
+app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
+  try {
+    const { latitude, longitude, manualWeather, occasion = "daily", force = false } = req.body || {};
+    if (!OCCASIONS.has(occasion)) return res.status(400).json({ error: "场景选项无效" });
+
+    let weather;
+    let locationBase;
+    if (manualWeather) {
+      weather = weatherFromPreset(manualWeather);
+      if (!weather) return res.status(400).json({ error: "手动天气选项无效" });
+      locationBase = `manual:${manualWeather}`;
+    } else {
+      weather = await fetchCurrentWeather(latitude, longitude);
+      locationBase = `geo:${Number(latitude).toFixed(1)},${Number(longitude).toFixed(1)}`;
+    }
+
+    const allItems = wardrobe.list(req.user.id).filter((item) => (item.status || "ready") === "ready");
+    const requirements = wardrobeRequirements(allItems, weather);
+    if (!requirements.complete) {
+      return res.status(422).json({
+        error: `衣柜还缺少：${requirements.missing.join("、")}，补齐后才能生成完整搭配`,
+        missing: requirements.missing,
+        wardrobeCount: allItems.length,
+      });
+    }
+
+    const dateKey = weatherDateKey(weather);
+    const weatherBucket = `${weather.condition}:${Math.round(weather.apparentTemperature / 5) * 5}`;
+    const locationKey = `${locationBase}:${weatherBucket}`;
+    const background = recommendationBackground(weather, occasion);
+    const itemJson = (item) => ({
+      id: item.id,
+      category: item.category,
+      imageUrl: imageUrl(item.image_file),
+      createdAt: item.created_at,
+    });
+
+    const cached = dailyOutfitRecommendations.get(req.user.id, dateKey, occasion, locationKey);
+    let previousIds = [];
+    if (cached) {
+      try { previousIds = JSON.parse(cached.selected_ids_json || "[]"); } catch {}
+    }
+    if (!force) {
+      if (cached) {
+        const selected = normalizeSelection(previousIds, allItems, weather);
+        if (selected.length >= 3) {
+          return res.json({
+            date: dateKey,
+            occasion,
+            occasionLabel: OCCASION_LABELS[occasion],
+            weather,
+            title: cached.title || "今日推荐",
+            reason: cached.reason || "根据当前天气和衣柜搭配",
+            generationBackground: cached.background || background,
+            items: selected.map(itemJson),
+            cached: true,
+          });
+        }
+      }
+    }
+
+    const candidates = buildCandidatePool(allItems);
+    const recommendation = await selectTodayOutfit(candidates, weather, occasion, force ? previousIds : []);
+    const selected = normalizeSelection(recommendation?.selectedIds, candidates, weather);
+    const title = String(recommendation?.title || `${weather.conditionLabel}${OCCASION_LABELS[occasion]}穿搭`).slice(0, 20);
+    const reason = String(
+      recommendation?.reason ||
+      `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${OCCASION_LABELS[occasion]}场景搭配`,
+    ).slice(0, 120);
+    dailyOutfitRecommendations.save(req.user.id, dateKey, occasion, locationKey, {
+      weather,
+      selectedIds: selected.map((item) => item.id),
+      title,
+      reason,
+      background,
+    });
+    res.json({
+      date: dateKey,
+      occasion,
+      occasionLabel: OCCASION_LABELS[occasion],
+      weather,
+      title,
+      reason,
+      generationBackground: background,
+      items: selected.map(itemJson),
+      cached: false,
+    });
+  } catch (error) {
+    console.error("today outfit error:", error);
+    res.status(error.statusCode || 500).json({ error: error.message || "今日搭配生成失败" });
+  }
 });
 
 // 淘宝/天猫商品链接导入衣柜（第三方聚合 API，仅后端持有 key/secret）

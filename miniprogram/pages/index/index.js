@@ -68,6 +68,10 @@ Page({
     });
   },
 
+  goToday() {
+    wx.navigateTo({ url: '/pages/today/today' });
+  },
+
   choosePerson() {
     if (this.data.person || this.data.personPhotoId) return;
     this.chooseImage((path) => this.setData({ person: path }));

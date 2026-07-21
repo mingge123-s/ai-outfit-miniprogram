@@ -103,8 +103,24 @@ CREATE TABLE IF NOT EXISTS ad_reward_sessions (
   claimed_at TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS daily_outfit_recommendations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  date_key TEXT NOT NULL,
+  occasion TEXT NOT NULL,
+  location_key TEXT NOT NULL,
+  weather_json TEXT NOT NULL,
+  selected_ids_json TEXT NOT NULL,
+  title TEXT,
+  reason TEXT,
+  background TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (user_id, date_key, occasion, location_key)
+);
 CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_ad_reward_user ON ad_reward_sessions(user_id, id);
+CREATE INDEX IF NOT EXISTS idx_daily_outfit_user ON daily_outfit_recommendations(user_id, date_key);
 `);
 
 export function saveImage(base64, mimeType = "image/png") {
@@ -403,6 +419,42 @@ export const adRewards = {
     if (!updated.changes) return { ok: false, error: "该广告奖励已领取" };
     const balance = _applyDelta(userId, rewardCredits, "ad_reward", `ad:${session.id}`, "完整观看激励广告");
     return { ok: true, credits: rewardCredits, balance, usedToday: usedToday + 1 };
+  }),
+};
+
+export const dailyOutfitRecommendations = {
+  get(userId, dateKey, occasion, locationKey) {
+    return db.prepare(`
+      SELECT * FROM daily_outfit_recommendations
+      WHERE user_id = ? AND date_key = ? AND occasion = ? AND location_key = ?
+    `).get(userId, dateKey, occasion, locationKey) || null;
+  },
+
+  save: db.transaction((userId, dateKey, occasion, locationKey, data) => {
+    db.prepare(`
+      INSERT INTO daily_outfit_recommendations (
+        user_id, date_key, occasion, location_key, weather_json,
+        selected_ids_json, title, reason, background
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, date_key, occasion, location_key) DO UPDATE SET
+        weather_json = excluded.weather_json,
+        selected_ids_json = excluded.selected_ids_json,
+        title = excluded.title,
+        reason = excluded.reason,
+        background = excluded.background,
+        updated_at = datetime('now')
+    `).run(
+      userId,
+      dateKey,
+      occasion,
+      locationKey,
+      JSON.stringify(data.weather),
+      JSON.stringify(data.selectedIds),
+      data.title || null,
+      data.reason || null,
+      data.background || null,
+    );
+    return dailyOutfitRecommendations.get(userId, dateKey, occasion, locationKey);
   }),
 };
 
