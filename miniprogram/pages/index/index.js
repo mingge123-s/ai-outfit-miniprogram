@@ -273,18 +273,16 @@ Page({
         };
       }
 
-      const { imageUrl, taskId, quota } = await api.generateOutfit(body);
+      const { taskId, quota } = await api.submitOutfit(body);
       this.applyQuota(quota);
 
-      app.globalData.lastResult = {
-        image: imageUrl,
-        taskId,
+      app.trackGeneration(taskId, {
         items: this.data.items
           .filter((i) => i.path || i.wardrobeId)
           .map(({ key, label, path, imageUrl }) => ({ key, label, path: path || imageUrl })),
-        backgroundStyle: this.data.backgroundStyle
-      };
-      app.globalData.lastRequest = body;
+        backgroundStyle: this.data.backgroundStyle,
+        request: body
+      });
       wx.navigateTo({ url: '/pages/result/result' });
     } catch (err) {
       wx.showModal({

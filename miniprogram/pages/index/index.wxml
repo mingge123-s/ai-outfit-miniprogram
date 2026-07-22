@@ -97,7 +97,7 @@
   <!-- 生成中遮罩 -->
   <view class="loading-overlay" wx:if="{{loading}}">
     <view class="loading-circle gradient-btn">✨</view>
-    <text class="loading-text">AI 正在为你生成穿搭…</text>
-    <text class="loading-hint">通常需要 1~3 分钟，可在「我的」查看生成历史</text>
+    <text class="loading-text">正在提交生成任务…</text>
+    <text class="loading-hint">提交后无需等待，可继续使用其他功能</text>
   </view>
 </view>

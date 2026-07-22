@@ -86,7 +86,7 @@
 
   <view class="loading-overlay" wx:if="{{generating}}">
     <view class="loading-circle">✨</view>
-    <text class="loading-title">正在生成今日搭配…</text>
-    <text class="loading-sub">可在「我的」查看生成进度</text>
+    <text class="loading-title">正在提交生成任务…</text>
+    <text class="loading-sub">提交后无需等待，可继续使用其他功能</text>
   </view>
 </view>

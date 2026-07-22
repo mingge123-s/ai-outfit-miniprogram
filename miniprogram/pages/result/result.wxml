@@ -1,8 +1,23 @@
 <view class="page">
   <!-- 效果图 -->
-  <view class="hero-wrap">
+  <view class="hero-wrap" wx:if="{{!pending && !failedError}}">
     <image class="hero-image" src="{{image}}" mode="widthFix" show-menu-by-longpress bindtap="previewImage" />
-    <view class="float-label">⭐ AI 智能搭配</view>
+    <view class="float-label">⭐ 智能搭配</view>
+  </view>
+
+  <!-- 生成中占位 -->
+  <view class="pending-wrap" wx:if="{{pending}}">
+    <view class="loading-circle gradient-btn pending-icon">✨</view>
+    <text class="pending-title">正在生成穿搭…</text>
+    <text class="pending-sub">通常需要 1~3 分钟，无需在此等待</text>
+    <text class="pending-sub">可返回继续使用其他功能，完成后会提醒你</text>
+  </view>
+
+  <!-- 失败提示 -->
+  <view class="pending-wrap" wx:if="{{failedError}}">
+    <view class="loading-circle pending-icon">😓</view>
+    <text class="pending-title">生成失败</text>
+    <text class="pending-sub">{{failedError}}</text>
   </view>
 
   <!-- 搭配单品 -->
@@ -21,19 +36,13 @@
 
   <!-- 底部按钮 -->
   <view class="bottom-bar">
-    <view class="action-row">
+    <view class="action-row" wx:if="{{!pending && !failedError}}">
       <button class="save-btn gradient-btn" bindtap="saveToAlbum">保存到相册</button>
       <button class="collect-btn" bindtap="collectOutfit" disabled="{{collecting || collected}}">{{collected ? '已收藏' : collecting ? '收藏中…' : '收藏套装'}}</button>
     </view>
     <view class="action-row">
-      <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating}}">{{regenerating ? '生成中…' : '重新生成'}}</button>
+      <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating || pending}}" wx:if="{{!pending}}">{{regenerating ? '提交中…' : failedError ? '重试' : '重新生成'}}</button>
       <button class="edit-btn" bindtap="editOutfit" disabled="{{regenerating}}">返回编辑</button>
     </view>
-  </view>
-
-  <!-- 生成中遮罩 -->
-  <view class="loading-overlay" wx:if="{{regenerating}}">
-    <view class="loading-circle gradient-btn">✨</view>
-    <text class="loading-text">AI 正在为你生成穿搭…</text>
   </view>
 </view>

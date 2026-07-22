@@ -34,18 +34,59 @@ Page({
   data: {
     image: '',
     items: [],
+    pending: false,
+    failedError: '',
     regenerating: false,
     collecting: false,
     collected: false
   },
 
   onLoad() {
+    const task = app.globalData.genTask;
+    if (task && task.status === 'running') {
+      this.setData({ pending: true, items: task.items });
+      return;
+    }
     const result = app.globalData.lastResult;
     if (!result) {
       wx.navigateBack();
       return;
     }
     this.setData({ image: result.image, items: result.items });
+  },
+
+  onShow() {
+    app.genTaskListener = (task) => this.onTaskUpdate(task);
+    // 页面重新展示时，任务可能已在后台完成
+    const task = app.globalData.genTask;
+    if (this.data.pending && task && task.status !== 'running') {
+      this.onTaskUpdate(task);
+    }
+  },
+
+  onHide() {
+    if (app.genTaskListener) app.genTaskListener = null;
+  },
+
+  onUnload() {
+    if (app.genTaskListener) app.genTaskListener = null;
+  },
+
+  onTaskUpdate(task) {
+    if (task.status === 'done') {
+      this.setData({
+        pending: false,
+        regenerating: false,
+        failedError: '',
+        image: task.image,
+        items: task.items,
+        collected: false
+      });
+    } else if (task.status === 'failed') {
+      this.setData({ pending: false, regenerating: false, failedError: task.error || '生成失败' });
+    } else {
+      this.setData({ pending: true, failedError: '', items: task.items });
+    }
   },
 
   async previewImage() {
@@ -119,21 +160,24 @@ Page({
 
   async regenerate() {
     const body = app.globalData.lastRequest;
-    if (!body || this.data.regenerating) return;
+    if (!body || this.data.regenerating || this.data.pending) return;
     this.setData({ regenerating: true });
     try {
-      const { imageUrl, taskId } = await api.generateOutfit(body);
-      app.globalData.lastResult.image = imageUrl;
-      app.globalData.lastResult.taskId = taskId;
-      this.setData({ image: imageUrl, collected: false });
+      const { taskId } = await api.submitOutfit(body);
+      const result = app.globalData.lastResult;
+      app.trackGeneration(taskId, {
+        items: (result && result.items) || this.data.items,
+        backgroundStyle: result && result.backgroundStyle,
+        request: body
+      });
+      this.setData({ regenerating: false, pending: true, failedError: '', collected: false });
     } catch (err) {
+      this.setData({ regenerating: false });
       wx.showModal({
         title: '生成失败',
         content: (err && err.message) || err.errMsg || '请稍后重试',
         showCancel: false
       });
-    } finally {
-      this.setData({ regenerating: false });
     }
   },
 
