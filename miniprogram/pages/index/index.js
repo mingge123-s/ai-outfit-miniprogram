@@ -283,7 +283,7 @@ Page({
         backgroundStyle: this.data.backgroundStyle,
         request: body
       });
-      wx.navigateTo({ url: '/pages/result/result' });
+      wx.switchTab({ url: '/pages/me/me' });
     } catch (err) {
       wx.showModal({
         title: '生成失败',

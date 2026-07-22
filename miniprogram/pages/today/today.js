@@ -162,7 +162,7 @@ Page({
         backgroundStyle: 'custom',
         request: body
       });
-      wx.navigateTo({ url: '/pages/result/result' });
+      wx.switchTab({ url: '/pages/me/me' });
     } catch (error) {
       wx.showModal({
         title: '生成失败',

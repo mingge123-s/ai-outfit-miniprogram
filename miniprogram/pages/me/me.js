@@ -38,9 +38,24 @@ Page({
 
   onShow() {
     this.refresh();
+    // 订阅后台生成任务：完成/失败时刷新历史列表
+    app.genTaskListener = (task) => {
+      if (task.status === 'done') {
+        wx.showToast({ title: '穿搭已生成', icon: 'success' });
+        this.refresh();
+      } else if (task.status === 'failed') {
+        wx.showToast({ title: task.error || '生成失败', icon: 'none' });
+        this.refresh();
+      }
+    };
+  },
+
+  onHide() {
+    if (app.genTaskListener) app.genTaskListener = null;
   },
 
   onUnload() {
+    if (app.genTaskListener) app.genTaskListener = null;
     if (rewardedVideoAd && rewardedVideoAd.destroy) rewardedVideoAd.destroy();
     rewardedVideoAd = null;
   },
@@ -135,9 +150,40 @@ Page({
     wx.switchTab({ url: '/pages/index/index' });
   },
 
-  previewHistory(e) {
-    const url = e.currentTarget.dataset.url;
-    if (url) wx.previewImage({ urls: [this.data.baseUrl + url] });
+  historyAction(e) {
+    const item = e.currentTarget.dataset.item;
+    if (!item || item.status !== 'done' || !item.imageUrl) return;
+    wx.showActionSheet({
+      itemList: ['放大预览', '收藏套装'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          wx.previewImage({ urls: [this.data.baseUrl + item.imageUrl] });
+        } else if (res.tapIndex === 1) {
+          this.collectHistory(item);
+        }
+      }
+    });
+  },
+
+  collectHistory(item) {
+    wx.showModal({
+      title: '套装名字',
+      editable: true,
+      placeholderText: '给这套穿搭取个名字（可留空）',
+      success: async (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '收藏中…' });
+        try {
+          await api.outfits.add(undefined, item.background, undefined, [], res.content || '', item.id);
+          wx.hideLoading();
+          wx.showToast({ title: '已收藏套装', icon: 'success' });
+          this.refresh();
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: err.message || '收藏失败', icon: 'none' });
+        }
+      }
+    });
   },
 
   removeHistory(e) {

@@ -58,7 +58,7 @@ App({
     const handled = this.notifyGenTask(task);
     if (!handled) {
       if (task.status === 'done') {
-        wx.showToast({ title: '穿搭已生成，可在结果页查看', icon: 'none', duration: 2500 });
+        wx.showToast({ title: '穿搭已生成，可在「我的-生成历史」查看', icon: 'none', duration: 2500 });
       } else {
         wx.showToast({ title: task.error || '生成失败', icon: 'none', duration: 2500 });
       }
