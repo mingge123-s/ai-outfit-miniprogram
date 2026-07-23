@@ -15,10 +15,11 @@
 .history-count { color: #8a8a99; font-size: 22rpx; margin-bottom: 16rpx; }
 .history-row { white-space: nowrap; display: flex; }
 .history-item {
-  position: relative; display: inline-block; width: 260rpx; height: 360rpx; margin-right: 20rpx;
+  position: relative; display: inline-block; min-width: 260rpx; height: 400rpx; margin-right: 20rpx;
   border-radius: 18rpx; overflow: hidden; background: #eef3f5;
 }
-.history-img { width: 100%; height: 100%; animation: history-reveal 1s ease-out; }
+/* 高度固定，宽度按原图比例自适应，不裁切 */
+.history-img { height: 400rpx; width: auto; animation: history-reveal 1s ease-out; }
 /* 即梦式揭晓：模糊→清晰渐显 */
 @keyframes history-reveal {
   0% { filter: blur(24rpx); opacity: 0.4; transform: scale(1.04); }

@@ -54,7 +54,7 @@
           class="history-img"
           wx:if="{{item.imageUrl}}"
           src="{{baseUrl}}{{item.imageUrl}}"
-          mode="aspectFill"
+          mode="heightFix"
           data-item="{{item}}"
           bindtap="historyAction"
         />
