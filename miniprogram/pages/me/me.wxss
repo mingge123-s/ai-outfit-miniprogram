@@ -15,7 +15,7 @@
 .history-count { color: #8a8a99; font-size: 22rpx; margin-bottom: 16rpx; }
 .history-row { white-space: nowrap; display: flex; }
 .history-item {
-  position: relative; display: inline-block; width: 420rpx; height: 480rpx; margin-right: 20rpx;
+  position: relative; display: inline-block; flex-shrink: 0; width: 420rpx; height: 480rpx; margin-right: 20rpx;
   border-radius: 18rpx; overflow: hidden; background: #eef3f5;
 }
 /* 固定尺寸，图片居中填满（aspectFill 裁切超出部分） */
