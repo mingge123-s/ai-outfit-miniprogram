@@ -5,7 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
@@ -642,6 +642,26 @@ app.post("/api/person-photos", requireAuth, (req, res) => {
 });
 app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
   const ok = personPhotos.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 自定义背景标签（生成/今日搭配的自定义背景可保存复用，每人最多 MAX_BACKGROUND_TAGS 个）
+function backgroundTagView(t) {
+  return { id: t.id, text: t.text, createdAt: t.created_at };
+}
+app.get("/api/background-tags", requireAuth, (req, res) => {
+  const rows = backgroundTags.list(req.user.id);
+  res.json({ items: rows.map(backgroundTagView), count: rows.length, limit: MAX_BACKGROUND_TAGS });
+});
+app.post("/api/background-tags", requireAuth, (req, res) => {
+  const text = String((req.body || {}).text || "").trim().slice(0, 60);
+  if (!text) return res.status(400).json({ error: "标签内容不能为空" });
+  const result = backgroundTags.add(req.user.id, text);
+  if (!result.ok) return res.status(403).json({ error: result.error, count: result.count, limit: MAX_BACKGROUND_TAGS });
+  res.json({ item: backgroundTagView(result.item), duplicated: Boolean(result.duplicated), limit: MAX_BACKGROUND_TAGS });
+});
+app.delete("/api/background-tags/:id", requireAuth, (req, res) => {
+  const ok = backgroundTags.remove(req.user.id, Number(req.params.id));
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
 });
 

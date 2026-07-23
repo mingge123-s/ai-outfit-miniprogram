@@ -58,10 +58,24 @@
 }
 .bg-chip.active { background: #47616f; color: #fff; }
 .bg-smart-hint { display: block; margin-top: 16rpx; color: #5c7c8d; font-size: 24rpx; }
+.bg-custom-row { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; }
 .bg-custom-input {
-  margin-top: 16rpx; padding: 16rpx 20rpx; border-radius: 14rpx;
+  flex: 1; padding: 16rpx 20rpx; border-radius: 14rpx;
   background: #f4f6f7; font-size: 26rpx;
 }
+.bg-save-btn {
+  flex: 0 0 auto; padding: 16rpx 20rpx; border-radius: 14rpx;
+  background: #47616f; color: #fff; font-size: 24rpx; font-weight: 600;
+}
+.bg-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
+.bg-tag {
+  display: flex; align-items: center; gap: 8rpx;
+  padding: 10rpx 16rpx; border-radius: 999rpx;
+  background: #eef2f3; color: #617178; font-size: 22rpx;
+}
+.bg-tag-active { background: #47616f; color: #fff; }
+.bg-tag-del { font-size: 28rpx; line-height: 1; opacity: .7; }
+.bg-tags-hint { display: block; margin-top: 12rpx; color: #9aa7ac; font-size: 22rpx; }
 .manual-card, .weather-card, .recommend-card {
   margin-top: 24rpx;
   padding: 24rpx;

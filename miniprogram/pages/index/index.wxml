@@ -55,13 +55,30 @@
       bindtap="chooseStyle"
     >{{item.label}}</view>
   </view>
-  <input
-    wx:if="{{backgroundStyle === 'custom'}}"
-    class="custom-bg"
-    placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
-    value="{{customBackground}}"
-    bindinput="onCustomBgInput"
-  />
+  <block wx:if="{{backgroundStyle === 'custom'}}">
+    <view class="custom-bg-row">
+      <input
+        class="custom-bg"
+        placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
+        value="{{customBackground}}"
+        bindinput="onCustomBgInput"
+      />
+      <view class="save-tag-btn" bindtap="saveBgTag">＋标签</view>
+    </view>
+    <view class="bg-tags" wx:if="{{bgTags.length}}">
+      <view
+        wx:for="{{bgTags}}"
+        wx:key="id"
+        class="bg-tag {{customBackground === item.text ? 'bg-tag-active' : ''}}"
+        data-text="{{item.text}}"
+        bindtap="useBgTag"
+      >
+        <text class="bg-tag-text">{{item.text}}</text>
+        <text class="bg-tag-del" catchtap="removeBgTag" data-id="{{item.id}}">×</text>
+      </view>
+    </view>
+    <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{bgTagLimit}} 个）</text>
+  </block>
 
   <!-- 模特照片（可选） -->
   <view class="section-head">
