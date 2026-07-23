@@ -150,6 +150,17 @@ Page({
     wx.switchTab({ url: '/pages/index/index' });
   },
 
+  // 按原图宽高比计算卡片宽度（高固定 400rpx），避免裁切或留白
+  onHistoryImgLoad(e) {
+    const { width, height } = e.detail || {};
+    const index = e.currentTarget.dataset.index;
+    if (!width || !height || index === undefined) return;
+    const w = Math.max(200, Math.min(480, Math.round(400 * width / height)));
+    if (this.data.history[index] && this.data.history[index]._w !== w) {
+      this.setData({ [`history[${index}]._w`]: w });
+    }
+  },
+
   historyAction(e) {
     const item = e.currentTarget.dataset.item;
     if (!item || item.status !== 'done' || !item.imageUrl) return;
