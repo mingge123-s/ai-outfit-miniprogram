@@ -9,6 +9,7 @@ import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, me
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
+import { volcCutout, volcCutoutEnabled } from "./volc-cutout.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -274,10 +275,27 @@ async function checkRembg() {
   return rembgAvailable;
 }
 async function removeBackground(file) {
-  if (!AUTO_CUTOUT || !(await checkRembg())) return null;
+  if (!AUTO_CUTOUT) return null;
   const input = path.join(UPLOADS_DIR, file);
   const outName = file.replace(/\.[^.]+$/, "") + "_cut.png";
   const output = path.join(UPLOADS_DIR, outName);
+
+  // 优先火山引擎主体分割 API，失败回退本地 rembg
+  if (volcCutoutEnabled()) {
+    try {
+      const b64 = fs.readFileSync(input).toString("base64");
+      const fg = await volcCutout(b64);
+      if (fg) {
+        fs.writeFileSync(output, Buffer.from(fg, "base64"));
+        fs.unlinkSync(input);
+        return outName;
+      }
+    } catch (e) {
+      console.error("火山抠图处理异常:", e?.message || e);
+    }
+  }
+
+  if (!(await checkRembg())) return null;
   const ok = await new Promise((resolve) => {
     const p = spawn("rembg", ["i", input, output]);
     const t = setTimeout(() => { p.kill(); resolve(false); }, 120000);
