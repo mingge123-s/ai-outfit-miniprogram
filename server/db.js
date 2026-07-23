@@ -55,6 +55,14 @@ try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN attrs TEXT"); } catch {}
+db.exec(`
+CREATE TABLE IF NOT EXISTS wardrobe_upload_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_wardrobe_upload_user ON wardrobe_upload_log(user_id, id);
+`);
 try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_level TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_expires_at TEXT"); } catch {}
@@ -196,6 +204,13 @@ export const wardrobe = {
   },
   setAttrs(id, attrs) {
     db.prepare("UPDATE wardrobe_items SET attrs = ? WHERE id = ?").run(attrs, id);
+  },
+  // 上传计数按当天实际上传次数统计，删除衣物不返还，防止反复删传刷 AI 额度
+  logUpload(userId) {
+    db.prepare("INSERT INTO wardrobe_upload_log (user_id) VALUES (?)").run(userId);
+  },
+  countUploadsToday(userId) {
+    return db.prepare("SELECT COUNT(*) AS c FROM wardrobe_upload_log WHERE user_id = ? AND date(created_at) = date('now')").get(userId).c;
   },
   remove(userId, id) {
     const item = this.get(userId, id);
