@@ -49,7 +49,7 @@
       <text class="history-count">{{history.length}} 条</text>
     </view>
     <scroll-view class="history-row" scroll-x enable-flex wx:if="{{history.length}}">
-      <view class="history-item" wx:for="{{history}}" wx:key="id" style="{{item.imageUrl ? 'width:' + (item._w || 300) + 'rpx' : ''}}">
+      <view class="history-item" wx:for="{{history}}" wx:key="id" style="{{item.imageUrl ? 'width:' + (item._w || 360) + 'rpx' : ''}}">
         <image
           class="history-img"
           wx:if="{{item.imageUrl}}"
