@@ -21,6 +21,16 @@
       <text>{{item.label}}</text>
     </view>
   </view>
+  <input
+    class="occasion-custom-input"
+    wx:if="{{occasion === 'custom'}}"
+    placeholder="填写场合，如：音乐节、面试、婚礼"
+    value="{{customOccasion}}"
+    bindinput="onCustomOccasionInput"
+    bindconfirm="confirmCustomOccasion"
+    bindblur="confirmCustomOccasion"
+    maxlength="20"
+  />
 
   <view class="manual-card" wx:if="{{manualMode}}">
     <text class="manual-title">选择当前天气</text>

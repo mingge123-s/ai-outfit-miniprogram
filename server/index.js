@@ -482,7 +482,7 @@ function describeAttrs(attrsJson) {
   }
 }
 
-async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []) {
+async function selectTodayOutfit(candidates, weather, occasionLabel, excludedIds = []) {
   const variation = excludedIds.length
     ? `这是“换一套”请求，尽量不要选择上一套的这些 ID：${excludedIds.join(", ")}。`
     : "";
@@ -490,7 +490,7 @@ async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []
     type: "text",
     text: `你是专业穿搭顾问。根据天气和场景，从候选衣柜单品中选择一套协调、完整、实穿的穿搭。候选单品以文字标签为主，仅无标签的单品附图片。
 天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C，湿度 ${weather.humidity}%，风速 ${weather.windSpeed}km/h，降水 ${weather.precipitation}mm。
-场景：${OCCASION_LABELS[occasion]}。
+场景：${occasionLabel}。
 规则：
 1. 必须选择 dress（裙装），或者同时选择 top（上衣）+ pants（裤子）。
 2. 必须选择 shoes（鞋子）。
@@ -537,7 +537,7 @@ ${variation}
 }
 
 // 场景描述与选衣并行生成，基于天气和场合给出具体拍摄画面
-async function generateSceneDescription(weather, occasion) {
+async function generateSceneDescription(weather, occasionLabel) {
   if (!ARK_API_KEY) return null;
   try {
     const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
@@ -550,7 +550,7 @@ async function generateSceneDescription(weather, occasion) {
         temperature: 0.8,
         messages: [{
           role: "user",
-          content: `今天天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C${weather.isRain ? "，有雨" : ""}${weather.isSnow ? "，有雪" : ""}。场合：${OCCASION_LABELS[occasion]}。请生成一句适合拍穿搭照的具体场景画面描述，25字以内，要和天气和场合呼应，如：樱花树下的小路。只输出描述本身，不要引号和多余文字。`,
+          content: `今天天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C${weather.isRain ? "，有雨" : ""}${weather.isSnow ? "，有雪" : ""}。场合：${occasionLabel}。请生成一句适合拍穿搭照的具体场景画面描述，25字以内，要和天气和场合呼应，如：樱花树下的小路。只输出描述本身，不要引号和多余文字。`,
         }],
       }),
     });
@@ -662,8 +662,12 @@ app.delete("/api/wardrobe/:id", requireAuth, (req, res) => {
 // 今日搭配：结合天气、场景和衣柜图片选择一套完整穿搭。
 app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
   try {
-    const { latitude, longitude, manualWeather, occasion = "daily", force = false } = req.body || {};
-    if (!OCCASIONS.has(occasion)) return res.status(400).json({ error: "场景选项无效" });
+    const { latitude, longitude, manualWeather, occasion = "daily", customOccasion, force = false } = req.body || {};
+    const isCustomOccasion = occasion === "custom";
+    const occasionText = isCustomOccasion ? String(customOccasion || "").trim().slice(0, 20) : "";
+    if (isCustomOccasion && !occasionText) return res.status(400).json({ error: "请填写自定义场合" });
+    if (!isCustomOccasion && !OCCASIONS.has(occasion)) return res.status(400).json({ error: "场景选项无效" });
+    const occasionLabel = isCustomOccasion ? occasionText : OCCASION_LABELS[occasion];
 
     let weather;
     let locationBase;
@@ -688,7 +692,7 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
 
     const dateKey = weatherDateKey(weather);
     const weatherBucket = `${weather.condition}:${Math.round(weather.apparentTemperature / 5) * 5}`;
-    const locationKey = `${locationBase}:${weatherBucket}`;
+    const locationKey = `${locationBase}:${weatherBucket}${isCustomOccasion ? `:${occasionText}` : ""}`;
     const background = recommendationBackground(weather, occasion);
     const itemJson = (item) => ({
       id: item.id,
@@ -709,7 +713,7 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
           return res.json({
             date: dateKey,
             occasion,
-            occasionLabel: OCCASION_LABELS[occasion],
+            occasionLabel,
             weather,
             title: cached.title || "今日推荐",
             reason: cached.reason || "根据当前天气和衣柜搭配",
@@ -726,14 +730,14 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
     const unlabeled = allItems.filter((item) => !describeAttrs(item.attrs));
     const candidates = [...labeled.slice(0, 150), ...buildCandidatePool(unlabeled)];
     const [recommendation, aiScene] = await Promise.all([
-      selectTodayOutfit(candidates, weather, occasion, force ? previousIds : []),
-      generateSceneDescription(weather, occasion),
+      selectTodayOutfit(candidates, weather, occasionLabel, force ? previousIds : []),
+      generateSceneDescription(weather, occasionLabel),
     ]);
     const selected = normalizeSelection(recommendation?.selectedIds, candidates, weather);
-    const title = String(recommendation?.title || `${weather.conditionLabel}${OCCASION_LABELS[occasion]}穿搭`).slice(0, 20);
+    const title = String(recommendation?.title || `${weather.conditionLabel}${occasionLabel}穿搭`).slice(0, 20);
     const reason = String(
       recommendation?.reason ||
-      `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${OCCASION_LABELS[occasion]}场景搭配`,
+      `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${occasionLabel}场景搭配`,
     ).slice(0, 120);
     const scene = aiScene || background;
     dailyOutfitRecommendations.save(req.user.id, dateKey, occasion, locationKey, {
@@ -746,7 +750,7 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
     res.json({
       date: dateKey,
       occasion,
-      occasionLabel: OCCASION_LABELS[occasion],
+      occasionLabel,
       weather,
       title,
       reason,
