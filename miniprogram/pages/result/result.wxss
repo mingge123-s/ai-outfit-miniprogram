@@ -154,3 +154,29 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.1); }
 }
+
+/* 生成中/失败占位 */
+.pending-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 40rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  margin-bottom: 32rpx;
+}
+.pending-icon {
+  margin-bottom: 32rpx;
+}
+.pending-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #5c7c8d;
+  margin-bottom: 16rpx;
+}
+.pending-sub {
+  font-size: 26rpx;
+  color: #8a8a99;
+  margin-top: 8rpx;
+}

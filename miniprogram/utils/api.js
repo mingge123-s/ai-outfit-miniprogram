@@ -69,13 +69,23 @@ async function authedRequest(method, path, data) {
   }
 }
 
+// 提交生成任务，立即返回 { taskId, quota }；进度由 app.startGenerationTask 在后台轮询
+async function submitOutfit(body) {
+  const resp = await authedRequest('POST', '/api/tryon', body);
+  return { taskId: resp.taskId, quota: resp };
+}
+
+function getTask(taskId) {
+  return authedRequest('GET', `/api/tryon/${taskId}`);
+}
+
 // 异步生成：提交任务后轮询直到完成/失败，返回 { imageUrl, taskId }
 async function generateOutfit(body) {
   const resp = await authedRequest('POST', '/api/tryon', body);
   const { taskId } = resp;
   while (true) {
     await new Promise((r) => setTimeout(r, 2500));
-    const task = await authedRequest('GET', `/api/tryon/${taskId}`);
+    const task = await getTask(taskId);
     if (task.status === 'done') {
       return { imageUrl: `${API_BASE_URL}${task.imageUrl}`, taskId, quota: resp };
     }
@@ -86,6 +96,8 @@ async function generateOutfit(body) {
 module.exports = {
   API_BASE_URL,
   generateOutfit,
+  submitOutfit,
+  getTask,
   getToken,
   ensureLogin,
   request,

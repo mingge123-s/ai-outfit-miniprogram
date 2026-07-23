@@ -221,7 +221,16 @@ export const personPhotos = {
 export const generations = {
   create(userId, background, chargeType = "free") {
     const info = db.prepare("INSERT INTO generations (user_id, status, background, charge_type) VALUES (?, 'pending', ?, ?)").run(userId, background || null, chargeType);
+    this.prune(userId);
     return db.prepare("SELECT * FROM generations WHERE id = ?").get(info.lastInsertRowid);
+  },
+  // 每个用户最多保留 max 条生成记录，超出时删除最旧的记录及图片
+  prune(userId, max = 50) {
+    const rows = db.prepare("SELECT id, image_file FROM generations WHERE user_id = ? ORDER BY id DESC LIMIT -1 OFFSET ?").all(userId, max);
+    for (const r of rows) {
+      db.prepare("DELETE FROM generations WHERE id = ?").run(r.id);
+      if (r.image_file) deleteImage(r.image_file);
+    }
   },
   setStatus(id, status) {
     db.prepare("UPDATE generations SET status = ? WHERE id = ?").run(status, id);

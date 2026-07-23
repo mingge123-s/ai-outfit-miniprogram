@@ -152,19 +152,17 @@ Page({
       if (photos.items && photos.items.length) {
         body.personImage = { personPhotoId: photos.items[0].id };
       }
-      const { imageUrl, taskId } = await api.generateOutfit(body);
-      app.globalData.lastResult = {
-        image: imageUrl,
-        taskId,
+      const { taskId } = await api.submitOutfit(body);
+      app.trackGeneration(taskId, {
         items: recommendation.items.map((item) => ({
           key: item.category,
           label: item.label,
           path: `${api.API_BASE_URL}${item.imageUrl}`
         })),
-        backgroundStyle: 'custom'
-      };
-      app.globalData.lastRequest = body;
-      wx.navigateTo({ url: '/pages/result/result' });
+        backgroundStyle: 'custom',
+        request: body
+      });
+      wx.switchTab({ url: '/pages/me/me' });
     } catch (error) {
       wx.showModal({
         title: '生成失败',
