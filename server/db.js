@@ -56,6 +56,7 @@ try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN attrs TEXT"); } catch {}
 try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free'"); } catch {}
+try { db.exec("ALTER TABLE generations ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_level TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_expires_at TEXT"); } catch {}
 
@@ -227,17 +228,18 @@ export const personPhotos = {
 };
 
 export const generations = {
-  create(userId, background, chargeType = "free") {
-    const info = db.prepare("INSERT INTO generations (user_id, status, background, charge_type) VALUES (?, 'pending', ?, ?)").run(userId, background || null, chargeType);
+  create(userId, background, chargeType = "free", itemsJson = null) {
+    const info = db.prepare("INSERT INTO generations (user_id, status, background, charge_type, items_json) VALUES (?, 'pending', ?, ?, ?)").run(userId, background || null, chargeType, itemsJson);
     this.prune(userId);
     return db.prepare("SELECT * FROM generations WHERE id = ?").get(info.lastInsertRowid);
   },
   // 每个用户最多保留 max 条生成记录，超出时删除最旧的记录及图片
   prune(userId, max = 50) {
-    const rows = db.prepare("SELECT id, image_file FROM generations WHERE user_id = ? ORDER BY id DESC LIMIT -1 OFFSET ?").all(userId, max);
+    const rows = db.prepare("SELECT id, image_file, items_json FROM generations WHERE user_id = ? ORDER BY id DESC LIMIT -1 OFFSET ?").all(userId, max);
     for (const r of rows) {
       db.prepare("DELETE FROM generations WHERE id = ?").run(r.id);
       if (r.image_file) deleteImage(r.image_file);
+      try { for (const it of JSON.parse(r.items_json || "[]")) deleteImage(it.image_file); } catch {}
     }
   },
   setStatus(id, status) {
@@ -270,6 +272,7 @@ export const generations = {
     if (!item) return false;
     db.prepare("DELETE FROM generations WHERE id = ?").run(id);
     if (item.image_file) deleteImage(item.image_file);
+    try { for (const it of JSON.parse(item.items_json || "[]")) deleteImage(it.image_file); } catch {}
     return true;
   },
 };
