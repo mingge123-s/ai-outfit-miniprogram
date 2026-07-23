@@ -44,6 +44,14 @@ Page({
     occasion: 'daily',
     manualMode: false,
     manualWeather: 'mild',
+    backgrounds: [
+      { key: 'smart', label: '智能场景' },
+      { key: 'street', label: '街拍' },
+      { key: 'home', label: '居家' },
+      { key: 'custom', label: '自定义' }
+    ],
+    backgroundStyle: 'smart',
+    customBackground: '',
     recommendation: null,
     baseUrl: api.API_BASE_URL,
     loading: false,
@@ -55,6 +63,14 @@ Page({
     this.setData({ occasion }, () => {
       if (this.data.recommendation) this.loadRecommendation(false);
     });
+  },
+
+  selectBackground(e) {
+    this.setData({ backgroundStyle: e.currentTarget.dataset.key });
+  },
+
+  onCustomBackgroundInput(e) {
+    this.setData({ customBackground: e.detail.value });
   },
 
   selectManualWeather(e) {
@@ -143,11 +159,23 @@ Page({
       for (const item of recommendation.items) {
         items[item.category] = { wardrobeId: item.id };
       }
-      const body = {
-        items,
-        backgroundStyle: 'custom',
-        customBackground: recommendation.generationBackground
-      };
+      const style = this.data.backgroundStyle;
+      const body = { items };
+      if (style === 'smart') {
+        body.backgroundStyle = 'custom';
+        body.customBackground = recommendation.generationBackground;
+      } else if (style === 'custom') {
+        const custom = this.data.customBackground.trim();
+        if (!custom) {
+          wx.showToast({ title: '请先填写自定义场景描述', icon: 'none' });
+          this.setData({ generating: false });
+          return;
+        }
+        body.backgroundStyle = 'custom';
+        body.customBackground = custom;
+      } else {
+        body.backgroundStyle = style;
+      }
       const photos = await api.personPhotos.list();
       if (photos.items && photos.items.length) {
         body.personImage = { personPhotoId: photos.items[0].id };
@@ -159,7 +187,7 @@ Page({
           label: item.label,
           path: `${api.API_BASE_URL}${item.imageUrl}`
         })),
-        backgroundStyle: 'custom',
+        backgroundStyle: body.backgroundStyle,
         request: body
       });
       wx.switchTab({ url: '/pages/me/me' });

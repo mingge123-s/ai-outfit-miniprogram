@@ -74,6 +74,28 @@
       </view>
     </view>
 
+    <view class="bg-card">
+      <text class="bg-title">生成场景</text>
+      <view class="bg-row">
+        <view
+          class="bg-chip {{backgroundStyle === item.key ? 'active' : ''}}"
+          wx:for="{{backgrounds}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="selectBackground"
+        >{{item.label}}</view>
+      </view>
+      <text class="bg-smart-hint" wx:if="{{backgroundStyle === 'smart' && recommendation.generationBackground}}">✨ {{recommendation.generationBackground}}</text>
+      <input
+        class="bg-custom-input"
+        wx:if="{{backgroundStyle === 'custom'}}"
+        placeholder="描述你想要的场景，如：樱花树下的小路"
+        value="{{customBackground}}"
+        bindinput="onCustomBackgroundInput"
+        maxlength="100"
+      />
+    </view>
+
     <view class="actions">
       <button class="secondary-btn" bindtap="changeOutfit" disabled="{{loading || generating}}">换一套</button>
       <button class="primary-btn" bindtap="generateTodayOutfit" loading="{{generating}}" disabled="{{loading || generating}}">

@@ -302,15 +302,16 @@ async function classifyCategory(file) {
     const b64 = fs.readFileSync(input).toString("base64");
     const mime = /\.png$/i.test(file) ? "image/png" : "image/jpeg";
     const prompt =
-      "这是一张衣物或配件的商品图。请判断它属于以下哪一类，只输出一个英文小写单词，不要多余文字：" +
-      "top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
+      "这是一张衣物或配件的商品图。请判断类别并提取特征，只输出严格 JSON（不要 Markdown）：" +
+      '{"category":"top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory","color":"主色调中文2-4字","warmth":"薄|适中|厚","style":"风格中文2-4字如休闲/通勤/运动/甜美"}。' +
+      "类别说明：top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
     const resp = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
       body: JSON.stringify({
         model: ARK_VISION_MODEL,
         thinking: { type: "disabled" },
-        max_tokens: 16,
+        max_tokens: 100,
         temperature: 0,
         messages: [
           {
@@ -329,13 +330,22 @@ async function classifyCategory(file) {
       return null;
     }
     const data = await resp.json();
-    let out = String(data?.choices?.[0]?.message?.content || "").toLowerCase();
-    const m = out.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
+    const raw = String(data?.choices?.[0]?.message?.content || "");
+    let parsed = null;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()); } catch {}
+    const catSource = String(parsed?.category || raw).toLowerCase();
+    const m = catSource.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
     if (!m) return null;
     let cat = m[0];
     if (cat === "skirt") cat = "dress"; // 半身裙归入裙装
     if (cat === "bag") cat = "accessory"; // 包归入配饰/包包分类
-    return WARDROBE_CATS.includes(cat) ? cat : null;
+    if (!WARDROBE_CATS.includes(cat)) return null;
+    const attrs = {};
+    for (const key of ["color", "warmth", "style"]) {
+      const v = typeof parsed?.[key] === "string" ? parsed[key].trim().slice(0, 12) : "";
+      if (v) attrs[key] = v;
+    }
+    return { category: cat, attrs: Object.keys(attrs).length ? attrs : null };
   } catch (e) {
     console.error("豆包衣物识别异常:", e?.message || e);
     return null;
@@ -346,15 +356,17 @@ async function classifyCategory(file) {
 async function processWardrobeItem(userId, id, file, fallbackCategory) {
   let category = fallbackCategory;
   let imageFile = file;
+  let attrs = null;
   try {
-    const aiCat = await classifyCategory(file).catch(() => null);
-    if (aiCat) category = aiCat;
+    const result = await classifyCategory(file).catch(() => null);
+    if (result?.category) category = result.category;
+    if (result?.attrs) attrs = JSON.stringify(result.attrs);
     const cut = await removeBackground(file).catch(() => null);
     if (cut) imageFile = cut;
   } catch (e) {
     console.error("processWardrobeItem error:", e?.message || e);
   } finally {
-    wardrobe.update(userId, id, { category, imageFile, status: "ready" });
+    wardrobe.update(userId, id, { category, imageFile, status: "ready", attrs });
   }
 }
 
@@ -456,13 +468,27 @@ function parseRecommendationContent(content) {
   }
 }
 
+function describeAttrs(attrsJson) {
+  if (!attrsJson) return "";
+  try {
+    const a = typeof attrsJson === "string" ? JSON.parse(attrsJson) : attrsJson;
+    const parts = [];
+    if (a.color) parts.push(`颜色${a.color}`);
+    if (a.warmth) parts.push(`厚薄${a.warmth}`);
+    if (a.style) parts.push(`风格${a.style}`);
+    return parts.length ? `，${parts.join("，")}` : "";
+  } catch {
+    return "";
+  }
+}
+
 async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []) {
   const variation = excludedIds.length
     ? `这是“换一套”请求，尽量不要选择上一套的这些 ID：${excludedIds.join(", ")}。`
     : "";
   const content = [{
     type: "text",
-    text: `你是专业穿搭顾问。根据天气和场景，从候选衣柜图片中选择一套协调、完整、实穿的穿搭。
+    text: `你是专业穿搭顾问。根据天气和场景，从候选衣柜单品中选择一套协调、完整、实穿的穿搭。候选单品以文字标签为主，仅无标签的单品附图片。
 天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C，湿度 ${weather.humidity}%，风速 ${weather.windSpeed}km/h，降水 ${weather.precipitation}mm。
 场景：${OCCASION_LABELS[occasion]}。
 规则：
@@ -475,11 +501,14 @@ ${variation}
 只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由"}`,
   }];
   for (const item of candidates) {
-    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}` });
-    content.push({
-      type: "image_url",
-      image_url: { url: `${PUBLIC_BASE_URL}${imageUrl(item.image_file)}`, detail: "low" },
-    });
+    const attrsText = describeAttrs(item.attrs);
+    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}${attrsText}` });
+    if (!attrsText) {
+      content.push({
+        type: "image_url",
+        image_url: { url: `${PUBLIC_BASE_URL}${imageUrl(item.image_file)}`, detail: "low" },
+      });
+    }
   }
 
   if (!ARK_API_KEY) return null;
@@ -505,6 +534,47 @@ ${variation}
     console.error("今日搭配分析异常:", error?.message || error);
     return null;
   }
+}
+
+// 场景描述与选衣并行生成，基于天气和场合给出具体拍摄画面
+async function generateSceneDescription(weather, occasion) {
+  if (!ARK_API_KEY) return null;
+  try {
+    const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
+      body: JSON.stringify({
+        model: ARK_VISION_MODEL,
+        thinking: { type: "disabled" },
+        max_tokens: 60,
+        temperature: 0.8,
+        messages: [{
+          role: "user",
+          content: `今天天气：${weather.conditionLabel}，${weather.temperature}°C，体感 ${weather.apparentTemperature}°C${weather.isRain ? "，有雨" : ""}${weather.isSnow ? "，有雪" : ""}。场合：${OCCASION_LABELS[occasion]}。请生成一句适合拍穿搭照的具体场景画面描述，25字以内，要和天气和场合呼应，如：樱花树下的小路。只输出描述本身，不要引号和多余文字。`,
+        }],
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = String(data?.choices?.[0]?.message?.content || "").trim().replace(/^["“‘']+|["”’']+$/g, "");
+    return text ? text.slice(0, 60) : null;
+  } catch {
+    return null;
+  }
+}
+
+// 存量衣物后台补打标签，之后推荐只需发文字不发图片
+async function backfillWardrobeAttrs() {
+  if (!ARK_API_KEY || !AUTO_CATEGORY) return;
+  const rows = wardrobe.listMissingAttrs();
+  if (!rows.length) return;
+  console.log(`开始补齐衣柜标签：${rows.length} 件`);
+  for (const row of rows) {
+    const result = await classifyCategory(row.image_file).catch(() => null);
+    wardrobe.setAttrs(row.id, JSON.stringify(result?.attrs || {}));
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  console.log("衣柜标签补齐完成");
 }
 
 // 我的模特照（全身照，可多张）
@@ -651,20 +721,27 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
       }
     }
 
-    const candidates = buildCandidatePool(allItems);
-    const recommendation = await selectTodayOutfit(candidates, weather, occasion, force ? previousIds : []);
+    // 已打标签的衣物只发文字，成本低，候选可覆盖全衣柜；无标签的仍附图，用原有池子限制数量
+    const labeled = allItems.filter((item) => describeAttrs(item.attrs));
+    const unlabeled = allItems.filter((item) => !describeAttrs(item.attrs));
+    const candidates = [...labeled.slice(0, 150), ...buildCandidatePool(unlabeled)];
+    const [recommendation, aiScene] = await Promise.all([
+      selectTodayOutfit(candidates, weather, occasion, force ? previousIds : []),
+      generateSceneDescription(weather, occasion),
+    ]);
     const selected = normalizeSelection(recommendation?.selectedIds, candidates, weather);
     const title = String(recommendation?.title || `${weather.conditionLabel}${OCCASION_LABELS[occasion]}穿搭`).slice(0, 20);
     const reason = String(
       recommendation?.reason ||
       `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${OCCASION_LABELS[occasion]}场景搭配`,
     ).slice(0, 120);
+    const scene = aiScene || background;
     dailyOutfitRecommendations.save(req.user.id, dateKey, occasion, locationKey, {
       weather,
       selectedIds: selected.map((item) => item.id),
       title,
       reason,
-      background,
+      background: scene,
     });
     res.json({
       date: dateKey,
@@ -673,7 +750,7 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
       weather,
       title,
       reason,
-      generationBackground: background,
+      generationBackground: scene,
       items: selected.map(itemJson),
       cached: false,
     });
@@ -1126,5 +1203,6 @@ credits.refundStale?.(); // 重启后返还中断任务已预扣的积分
 
 app.listen(PORT, () => {
   checkRembg();
+  void backfillWardrobeAttrs().catch((e) => console.error("衣柜标签补齐异常:", e?.message || e));
   console.log(`AI outfit server listening on http://localhost:${PORT}`);
 });
