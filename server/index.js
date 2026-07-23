@@ -302,15 +302,16 @@ async function classifyCategory(file) {
     const b64 = fs.readFileSync(input).toString("base64");
     const mime = /\.png$/i.test(file) ? "image/png" : "image/jpeg";
     const prompt =
-      "这是一张衣物或配件的商品图。请判断它属于以下哪一类，只输出一个英文小写单词，不要多余文字：" +
-      "top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
+      "这是一张衣物或配件的商品图。请判断类别并提取特征，只输出严格 JSON（不要 Markdown）：" +
+      '{"category":"top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory","color":"主色调中文2-4字","warmth":"薄|适中|厚","style":"风格中文2-4字如休闲/通勤/运动/甜美"}。' +
+      "类别说明：top(上衣) pants(裤子) shoes(鞋) hat(帽子) coat(外套) dress(裙装/连衣裙) skirt(半身裙) bag(包) socks(袜子) accessory(其他配饰如围巾/腰带/首饰/眼镜)。";
     const resp = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${ARK_API_KEY}` },
       body: JSON.stringify({
         model: ARK_VISION_MODEL,
         thinking: { type: "disabled" },
-        max_tokens: 16,
+        max_tokens: 100,
         temperature: 0,
         messages: [
           {
@@ -329,13 +330,22 @@ async function classifyCategory(file) {
       return null;
     }
     const data = await resp.json();
-    let out = String(data?.choices?.[0]?.message?.content || "").toLowerCase();
-    const m = out.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
+    const raw = String(data?.choices?.[0]?.message?.content || "");
+    let parsed = null;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()); } catch {}
+    const catSource = String(parsed?.category || raw).toLowerCase();
+    const m = catSource.match(/top|pants|shoes|hat|coat|dress|skirt|bag|socks|accessory/);
     if (!m) return null;
     let cat = m[0];
     if (cat === "skirt") cat = "dress"; // 半身裙归入裙装
     if (cat === "bag") cat = "accessory"; // 包归入配饰/包包分类
-    return WARDROBE_CATS.includes(cat) ? cat : null;
+    if (!WARDROBE_CATS.includes(cat)) return null;
+    const attrs = {};
+    for (const key of ["color", "warmth", "style"]) {
+      const v = typeof parsed?.[key] === "string" ? parsed[key].trim().slice(0, 12) : "";
+      if (v) attrs[key] = v;
+    }
+    return { category: cat, attrs: Object.keys(attrs).length ? attrs : null };
   } catch (e) {
     console.error("豆包衣物识别异常:", e?.message || e);
     return null;
@@ -346,15 +356,17 @@ async function classifyCategory(file) {
 async function processWardrobeItem(userId, id, file, fallbackCategory) {
   let category = fallbackCategory;
   let imageFile = file;
+  let attrs = null;
   try {
-    const aiCat = await classifyCategory(file).catch(() => null);
-    if (aiCat) category = aiCat;
+    const result = await classifyCategory(file).catch(() => null);
+    if (result?.category) category = result.category;
+    if (result?.attrs) attrs = JSON.stringify(result.attrs);
     const cut = await removeBackground(file).catch(() => null);
     if (cut) imageFile = cut;
   } catch (e) {
     console.error("processWardrobeItem error:", e?.message || e);
   } finally {
-    wardrobe.update(userId, id, { category, imageFile, status: "ready" });
+    wardrobe.update(userId, id, { category, imageFile, status: "ready", attrs });
   }
 }
 
@@ -456,6 +468,20 @@ function parseRecommendationContent(content) {
   }
 }
 
+function describeAttrs(attrsJson) {
+  if (!attrsJson) return "";
+  try {
+    const a = typeof attrsJson === "string" ? JSON.parse(attrsJson) : attrsJson;
+    const parts = [];
+    if (a.color) parts.push(`颜色${a.color}`);
+    if (a.warmth) parts.push(`厚薄${a.warmth}`);
+    if (a.style) parts.push(`风格${a.style}`);
+    return parts.length ? `，${parts.join("，")}` : "";
+  } catch {
+    return "";
+  }
+}
+
 async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []) {
   const variation = excludedIds.length
     ? `这是“换一套”请求，尽量不要选择上一套的这些 ID：${excludedIds.join(", ")}。`
@@ -475,7 +501,7 @@ ${variation}
 只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由"}`,
   }];
   for (const item of candidates) {
-    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}` });
+    content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}${describeAttrs(item.attrs)}` });
     content.push({
       type: "image_url",
       image_url: { url: `${PUBLIC_BASE_URL}${imageUrl(item.image_file)}`, detail: "low" },

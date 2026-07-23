@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS person_photos (
 try { db.exec("ALTER TABLE outfits ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE outfits ADD COLUMN name TEXT"); } catch {}
 try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN status TEXT DEFAULT 'ready'"); } catch {}
+try { db.exec("ALTER TABLE wardrobe_items ADD COLUMN attrs TEXT"); } catch {}
 try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_level TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_expires_at TEXT"); } catch {}
@@ -183,7 +184,8 @@ export const wardrobe = {
     const category = fields.category ?? cur.category;
     const imageFile = fields.imageFile ?? cur.image_file;
     const status = fields.status ?? cur.status;
-    db.prepare("UPDATE wardrobe_items SET category = ?, image_file = ?, status = ? WHERE id = ?").run(category, imageFile, status, id);
+    const attrs = fields.attrs ?? cur.attrs;
+    db.prepare("UPDATE wardrobe_items SET category = ?, image_file = ?, status = ?, attrs = ? WHERE id = ?").run(category, imageFile, status, attrs, id);
     return this.get(userId, id);
   },
   get(userId, id) {

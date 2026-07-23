@@ -38,6 +38,24 @@
 .occasion-icon { font-size: 34rpx; }
 .occasion-active { border-color: #5c7c8d; color: #47616f; background: #eaf0f2; font-weight: 600; }
 
+.bg-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 22rpx;
+  background: #fff;
+  box-shadow: 0 6rpx 24rpx rgba(71, 97, 111, .08);
+}
+.bg-title { display: block; margin-bottom: 16rpx; font-size: 26rpx; font-weight: 600; }
+.bg-row { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.bg-chip {
+  padding: 12rpx 24rpx; border-radius: 999rpx; background: #eef2f3;
+  color: #617178; font-size: 24rpx;
+}
+.bg-chip.active { background: #47616f; color: #fff; }
+.bg-custom-input {
+  margin-top: 16rpx; padding: 16rpx 20rpx; border-radius: 14rpx;
+  background: #f4f6f7; font-size: 26rpx;
+}
 .manual-card, .weather-card, .recommend-card {
   margin-top: 24rpx;
   padding: 24rpx;
