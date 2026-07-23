@@ -33,7 +33,7 @@ Page({
       { key: 'work', label: '通勤', icon: '💼' },
       { key: 'date', label: '约会', icon: '🌹' },
       { key: 'sport', label: '运动', icon: '🏃' },
-      { key: 'travel', label: '旅行', icon: '🧳' }
+      { key: 'custom', label: '自定义', icon: '✏️' }
     ],
     manualPresets: [
       { key: 'cold', label: '寒冷', icon: '🧥' },
@@ -42,6 +42,7 @@ Page({
       { key: 'rain', label: '下雨', icon: '🌧️' }
     ],
     occasion: 'daily',
+    customOccasion: '',
     manualMode: false,
     manualWeather: 'mild',
     backgrounds: [
@@ -61,8 +62,20 @@ Page({
   selectOccasion(e) {
     const occasion = e.currentTarget.dataset.key;
     this.setData({ occasion }, () => {
-      if (this.data.recommendation) this.loadRecommendation(false);
+      if (occasion !== 'custom' && this.data.recommendation) this.loadRecommendation(false);
     });
+  },
+
+  onCustomOccasionInput(e) {
+    this.setData({ customOccasion: e.detail.value });
+  },
+
+  confirmCustomOccasion() {
+    if (!this.data.customOccasion.trim()) {
+      wx.showToast({ title: '请先填写场合', icon: 'none' });
+      return;
+    }
+    if (this.data.recommendation) this.loadRecommendation(false);
   },
 
   selectBackground(e) {
@@ -128,6 +141,11 @@ Page({
       occasion: this.data.occasion,
       force
     };
+    if (this.data.occasion === 'custom') {
+      const text = this.data.customOccasion.trim();
+      if (!text) throw new Error('请先填写自定义场合，如：音乐节、面试');
+      payload.customOccasion = text;
+    }
     if (this.data.manualMode || !this._location) {
       payload.manualWeather = this.data.manualWeather;
     } else {
