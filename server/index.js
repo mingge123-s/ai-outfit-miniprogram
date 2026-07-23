@@ -498,7 +498,7 @@ async function selectTodayOutfit(candidates, weather, occasion, excludedIds = []
 4. 每个类别最多一件；总数 3-6 件；颜色和风格要协调。
 5. 只能使用候选列表中的 ID。
 ${variation}
-只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由"}`,
+只输出严格 JSON，不要 Markdown：{"selectedIds":[数字ID],"title":"10字内标题","reason":"50字内中文理由","scene":"25字内的具体拍摄场景画面描述，要和天气、场景、这套穿搭的风格彼此呼应，如：樱花树下的小路"}`,
   }];
   for (const item of candidates) {
     content.push({ type: "text", text: `候选 ID=${item.id}，类别=${item.category}${describeAttrs(item.attrs)}` });
@@ -685,12 +685,13 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
       recommendation?.reason ||
       `结合${weather.temperature}°C气温、${weather.conditionLabel}天气和${OCCASION_LABELS[occasion]}场景搭配`,
     ).slice(0, 120);
+    const scene = String(recommendation?.scene || "").trim().slice(0, 60) || background;
     dailyOutfitRecommendations.save(req.user.id, dateKey, occasion, locationKey, {
       weather,
       selectedIds: selected.map((item) => item.id),
       title,
       reason,
-      background,
+      background: scene,
     });
     res.json({
       date: dateKey,
@@ -699,7 +700,7 @@ app.post("/api/today-outfit/recommend", requireAuth, async (req, res) => {
       weather,
       title,
       reason,
-      generationBackground: background,
+      generationBackground: scene,
       items: selected.map(itemJson),
       cached: false,
     });

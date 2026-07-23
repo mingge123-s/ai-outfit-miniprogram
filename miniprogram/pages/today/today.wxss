@@ -52,6 +52,7 @@
   color: #617178; font-size: 24rpx;
 }
 .bg-chip.active { background: #47616f; color: #fff; }
+.bg-smart-hint { display: block; margin-top: 16rpx; color: #5c7c8d; font-size: 24rpx; }
 .bg-custom-input {
   margin-top: 16rpx; padding: 16rpx 20rpx; border-radius: 14rpx;
   background: #f4f6f7; font-size: 26rpx;

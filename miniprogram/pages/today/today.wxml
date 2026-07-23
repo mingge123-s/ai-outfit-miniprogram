@@ -85,6 +85,7 @@
           bindtap="selectBackground"
         >{{item.label}}</view>
       </view>
+      <text class="bg-smart-hint" wx:if="{{backgroundStyle === 'smart' && recommendation.generationBackground}}">✨ {{recommendation.generationBackground}}</text>
       <input
         class="bg-custom-input"
         wx:if="{{backgroundStyle === 'custom'}}"

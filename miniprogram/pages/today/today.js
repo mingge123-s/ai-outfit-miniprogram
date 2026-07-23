@@ -47,13 +47,6 @@ Page({
     backgrounds: [
       { key: 'smart', label: '智能场景' },
       { key: 'street', label: '街拍' },
-      { key: 'studio', label: '影棚' },
-      { key: 'outdoor', label: '户外' },
-      { key: 'cafe', label: '咖啡馆' },
-      { key: 'beach', label: '海边' },
-      { key: 'campus', label: '校园' },
-      { key: 'night', label: '夜景' },
-      { key: 'snow', label: '雪地' },
       { key: 'home', label: '居家' },
       { key: 'custom', label: '自定义' }
     ],
