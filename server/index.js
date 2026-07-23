@@ -55,6 +55,20 @@ const ENTITLEMENT_LIMITS = {
   freeOutfitLimit: FREE_OUTFIT_LIMIT,
   memberOutfitLimit: MEMBER_OUTFIT_LIMIT,
 };
+// 衣柜每日上传次数上限（按当天实际上传计数，删除不返还，防反复删传刷 AI 额度）
+const FREE_UPLOAD_DAILY_LIMIT = Number(process.env.FREE_UPLOAD_DAILY_LIMIT || 30);
+const MEMBER_UPLOAD_DAILY_LIMIT = Number(process.env.MEMBER_UPLOAD_DAILY_LIMIT || 50);
+function uploadDailyLimitFor(entitlement) {
+  return entitlement.memberLevel === "member" ? MEMBER_UPLOAD_DAILY_LIMIT : FREE_UPLOAD_DAILY_LIMIT;
+}
+function checkUploadQuota(user, entitlement) {
+  const limit = uploadDailyLimitFor(entitlement);
+  const used = wardrobe.countUploadsToday(user.id);
+  if (used >= limit) {
+    return { ok: false, used, limit };
+  }
+  return { ok: true, used, limit };
+}
 // 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
 const CREDIT_PACKAGES = [
   { id: "starter", priceFen: 100, credits: 3, label: "体验包" },
@@ -643,6 +657,8 @@ app.get("/api/wardrobe", requireAuth, (req, res) => {
     items,
     count: allItems.length,
     limit: entitlement.wardrobeLimit,
+    uploadUsedToday: wardrobe.countUploadsToday(req.user.id),
+    uploadDailyLimit: uploadDailyLimitFor(entitlement),
     memberLevel: entitlement.memberLevel,
   });
 });
@@ -660,7 +676,17 @@ app.post("/api/wardrobe", requireAuth, async (req, res) => {
       memberLevel: entitlement.memberLevel,
     });
   }
+  const quota = checkUploadQuota(req.user, entitlement);
+  if (!quota.ok) {
+    return res.status(403).json({
+      error: `今日上传次数已用完（${quota.used}/${quota.limit}），明天再来吧`,
+      uploadUsedToday: quota.used,
+      uploadDailyLimit: quota.limit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   const file = saveImage(image.data, image.mimeType || "image/jpeg");
+  wardrobe.logUpload(req.user.id);
   // 先秒回入柜（标记处理中），抠图/AI 识别类别放后台异步执行，避免前端久等
   const needsProcess = (AUTO_CUTOUT || AUTO_CATEGORY);
   const it = wardrobe.add(req.user.id, category, file, needsProcess ? "processing" : "ready");
@@ -811,9 +837,19 @@ app.post("/api/taobao/import", requireAuth, async (req, res) => {
       memberLevel: entitlement.memberLevel,
     });
   }
+  const quota = checkUploadQuota(req.user, entitlement);
+  if (!quota.ok) {
+    return res.status(403).json({
+      error: `今日上传次数已用完（${quota.used}/${quota.limit}），明天再来吧`,
+      uploadUsedToday: quota.used,
+      uploadDailyLimit: quota.limit,
+      memberLevel: entitlement.memberLevel,
+    });
+  }
   try {
     const { base64, mimeType } = await downloadImage(remoteUrl);
     let file = saveImage(base64, mimeType);
+    wardrobe.logUpload(req.user.id);
     const cut = await removeBackground(file).catch(() => null);
     if (cut) file = cut;
     const it = wardrobe.add(req.user.id, category, file);

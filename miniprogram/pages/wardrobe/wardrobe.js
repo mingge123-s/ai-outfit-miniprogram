@@ -115,6 +115,7 @@ Page({
     let nextIndex = 0;
     let completed = 0;
     let failed = 0;
+    let lastError = '';
 
     this._batchPollToken = null;
     this.setData({
@@ -138,6 +139,7 @@ Page({
           if (resp && resp.item && resp.item.id) uploadedIds.push(resp.item.id);
         } catch (e) {
           failed += 1;
+          lastError = e.message || '';
         } finally {
           completed += 1;
           this.setData({
@@ -160,12 +162,12 @@ Page({
     });
 
     if (!uploadedIds.length) {
-      wx.showToast({ title: '批量上传失败', icon: 'none' });
+      wx.showToast({ title: lastError || '批量上传失败', icon: 'none' });
       return;
     }
 
     wx.showToast({
-      title: failed ? `成功 ${uploadedIds.length}，失败 ${failed}` : `已入柜 ${uploadedIds.length} 张`,
+      title: failed ? (lastError || `成功 ${uploadedIds.length}，失败 ${failed}`) : `已入柜 ${uploadedIds.length} 张`,
       icon: failed ? 'none' : 'success'
     });
     this.pollBatchItems(uploadedIds);
