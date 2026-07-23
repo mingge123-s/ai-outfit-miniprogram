@@ -892,10 +892,12 @@ app.post("/api/outfits", requireAuth, (req, res) => {
     });
   }
   let file;
+  let generationItems = null;
   if (generationId) {
     const g = generations.get(req.user.id, Number(generationId));
     if (!g || g.status !== "done" || !g.image_file) return res.status(404).json({ error: "生成记录不存在或未完成" });
     file = copyImage(g.image_file);
+    try { generationItems = JSON.parse(g.items_json || "[]"); } catch {}
   } else {
     let data = image?.data;
     if (typeof data === "string" && data.startsWith("data:")) data = data.split(",")[1];
@@ -905,6 +907,13 @@ app.post("/api/outfits", requireAuth, (req, res) => {
 
   // 生成时用到的单品配件：{ category, data?, mimeType?, wardrobeId? }
   const savedItems = [];
+  // 从历史收藏且未显式传 items 时，复用生成记录里快照的单品图
+  if (generationItems?.length && !(Array.isArray(items) && items.length)) {
+    for (const it of generationItems) {
+      if (!ITEM_LABELS[it?.category] || !it.image_file) continue;
+      try { savedItems.push({ category: it.category, image_file: copyImage(it.image_file) }); } catch {}
+    }
+  }
   for (const it of Array.isArray(items) ? items : []) {
     if (!ITEM_LABELS[it?.category]) continue;
     let itData = it.data;
@@ -1152,15 +1161,20 @@ async function pumpQueue() {
   queueRunning = false;
 }
 
-const generationJson = (g) => ({
-  id: g.id,
-  status: g.status,
-  imageUrl: g.image_file ? imageUrl(g.image_file) : null,
-  background: g.background,
-  error: g.error || null,
-  createdAt: g.created_at,
-  finishedAt: g.finished_at,
-});
+const generationJson = (g) => {
+  let genItems = [];
+  try { genItems = JSON.parse(g.items_json || "[]").map((it) => ({ category: it.category, imageUrl: imageUrl(it.image_file) })); } catch {}
+  return {
+    id: g.id,
+    status: g.status,
+    imageUrl: g.image_file ? imageUrl(g.image_file) : null,
+    background: g.background,
+    items: genItems,
+    error: g.error || null,
+    createdAt: g.created_at,
+    finishedAt: g.finished_at,
+  };
+};
 
 // POST /api/tryon —— 异步：立即返回 taskId，前端轮询 GET /api/tryon/:id
 // JSON body: {
@@ -1219,7 +1233,12 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       images.push({ mimeType: personImage.mimeType || "image/jpeg", data: personImage.data });
     }
 
-    const g = generations.create(user.id, backgroundStyle || null, useFree ? "free" : "credit");
+    // 快照本次生成用到的单品图，供历史收藏时一并存入套装
+    const genItems = itemKeys.map((key) => ({
+      category: key,
+      image_file: saveImage(items[key].data, items[key].mimeType || "image/jpeg"),
+    }));
+    const g = generations.create(user.id, backgroundStyle || null, useFree ? "free" : "credit", JSON.stringify(genItems));
     let charged = false;
     if (!useFree) {
       const held = credits.hold(user.id, g.id, CREDITS_PER_GENERATION);

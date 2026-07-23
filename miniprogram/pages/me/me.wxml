@@ -49,18 +49,20 @@
       <text class="history-count">{{history.length}} 条</text>
     </view>
     <scroll-view class="history-row" scroll-x enable-flex wx:if="{{history.length}}">
-      <view class="history-item" wx:for="{{history}}" wx:key="id">
+      <view class="history-item" wx:for="{{history}}" wx:key="id" style="{{item.imageUrl ? 'width:' + (item._w || 320) + 'rpx' : ''}}">
         <image
           class="history-img"
           wx:if="{{item.imageUrl}}"
           src="{{baseUrl}}{{item.imageUrl}}"
           mode="aspectFill"
           data-item="{{item}}"
+          data-index="{{index}}"
+          bindload="onHistoryImgLoad"
           bindtap="historyAction"
         />
         <view class="history-placeholder {{item.status === 'failed' ? '' : 'history-generating'}}" wx:else>
-          <text class="history-spark" wx:if="{{item.status !== 'failed'}}">✨</text>
-          <text>{{item.status === 'failed' ? '生成失败' : item.status === 'processing' ? '生成中…' : '排队中…'}}</text>
+          <text class="history-dream" wx:if="{{item.status !== 'failed'}}">{{item.status === 'processing' ? '造梦中…' : '排队中…'}}</text>
+          <text wx:else>生成失败</text>
         </view>
         <text class="history-status {{item.status}}">{{item.status === 'done' ? '已完成' : item.status === 'failed' ? '失败' : item.status === 'processing' ? '生成中' : '排队中'}}</text>
         <view
