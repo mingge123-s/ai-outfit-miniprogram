@@ -49,13 +49,15 @@
       <text class="history-count">{{history.length}} 条</text>
     </view>
     <scroll-view class="history-row" scroll-x enable-flex wx:if="{{history.length}}">
-      <view class="history-item" wx:for="{{history}}" wx:key="id">
+      <view class="history-item" wx:for="{{history}}" wx:key="id" style="{{item.imageUrl ? 'width:' + (item._w || 320) + 'rpx' : ''}}">
         <image
           class="history-img"
           wx:if="{{item.imageUrl}}"
           src="{{baseUrl}}{{item.imageUrl}}"
           mode="aspectFill"
           data-item="{{item}}"
+          data-index="{{index}}"
+          bindload="onHistoryImgLoad"
           bindtap="historyAction"
         />
         <view class="history-placeholder {{item.status === 'failed' ? '' : 'history-generating'}}" wx:else>
