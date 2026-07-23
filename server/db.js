@@ -191,6 +191,12 @@ export const wardrobe = {
   get(userId, id) {
     return db.prepare("SELECT * FROM wardrobe_items WHERE id = ? AND user_id = ?").get(id, userId) || null;
   },
+  listMissingAttrs(limit = 500) {
+    return db.prepare("SELECT * FROM wardrobe_items WHERE attrs IS NULL AND status = 'ready' ORDER BY id LIMIT ?").all(limit);
+  },
+  setAttrs(id, attrs) {
+    db.prepare("UPDATE wardrobe_items SET attrs = ? WHERE id = ?").run(attrs, id);
+  },
   remove(userId, id) {
     const item = this.get(userId, id);
     if (!item) return false;
