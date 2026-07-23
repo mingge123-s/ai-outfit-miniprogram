@@ -134,6 +134,11 @@ module.exports = {
     add: (text) => authedRequest('POST', '/api/background-tags', { text }),
     remove: (id) => authedRequest('DELETE', `/api/background-tags/${id}`)
   },
+  poseTags: {
+    list: () => authedRequest('GET', '/api/pose-tags'),
+    add: (text) => authedRequest('POST', '/api/pose-tags', { text }),
+    remove: (id) => authedRequest('DELETE', `/api/pose-tags/${id}`)
+  },
   history: {
     list: () => authedRequest('GET', '/api/history'),
     remove: (id) => authedRequest('DELETE', `/api/history/${id}`)

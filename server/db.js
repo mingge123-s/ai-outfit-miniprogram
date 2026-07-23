@@ -135,10 +135,18 @@ CREATE TABLE IF NOT EXISTS background_tags (
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE (user_id, text)
 );
+CREATE TABLE IF NOT EXISTS pose_tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  text TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (user_id, text)
+);
 CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_ad_reward_user ON ad_reward_sessions(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_daily_outfit_user ON daily_outfit_recommendations(user_id, date_key);
 CREATE INDEX IF NOT EXISTS idx_background_tags_user ON background_tags(user_id, id);
+CREATE INDEX IF NOT EXISTS idx_pose_tags_user ON pose_tags(user_id, id);
 `);
 
 export function saveImage(base64, mimeType = "image/png") {
@@ -270,6 +278,29 @@ export const backgroundTags = {
   }),
   remove(userId, id) {
     const info = db.prepare("DELETE FROM background_tags WHERE id = ? AND user_id = ?").run(id, userId);
+    return info.changes > 0;
+  },
+};
+
+export const MAX_POSE_TAGS = 10;
+
+export const poseTags = {
+  list(userId) {
+    return db.prepare("SELECT * FROM pose_tags WHERE user_id = ? ORDER BY id DESC").all(userId);
+  },
+  count(userId) {
+    return db.prepare("SELECT COUNT(*) AS c FROM pose_tags WHERE user_id = ?").get(userId).c;
+  },
+  add: db.transaction((userId, text, max = MAX_POSE_TAGS) => {
+    const existing = db.prepare("SELECT * FROM pose_tags WHERE user_id = ? AND text = ?").get(userId, text);
+    if (existing) return { ok: true, item: existing, duplicated: true };
+    const count = db.prepare("SELECT COUNT(*) AS c FROM pose_tags WHERE user_id = ?").get(userId).c;
+    if (count >= max) return { ok: false, error: `自定义动作已达上限（${max} 个）`, count };
+    const info = db.prepare("INSERT INTO pose_tags (user_id, text) VALUES (?, ?)").run(userId, text);
+    return { ok: true, item: db.prepare("SELECT * FROM pose_tags WHERE id = ?").get(info.lastInsertRowid) };
+  }),
+  remove(userId, id) {
+    const info = db.prepare("DELETE FROM pose_tags WHERE id = ? AND user_id = ?").run(id, userId);
     return info.changes > 0;
   },
 };

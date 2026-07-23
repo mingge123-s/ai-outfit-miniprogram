@@ -89,7 +89,7 @@
       </view>
       <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
         <block wx:if="{{person || personUrl}}">
-          <image class="person-preview" src="{{person || personUrl}}" mode="aspectFill" />
+          <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
           <view class="remove-btn" catchtap="removePerson">×</view>
         </block>
         <block wx:else>
@@ -115,6 +115,30 @@
           bindtap="choosePose"
         >{{item.label}}</view>
       </view>
+      <block wx:if="{{pose === 'custom'}}">
+        <view class="custom-bg-row">
+          <input
+            class="custom-bg"
+            placeholder="描述动作，如：双手插兜回头、靠墙站…"
+            value="{{customPose}}"
+            bindinput="onCustomPoseInput"
+          />
+          <view class="save-tag-btn" bindtap="savePoseTag">＋标签</view>
+        </view>
+        <view class="bg-tags" wx:if="{{poseTags.length}}">
+          <view
+            wx:for="{{poseTags}}"
+            wx:key="id"
+            class="bg-tag {{customPose === item.text ? 'bg-tag-active' : ''}}"
+            data-text="{{item.text}}"
+            bindtap="usePoseTag"
+          >
+            <text class="bg-tag-text">{{item.text}}</text>
+            <text class="bg-tag-del" catchtap="removePoseTag" data-id="{{item.id}}">×</text>
+          </view>
+        </view>
+        <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{poseTagLimit}} 个）</text>
+      </block>
     </view>
   </view>
 

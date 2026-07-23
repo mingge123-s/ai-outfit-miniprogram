@@ -5,7 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS, poseTags, MAX_POSE_TAGS } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
@@ -665,6 +665,26 @@ app.delete("/api/background-tags/:id", requireAuth, (req, res) => {
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
 });
 
+// 自定义人物动作标签（每人最多 MAX_POSE_TAGS 个）
+function poseTagView(t) {
+  return { id: t.id, text: t.text, createdAt: t.created_at };
+}
+app.get("/api/pose-tags", requireAuth, (req, res) => {
+  const rows = poseTags.list(req.user.id);
+  res.json({ items: rows.map(poseTagView), count: rows.length, limit: MAX_POSE_TAGS });
+});
+app.post("/api/pose-tags", requireAuth, (req, res) => {
+  const text = String((req.body || {}).text || "").trim().slice(0, 60);
+  if (!text) return res.status(400).json({ error: "动作内容不能为空" });
+  const result = poseTags.add(req.user.id, text);
+  if (!result.ok) return res.status(403).json({ error: result.error, count: result.count, limit: MAX_POSE_TAGS });
+  res.json({ item: poseTagView(result.item), duplicated: Boolean(result.duplicated), limit: MAX_POSE_TAGS });
+});
+app.delete("/api/pose-tags/:id", requireAuth, (req, res) => {
+  const ok = poseTags.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
   const allItems = wardrobe.list(req.user.id);
@@ -996,11 +1016,12 @@ const POSES = {
   jump: "jumping joyfully in mid-air with a dynamic posture",
 };
 
-function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground, pose) {
+function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground, pose, customPose) {
   const itemList = itemKeys.map((k, i) => `input_${i + 1}: ${ITEM_LABELS[k]}`).join("; ");
   const custom = typeof customBackground === "string" ? customBackground.trim().slice(0, 200) : "";
   const background = custom || BACKGROUND_STYLES[backgroundStyle] || BACKGROUND_STYLES.studio;
-  const poseDesc = POSES[pose] || "";
+  const customPoseText = typeof customPose === "string" ? customPose.trim().slice(0, 120) : "";
+  const poseDesc = customPoseText || POSES[pose] || "";
   const personInstruction = hasPerson
     ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. ${poseDesc ? `Re-pose the person so they are ${poseDesc}, keeping their face and body proportions unchanged.` : "Retain their exact body pose."} DO NOT guess or hallucinate facial features.`
     : `No person image is provided. Generate a photorealistic, full-body fashion model ${poseDesc ? poseDesc : "with a natural standing pose"} suitable for showcasing the outfit.`;
@@ -1218,7 +1239,7 @@ const generationJson = (g) => {
 // }
 app.post("/api/tryon", requireAuth, (req, res) => {
   try {
-    let { items = {}, personImage, backgroundStyle, customBackground, pose } = req.body || {};
+    let { items = {}, personImage, backgroundStyle, customBackground, pose, customPose } = req.body || {};
     const user = req.user;
 
     // 额度判定：优先使用当日免费额度，用尽后扣积分
@@ -1257,7 +1278,7 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       return res.status(400).json({ error: "至少上传一件单品图片" });
     }
 
-    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "", pose);
+    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "", pose, customPose);
     const images = itemKeys.map((key) => ({
       mimeType: items[key].mimeType || "image/jpeg",
       data: items[key].data,

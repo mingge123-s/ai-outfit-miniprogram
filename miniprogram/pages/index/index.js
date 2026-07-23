@@ -59,9 +59,13 @@ Page({
       { key: 'run', label: '跑步中' },
       { key: 'stand', label: '站姿' },
       { key: 'sit', label: '坐姿' },
-      { key: 'jump', label: '跳跃' }
+      { key: 'jump', label: '跳跃' },
+      { key: 'custom', label: '自定义' }
     ],
     pose: 'none',
+    customPose: '',
+    poseTags: [],
+    poseTagLimit: 10,
     canGenerate: false,
     loading: false,
     remainingToday: null,
@@ -137,6 +141,7 @@ Page({
     this.loadPersonPhotos();
     this.loadQuota();
     this.loadBgTags();
+    this.loadPoseTags();
     // 从「我的」页选中的模特照
     const photo = app.globalData.personPhotoPick;
     if (photo) {
@@ -253,6 +258,57 @@ Page({
     this.setData({ pose: e.currentTarget.dataset.key });
   },
 
+  onCustomPoseInput(e) {
+    this.setData({ customPose: e.detail.value });
+  },
+
+  async loadPoseTags() {
+    try {
+      const { items, limit } = await api.poseTags.list();
+      this.setData({ poseTags: items || [], poseTagLimit: limit || 10 });
+    } catch (e) { /* 未登录等情况忽略 */ }
+  },
+
+  usePoseTag(e) {
+    this.setData({ customPose: e.currentTarget.dataset.text });
+  },
+
+  async savePoseTag() {
+    const text = this.data.customPose.trim();
+    if (!text) {
+      wx.showToast({ title: '请先填写动作描述', icon: 'none' });
+      return;
+    }
+    if (this.data.poseTags.some((t) => t.text === text)) {
+      wx.showToast({ title: '该动作已存在', icon: 'none' });
+      return;
+    }
+    try {
+      const { item } = await api.poseTags.add(text);
+      this.setData({ poseTags: [item, ...this.data.poseTags.filter((t) => t.id !== item.id)] });
+      wx.showToast({ title: '已保存动作', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' });
+    }
+  },
+
+  removePoseTag(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.showModal({
+      title: '删除动作',
+      content: '确定删除这个自定义动作？',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await api.poseTags.remove(id);
+          this.setData({ poseTags: this.data.poseTags.filter((t) => t.id !== id) });
+        } catch (err) {
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        }
+      }
+    });
+  },
+
   onCustomBgInput(e) {
     this.setData({ customBackground: e.detail.value }, () => this.updateCanGenerate());
   },
@@ -328,7 +384,11 @@ Page({
       }
       const body = { items, backgroundStyle: this.data.backgroundStyle };
       if (this.data.backgroundStyle === 'custom') body.customBackground = this.data.customBackground;
-      if (this.data.pose && this.data.pose !== 'none') body.pose = this.data.pose;
+      if (this.data.pose === 'custom') {
+        if (this.data.customPose.trim()) body.customPose = this.data.customPose.trim();
+      } else if (this.data.pose && this.data.pose !== 'none') {
+        body.pose = this.data.pose;
+      }
       if (this.data.personPhotoId) {
         body.personImage = { personPhotoId: this.data.personPhotoId };
       } else if (this.data.person) {
