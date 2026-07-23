@@ -20,7 +20,7 @@
           </view>
         </scroll-view>
         <button class="use-parts" wx:if="{{item.items.length}}" disabled="{{selectedCount === 0}}" size="mini" catchtap="useParts">
-          把选中配件填入首页生成{{selectedCount ? '（' + selectedCount + ' 件）' : ''}}
+          添加到生成{{selectedCount ? '（' + selectedCount + ' 件）' : ''}}
         </button>
       </view>
       <view class="card-bar">
