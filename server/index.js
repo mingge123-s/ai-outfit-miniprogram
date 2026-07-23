@@ -987,13 +987,26 @@ const BACKGROUND_STYLES = {
   home: "stylish home interior (bright living room, large windows, minimalist furniture)",
 };
 
-function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground) {
+const POSES = {
+  pose: "striking a confident, stylish fashion pose (as if posing for a lookbook)",
+  walk: "walking naturally mid-stride, as if street-snapped in motion",
+  run: "running / jogging energetically, captured mid-motion",
+  stand: "standing naturally and relaxed, facing the camera",
+  sit: "sitting elegantly and naturally",
+  jump: "jumping joyfully in mid-air with a dynamic posture",
+};
+
+function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground, pose) {
   const itemList = itemKeys.map((k, i) => `input_${i + 1}: ${ITEM_LABELS[k]}`).join("; ");
   const custom = typeof customBackground === "string" ? customBackground.trim().slice(0, 200) : "";
   const background = custom || BACKGROUND_STYLES[backgroundStyle] || BACKGROUND_STYLES.studio;
+  const poseDesc = POSES[pose] || "";
   const personInstruction = hasPerson
-    ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. Retain their exact body pose. DO NOT guess or hallucinate facial features.`
-    : `No person image is provided. Generate a photorealistic, full-body fashion model with a natural standing pose suitable for showcasing the outfit.`;
+    ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. ${poseDesc ? `Re-pose the person so they are ${poseDesc}, keeping their face and body proportions unchanged.` : "Retain their exact body pose."} DO NOT guess or hallucinate facial features.`
+    : `No person image is provided. Generate a photorealistic, full-body fashion model ${poseDesc ? poseDesc : "with a natural standing pose"} suitable for showcasing the outfit.`;
+  const poseConstraint = poseDesc
+    ? `\n8. POSE (IMPORTANT): The model must be clearly ${poseDesc}, while still keeping the COMPLETE body from head to shoes fully visible and inside the frame.`
+    : "";
 
   return `
 Task: High-fidelity virtual outfit composition (multi-garment try-on).
@@ -1010,7 +1023,7 @@ Core constraints:
 4. BACKGROUND: Place the model in a ${background}. The background must be photorealistic and must not distract from the outfit.
 5. LIGHTING: Apply consistent lighting, shadows and highlights across the model, all garments and the background.
 6. COMPOSITION (ABSOLUTE CRITICAL): Use a vertical 9:16 fashion photograph. Zoom the camera OUT far enough to show the COMPLETE person from the top of the hair to the soles of both shoes. Keep the model centered and no taller than 82% of the image height, with clear empty margin above the hair and below the feet.
-7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.
+7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.${poseConstraint}
 
 Prohibitions:
 - DO NOT alter the intrinsic appearance of any provided garment.
@@ -1205,7 +1218,7 @@ const generationJson = (g) => {
 // }
 app.post("/api/tryon", requireAuth, (req, res) => {
   try {
-    let { items = {}, personImage, backgroundStyle, customBackground } = req.body || {};
+    let { items = {}, personImage, backgroundStyle, customBackground, pose } = req.body || {};
     const user = req.user;
 
     // 额度判定：优先使用当日免费额度，用尽后扣积分
@@ -1244,7 +1257,7 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       return res.status(400).json({ error: "至少上传一件单品图片" });
     }
 
-    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "");
+    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "", pose);
     const images = itemKeys.map((key) => ({
       mimeType: items[key].mimeType || "image/jpeg",
       data: items[key].data,

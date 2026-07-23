@@ -52,6 +52,16 @@ Page({
     customBackground: '',
     bgTags: [],
     bgTagLimit: 10,
+    poses: [
+      { key: 'none', label: '不限' },
+      { key: 'pose', label: '摆pose' },
+      { key: 'walk', label: '行走' },
+      { key: 'run', label: '跑步中' },
+      { key: 'stand', label: '站姿' },
+      { key: 'sit', label: '坐姿' },
+      { key: 'jump', label: '跳跃' }
+    ],
+    pose: 'none',
     canGenerate: false,
     loading: false,
     remainingToday: null,
@@ -239,6 +249,10 @@ Page({
     this.setData({ backgroundStyle: e.currentTarget.dataset.key }, () => this.updateCanGenerate());
   },
 
+  choosePose(e) {
+    this.setData({ pose: e.currentTarget.dataset.key });
+  },
+
   onCustomBgInput(e) {
     this.setData({ customBackground: e.detail.value }, () => this.updateCanGenerate());
   },
@@ -314,6 +328,7 @@ Page({
       }
       const body = { items, backgroundStyle: this.data.backgroundStyle };
       if (this.data.backgroundStyle === 'custom') body.customBackground = this.data.customBackground;
+      if (this.data.pose && this.data.pose !== 'none') body.pose = this.data.pose;
       if (this.data.personPhotoId) {
         body.personImage = { personPhotoId: this.data.personPhotoId };
       } else if (this.data.person) {
