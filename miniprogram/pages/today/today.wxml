@@ -96,14 +96,31 @@
         >{{item.label}}</view>
       </view>
       <text class="bg-smart-hint" wx:if="{{backgroundStyle === 'smart' && recommendation.generationBackground}}">✨ {{recommendation.generationBackground}}</text>
-      <input
-        class="bg-custom-input"
-        wx:if="{{backgroundStyle === 'custom'}}"
-        placeholder="描述你想要的场景，如：樱花树下的小路"
-        value="{{customBackground}}"
-        bindinput="onCustomBackgroundInput"
-        maxlength="100"
-      />
+      <block wx:if="{{backgroundStyle === 'custom'}}">
+        <view class="bg-custom-row">
+          <input
+            class="bg-custom-input"
+            placeholder="描述你想要的场景，如：樱花树下的小路"
+            value="{{customBackground}}"
+            bindinput="onCustomBackgroundInput"
+            maxlength="100"
+          />
+          <view class="bg-save-btn" bindtap="saveBgTag">＋标签</view>
+        </view>
+        <view class="bg-tags" wx:if="{{bgTags.length}}">
+          <view
+            wx:for="{{bgTags}}"
+            wx:key="id"
+            class="bg-tag {{customBackground === item.text ? 'bg-tag-active' : ''}}"
+            data-text="{{item.text}}"
+            bindtap="useBgTag"
+          >
+            <text class="bg-tag-text">{{item.text}}</text>
+            <text class="bg-tag-del" catchtap="removeBgTag" data-id="{{item.id}}">×</text>
+          </view>
+        </view>
+        <text class="bg-tags-hint">输入后点「＋标签」保存，下次一键选用（最多 {{bgTagLimit}} 个）</text>
+      </block>
     </view>
 
     <view class="actions">

@@ -5,7 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS, poseTags, MAX_POSE_TAGS } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
@@ -645,6 +645,46 @@ app.delete("/api/person-photos/:id", requireAuth, (req, res) => {
   ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
 });
 
+// 自定义背景标签（生成/今日搭配的自定义背景可保存复用，每人最多 MAX_BACKGROUND_TAGS 个）
+function backgroundTagView(t) {
+  return { id: t.id, text: t.text, createdAt: t.created_at };
+}
+app.get("/api/background-tags", requireAuth, (req, res) => {
+  const rows = backgroundTags.list(req.user.id);
+  res.json({ items: rows.map(backgroundTagView), count: rows.length, limit: MAX_BACKGROUND_TAGS });
+});
+app.post("/api/background-tags", requireAuth, (req, res) => {
+  const text = String((req.body || {}).text || "").trim().slice(0, 60);
+  if (!text) return res.status(400).json({ error: "标签内容不能为空" });
+  const result = backgroundTags.add(req.user.id, text);
+  if (!result.ok) return res.status(403).json({ error: result.error, count: result.count, limit: MAX_BACKGROUND_TAGS });
+  res.json({ item: backgroundTagView(result.item), duplicated: Boolean(result.duplicated), limit: MAX_BACKGROUND_TAGS });
+});
+app.delete("/api/background-tags/:id", requireAuth, (req, res) => {
+  const ok = backgroundTags.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
+// 自定义人物动作标签（每人最多 MAX_POSE_TAGS 个）
+function poseTagView(t) {
+  return { id: t.id, text: t.text, createdAt: t.created_at };
+}
+app.get("/api/pose-tags", requireAuth, (req, res) => {
+  const rows = poseTags.list(req.user.id);
+  res.json({ items: rows.map(poseTagView), count: rows.length, limit: MAX_POSE_TAGS });
+});
+app.post("/api/pose-tags", requireAuth, (req, res) => {
+  const text = String((req.body || {}).text || "").trim().slice(0, 60);
+  if (!text) return res.status(400).json({ error: "动作内容不能为空" });
+  const result = poseTags.add(req.user.id, text);
+  if (!result.ok) return res.status(403).json({ error: result.error, count: result.count, limit: MAX_POSE_TAGS });
+  res.json({ item: poseTagView(result.item), duplicated: Boolean(result.duplicated), limit: MAX_POSE_TAGS });
+});
+app.delete("/api/pose-tags/:id", requireAuth, (req, res) => {
+  const ok = poseTags.remove(req.user.id, Number(req.params.id));
+  ok ? res.json({ ok: true }) : res.status(404).json({ error: "不存在" });
+});
+
 // 衣柜
 app.get("/api/wardrobe", requireAuth, (req, res) => {
   const allItems = wardrobe.list(req.user.id);
@@ -967,13 +1007,27 @@ const BACKGROUND_STYLES = {
   home: "stylish home interior (bright living room, large windows, minimalist furniture)",
 };
 
-function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground) {
+const POSES = {
+  pose: "striking a confident, stylish fashion pose (as if posing for a lookbook)",
+  walk: "walking naturally mid-stride, as if street-snapped in motion",
+  run: "running / jogging energetically, captured mid-motion",
+  stand: "standing naturally and relaxed, facing the camera",
+  sit: "sitting elegantly and naturally",
+  jump: "jumping joyfully in mid-air with a dynamic posture",
+};
+
+function buildPrompt(itemKeys, hasPerson, backgroundStyle, customBackground, pose, customPose) {
   const itemList = itemKeys.map((k, i) => `input_${i + 1}: ${ITEM_LABELS[k]}`).join("; ");
   const custom = typeof customBackground === "string" ? customBackground.trim().slice(0, 200) : "";
   const background = custom || BACKGROUND_STYLES[backgroundStyle] || BACKGROUND_STYLES.studio;
+  const customPoseText = typeof customPose === "string" ? customPose.trim().slice(0, 120) : "";
+  const poseDesc = customPoseText || POSES[pose] || "";
   const personInstruction = hasPerson
-    ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. Retain their exact body pose. DO NOT guess or hallucinate facial features.`
-    : `No person image is provided. Generate a photorealistic, full-body fashion model with a natural standing pose suitable for showcasing the outfit.`;
+    ? `The LAST input image contains the target person/model. ABSOLUTE CRITICAL: preserve the person's facial identity, features, skin tone and expression with ZERO alterations. ${poseDesc ? `Re-pose the person so they are ${poseDesc}, keeping their face and body proportions unchanged.` : "Retain their exact body pose."} DO NOT guess or hallucinate facial features.`
+    : `No person image is provided. Generate a photorealistic, full-body fashion model ${poseDesc ? poseDesc : "with a natural standing pose"} suitable for showcasing the outfit.`;
+  const poseConstraint = poseDesc
+    ? `\n8. POSE (IMPORTANT): The model must be clearly ${poseDesc}, while still keeping the COMPLETE body from head to shoes fully visible and inside the frame.`
+    : "";
 
   return `
 Task: High-fidelity virtual outfit composition (multi-garment try-on).
@@ -990,7 +1044,7 @@ Core constraints:
 4. BACKGROUND: Place the model in a ${background}. The background must be photorealistic and must not distract from the outfit.
 5. LIGHTING: Apply consistent lighting, shadows and highlights across the model, all garments and the background.
 6. COMPOSITION (ABSOLUTE CRITICAL): Use a vertical 9:16 fashion photograph. Zoom the camera OUT far enough to show the COMPLETE person from the top of the hair to the soles of both shoes. Keep the model centered and no taller than 82% of the image height, with clear empty margin above the hair and below the feet.
-7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.
+7. FACE VISIBILITY (ABSOLUTE CRITICAL): The entire head, hair, forehead, eyes, nose, mouth, chin and neck must be fully inside the frame, naturally lit, unobstructed and clearly visible.${poseConstraint}
 
 Prohibitions:
 - DO NOT alter the intrinsic appearance of any provided garment.
@@ -1185,7 +1239,7 @@ const generationJson = (g) => {
 // }
 app.post("/api/tryon", requireAuth, (req, res) => {
   try {
-    let { items = {}, personImage, backgroundStyle, customBackground } = req.body || {};
+    let { items = {}, personImage, backgroundStyle, customBackground, pose, customPose } = req.body || {};
     const user = req.user;
 
     // 额度判定：优先使用当日免费额度，用尽后扣积分
@@ -1224,7 +1278,7 @@ app.post("/api/tryon", requireAuth, (req, res) => {
       return res.status(400).json({ error: "至少上传一件单品图片" });
     }
 
-    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "");
+    const prompt = buildPrompt(itemKeys, !!personImage?.data, backgroundStyle, backgroundStyle === "custom" ? customBackground : "", pose, customPose);
     const images = itemKeys.map((key) => ({
       mimeType: items[key].mimeType || "image/jpeg",
       data: items[key].data,

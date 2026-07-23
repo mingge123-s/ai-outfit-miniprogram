@@ -53,6 +53,8 @@ Page({
     ],
     backgroundStyle: 'smart',
     customBackground: '',
+    bgTags: [],
+    bgTagLimit: 10,
     recommendation: null,
     baseUrl: api.API_BASE_URL,
     loading: false,
@@ -84,6 +86,57 @@ Page({
 
   onCustomBackgroundInput(e) {
     this.setData({ customBackground: e.detail.value });
+  },
+
+  onShow() {
+    this.loadBgTags();
+  },
+
+  async loadBgTags() {
+    try {
+      const { items, limit } = await api.backgroundTags.list();
+      this.setData({ bgTags: items || [], bgTagLimit: limit || 10 });
+    } catch (e) { /* 未登录等情况忽略 */ }
+  },
+
+  useBgTag(e) {
+    this.setData({ customBackground: e.currentTarget.dataset.text });
+  },
+
+  async saveBgTag() {
+    const text = this.data.customBackground.trim();
+    if (!text) {
+      wx.showToast({ title: '请先填写场景描述', icon: 'none' });
+      return;
+    }
+    if (this.data.bgTags.some((t) => t.text === text)) {
+      wx.showToast({ title: '该标签已存在', icon: 'none' });
+      return;
+    }
+    try {
+      const { item } = await api.backgroundTags.add(text);
+      this.setData({ bgTags: [item, ...this.data.bgTags.filter((t) => t.id !== item.id)] });
+      wx.showToast({ title: '已保存标签', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' });
+    }
+  },
+
+  removeBgTag(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.showModal({
+      title: '删除标签',
+      content: '确定删除这个自定义背景标签？',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await api.backgroundTags.remove(id);
+          this.setData({ bgTags: this.data.bgTags.filter((t) => t.id !== id) });
+        } catch (err) {
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        }
+      }
+    });
   },
 
   selectManualWeather(e) {

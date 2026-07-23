@@ -55,33 +55,91 @@
       bindtap="chooseStyle"
     >{{item.label}}</view>
   </view>
-  <input
-    wx:if="{{backgroundStyle === 'custom'}}"
-    class="custom-bg"
-    placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
-    value="{{customBackground}}"
-    bindinput="onCustomBgInput"
-  />
+  <block wx:if="{{backgroundStyle === 'custom'}}">
+    <view class="custom-bg-row">
+      <input
+        class="custom-bg"
+        placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
+        value="{{customBackground}}"
+        bindinput="onCustomBgInput"
+      />
+      <view class="save-tag-btn" bindtap="saveBgTag">＋标签</view>
+    </view>
+    <view class="bg-tags" wx:if="{{bgTags.length}}">
+      <view
+        wx:for="{{bgTags}}"
+        wx:key="id"
+        class="bg-tag {{customBackground === item.text ? 'bg-tag-active' : ''}}"
+        data-text="{{item.text}}"
+        bindtap="useBgTag"
+      >
+        <text class="bg-tag-text">{{item.text}}</text>
+        <text class="bg-tag-del" catchtap="removeBgTag" data-id="{{item.id}}">×</text>
+      </view>
+    </view>
+    <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{bgTagLimit}} 个）</text>
+  </block>
 
-  <!-- 模特照片（可选） -->
-  <view class="section-head">
-    <text class="section-title">③ 模特照片</text>
-    <text class="section-sub">可选，不传则由 AI 生成模特</text>
-  </view>
-  <view class="person-row">
-    <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
-      <block wx:if="{{person || personUrl}}">
-        <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
-        <view class="remove-btn" catchtap="removePerson">×</view>
-      </block>
-      <block wx:else>
-        <view class="person-icon-wrap">
-          <text class="person-icon">👤</text>
+  <!-- 模特照片 + 人物动作（可选） -->
+  <view class="step34">
+    <view class="col-person">
+      <view class="section-head">
+        <text class="section-title">③ 模特照片</text>
+        <text class="section-sub">可选</text>
+      </view>
+      <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
+        <block wx:if="{{person || personUrl}}">
+          <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
+          <view class="remove-btn" catchtap="removePerson">×</view>
+        </block>
+        <block wx:else>
+          <view class="person-icon-wrap">
+            <text class="person-icon">👤</text>
+          </view>
+          <text class="person-label">上传全身照</text>
+        </block>
+      </view>
+      <view class="switch-person-btn" wx:if="{{personCount > 0}}" bindtap="switchPerson">⇄ 换形象</view>
+    </view>
+    <view class="col-pose">
+      <view class="section-head">
+        <text class="section-title">④ 人物动作</text>
+        <text class="section-sub">可选</text>
+      </view>
+      <view class="pose-list">
+        <view
+          wx:for="{{poses}}"
+          wx:key="key"
+          class="pose-chip {{pose === item.key ? 'pose-active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="choosePose"
+        >{{item.label}}</view>
+      </view>
+      <block wx:if="{{pose === 'custom'}}">
+        <view class="custom-bg-row">
+          <input
+            class="custom-bg"
+            placeholder="描述动作，如：双手插兜回头、靠墙站…"
+            value="{{customPose}}"
+            bindinput="onCustomPoseInput"
+          />
+          <view class="save-tag-btn" bindtap="savePoseTag">＋标签</view>
         </view>
-        <text class="person-label">点击上传全身照</text>
+        <view class="bg-tags" wx:if="{{poseTags.length}}">
+          <view
+            wx:for="{{poseTags}}"
+            wx:key="id"
+            class="bg-tag {{customPose === item.text ? 'bg-tag-active' : ''}}"
+            data-text="{{item.text}}"
+            bindtap="usePoseTag"
+          >
+            <text class="bg-tag-text">{{item.text}}</text>
+            <text class="bg-tag-del" catchtap="removePoseTag" data-id="{{item.id}}">×</text>
+          </view>
+        </view>
+        <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{poseTagLimit}} 个）</text>
       </block>
     </view>
-    <view class="switch-person" wx:if="{{personCount > 0}}" bindtap="switchPerson">⇄\n换形象</view>
   </view>
 
   <!-- 底部按钮 -->
