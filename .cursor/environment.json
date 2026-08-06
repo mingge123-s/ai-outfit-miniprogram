@@ -1,0 +1,5 @@
+{
+  "name": "ai-outfit-miniprogram",
+  "install": "mkdir -p \"$HOME/.cursor/skills\"\nrm -rf /tmp/mission-command-cloud-skill\ngit clone --depth 1 https://github.com/mingge123-s/mission-command-cloud.git /tmp/mission-command-cloud-skill\nrm -rf \"$HOME/.cursor/skills/mission-command-cloud\"\ncp -a /tmp/mission-command-cloud-skill/.cursor/skills/mission-command-cloud \"$HOME/.cursor/skills/\"\ncd server\nnpm install",
+  "start": ""
+}
