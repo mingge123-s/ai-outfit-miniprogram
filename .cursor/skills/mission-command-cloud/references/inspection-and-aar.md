@@ -23,6 +23,7 @@
 指挥官意图：
 验收标准：
 分队战报：
+分队证据：可用 GET /v1/agents/<unitId>/artifacts 调阅分队归档的测试输出/截图
 
 检查：
 1. 是否实现目的、关键任务、终局状态
@@ -41,7 +42,7 @@ REQUIRED_ACTIONS:
 RESIDUAL_RISKS:
 ```
 
-`envVars` 中 `MISSION_COMMAND_ECHELON=INSPECTOR`。
+`envVars` 中 `MISSION_COMMAND_ECHELON=INSPECTOR`。创建时优先用 `repos[].prUrl` 直指待审 PR（而非猜测分支名）；任务分队的已推分支/PR 可从其 run 的 `git` 字段读取。
 
 ## 决策
 
@@ -70,3 +71,7 @@ RESIDUAL_RISKS:
 ```
 
 聚焦事实与流程；教训必须落到可执行落点，而非仅“已记录”。
+
+## 复员（归档）
+
+AAR 完成、证据已留存后，经统帅批准对已完成分队 `POST /v1/agents/{id}/archive`（可读不可发令，可 `unarchive` 召回），避免僵尸 agent 占用态势表与并发容量。不自动删除。

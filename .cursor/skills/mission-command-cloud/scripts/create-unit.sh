@@ -12,7 +12,8 @@
 #     --action-code CODE \
 #     [--cos-id bc-...] \
 #     [--auto-pr] \
-#     [--model composer-2]
+#     [--model composer-2] \
+#     [--mode plan|agent]
 #
 # Reads prompt from --prompt-file or STDIN.
 set -euo pipefail
@@ -31,6 +32,7 @@ cos_id="${MISSION_COMMAND_COS_AGENT_ID:-${CURSOR_CONVERSATION_ID:-}}"
 auto_pr="false"
 model_id=""
 pr_url=""
+mode=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --cos-id) cos_id="$2"; shift 2 ;;
     --auto-pr) auto_pr="true"; shift 1 ;;
     --model) model_id="$2"; shift 2 ;;
+    --mode) mode="$2"; shift 2 ;;
     -h|--help)
       sed -n '2,20p' "$0"
       exit 0
@@ -86,7 +89,7 @@ api_key="$(mc_api_key)"
 
 payload="$(PROMPT_TEXT="$prompt_text" NAME="$name" REPO="$repo" REF="$ref" PR_URL="$pr_url" \
   ECHELON="$echelon" UNIT_ID="$unit_id" ACTION_CODE="$action_code" COS_ID="$cos_id" \
-  AUTO_PR="$auto_pr" MODEL_ID="$model_id" API_KEY="$api_key" python3 - <<'PY'
+  AUTO_PR="$auto_pr" MODEL_ID="$model_id" MODE="$mode" API_KEY="$api_key" python3 - <<'PY'
 import json, os
 
 prompt = os.environ["PROMPT_TEXT"]
@@ -116,6 +119,11 @@ if repo:
 model = os.environ.get("MODEL_ID") or ""
 if model:
     body["model"] = {"id": model}
+mode = os.environ.get("MODE") or ""
+if mode:
+    if mode not in ("plan", "agent"):
+        raise SystemExit(f"error: --mode must be plan or agent, got {mode!r}")
+    body["mode"] = mode
 print(json.dumps(body))
 PY
 )"

@@ -78,8 +78,8 @@ mc_post_run_with_retry() {
       return 0
     fi
 
-    if [[ "$http_code" == "409" ]] && mc_is_busy "$(cat "$body")"; then
-      echo "warn: agent_busy on ${agent_id}; retry ${attempt}/${max_attempts} after ${sleep_s}s" >&2
+    if { [[ "$http_code" == "409" ]] && mc_is_busy "$(cat "$body")"; } || [[ "$http_code" == "429" ]]; then
+      echo "warn: HTTP ${http_code} (busy/rate-limited) on ${agent_id}; retry ${attempt}/${max_attempts} after ${sleep_s}s" >&2
       sleep "$sleep_s"
       sleep_s=$(( sleep_s * 2 ))
       if (( sleep_s > 60 )); then sleep_s=60; fi

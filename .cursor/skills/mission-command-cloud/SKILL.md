@@ -17,7 +17,8 @@ compatibility: Requires CURSOR_API_KEY or MISSION_COMMAND_API_KEY, network acces
 | 任务分队 / 督察 | 经 `POST /v1/agents` 创建的独立 Cloud Agent |
 | 发令 | 参谋长 → 分队：`POST /v1/agents/{unitId}/runs` |
 | 战报 | 分队 → 参谋长：`POST /v1/agents/{cosId}/runs` |
-| 拉取备份 | 参谋长 `GET .../runs/{runId}` 读 `result` |
+| 拉取备份 | 参谋长 `GET .../runs`（列出最新 run）+ `GET .../runs/{runId}` 读 `result` |
+| 证据调阅 | `GET .../artifacts` + `.../artifacts/download` |
 | WARNORD / OPORD / FRAGORD | 预先号令 / 五段式命令 / 变更令 |
 
 详细 API 映射见 [references/cloud-api.md](references/cloud-api.md)。命令模板见 [references/orders.md](references/orders.md)。制度见 [references/doctrine-foundations.md](references/doctrine-foundations.md)。
@@ -26,8 +27,8 @@ compatibility: Requires CURSOR_API_KEY or MISSION_COMMAND_API_KEY, network acces
 
 1. **可以双向对话**：持有 API Key 的任一方，都能对任意有权限的 `bc-...` 调用 `POST /v1/agents/{id}/runs`。参谋长能给分队发令；分队也能给参谋长会话塞战报。
 2. **没有“下属身份”通道**：塞进参谋长会话的内容看起来像又一条用户 prompt。必须用固定前缀 `[MISSION-COMMAND REPORT]`，参谋长据此识别，勿当成统帅新战略意图。
-3. **忙闲约束**：目标 Agent 处于 `CREATING`/`RUNNING` 时返回 `409 agent_busy`。发送方必须退避重试；参谋长收到战报后应尽快收束本轮，避免长期占线。
-4. **`envVars` 不能以 `CURSOR_` 开头**：向下级注入密钥时用 `MISSION_COMMAND_API_KEY`，不要用 `CURSOR_API_KEY` 作为 `envVars` 键名。
+3. **忙闲约束**：目标 Agent 处于 `CREATING`/`RUNNING` 时返回 `409 agent_busy`。发送方必须退避重试（`429` 同理）；参谋长收到战报后应尽快收束本轮，避免长期占线。推送优先、拉取兜底：`GET /v1/agents/{id}/runs` 可随时列出分队最新 run 并读 `result`。
+4. **`envVars` 不能以 `CURSOR_` 开头**：向下级注入密钥时用 `MISSION_COMMAND_API_KEY`，不要用 `CURSOR_API_KEY` 作为 `envVars` 键名；`envVars` 不能与自供 `agentId` 同用。
 5. **缺 Key 时禁止假装已建军**：输出可复制的 curl/命令文本，列出缺失能力，请统帅配置密钥。
 
 ## 确定指挥层级
@@ -43,7 +44,7 @@ compatibility: Requires CURSOR_API_KEY or MISSION_COMMAND_API_KEY, network acces
 
 ### 1. 受领任务
 
-提炼指挥官意图（目的、关键任务、终局、主攻、限制、禁止、决策门）。只追问会改变授权/风险/验收的问题。
+提炼指挥官意图（目的、关键任务、终局、主攻、限制、禁止、决策门）。只追问会改变授权/风险/验收的问题。遵守三分之一—三分之二规则：筹划不超过可用时间/预算的三分之一，尽早发 WARNORD 让准备工作并行。
 
 ### 2. 解析本会话身份与凭证
 
@@ -83,25 +84,28 @@ echo "${CURSOR_CONVERSATION_ID:-}"
   - `MISSION_COMMAND_ECHELON` = `TASK-UNIT` 或 `INSPECTOR`
   - `MISSION_COMMAND_UNIT_ID` / `MISSION_COMMAND_ACTION_CODE`
 - 需要时设 `autoCreatePR`；Git 写任务优先独立分支（默认 `workOnCurrentBranch: false`）
+- 督察分队用 `repos[].prUrl` 直指待审 PR；高风险任务可用 `mode: "plan"` 先出方案（反向简报）再放行
 
-创建后记录：`unitId`、`runId`、`url`，写入共同态势表。
+创建后记录：`unitId`、`runId`、`url`，写入共同态势表。首个战报/回复应含确认简报（复述意图与任务）；复述跑偏立即 FRAGORD 纠正。
 
 ### 5. 指挥与收报
 
 - **发令/改令**：`scripts/send-prompt.sh <unitId> "<FRAGORD或补充>"`
 - **主动回报**（分队侧）：`scripts/report-to-cos.sh` → 向参谋长 `POST .../runs`
-- **拉取备份**：`scripts/wait-run.sh <unitId> <runId>` 读终态 `result`
+- **拉取备份**：`scripts/list-runs.sh <unitId>` 找最新 run；`scripts/wait-run.sh <unitId> <runId>` 读终态 `result`
+- **证据调阅**：分队把证据写入 `artifacts/`；参谋长/督察经 artifacts API 下载核验
+- **费用监控**：`GET /v1/agents/{id}/usage` 监控 token 用量，执行 OPORD 费用上限（未启用则降级人工估计）
 - 事件式等待，不高频空转轮询；状态无变化不向统帅刷屏
 - 收到 `[MISSION-COMMAND REPORT]` 开头的消息时：按分队战报处理，更新态势，必要时发 FRAGORD 或呈交统帅决策简报——**不要**当成统帅下达的新行动目的
 
 ### 6. 督察与终报
 
-代码写入、外发、高风险、跨模块成果必须安排独立督察（见 [references/inspection-and-aar.md](references/inspection-and-aar.md)）。区分「分队声称完成」与「督察 PASS」。向统帅只报态势、证据、决策请求。
+代码写入、外发、高风险、跨模块成果必须安排独立督察（见 [references/inspection-and-aar.md](references/inspection-and-aar.md)）。区分「分队声称完成」与「督察 PASS」。向统帅只报态势、证据、决策请求。AAR 后经统帅批准对完成分队归档（复员）。
 
 ## 任务分队 / 督察流程
 
-1. 读取环境变量中的 `MISSION_COMMAND_*` 与 OPORD。
-2. 在意图与边界内自主执行；不创建下一层指挥部。
+1. 读取环境变量中的 `MISSION_COMMAND_*` 与 OPORD；首个回复开头先给确认简报（复述意图、任务、边界）。
+2. 在意图与边界内自主执行；关键证据写入工作区 `artifacts/`；不创建下一层指挥部。
 3. 触发 CCIR、越权、不可逆、无法验证时：向参谋长发送 `STATUS: COMMAND_DECISION` 或 `BLOCKED` 战报并停止扩大范围。
 4. 完成或阻塞时，**必须**调用回报协议（见下）；若参谋长 `agent_busy`，指数退避重试（脚本已内置），仍失败则把战报写入工作区约定路径并在自身最终回复中完整给出。
 5. 不要向统帅旁路汇报（除非参谋长失联且 OPORD 允许升级）。
@@ -162,4 +166,8 @@ EOF
 | `scripts/send-prompt.sh` | 向指定 agent 发后续 prompt |
 | `scripts/report-to-cos.sh` | 分队向参谋长回报（忙闲重试） |
 | `scripts/wait-run.sh` | 等待某次 run 终态并打印 result |
+| `scripts/list-runs.sh` | 列出某 agent 的历史 run（拉取兜底入口） |
 | `scripts/get-agent.sh` | 查询 agent 元数据 |
+| `scripts/artifacts.sh` | 列出/下载分队证据（artifacts） |
+| `scripts/usage.sh` | 查询 token 用量（J8 费用监控） |
+| `scripts/archive-agent.sh` | 归档/召回 agent（复员，需统帅批准） |
