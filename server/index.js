@@ -5,11 +5,12 @@ import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS, poseTags, MAX_POSE_TAGS } from "./db.js";
+import { UPLOADS_DIR, saveImage, copyImage, loginUser, userByToken, userById, memberships, wardrobe, outfits, personPhotos, generations, credits, redeemCodes, adRewards, dailyOutfitRecommendations, backgroundTags, MAX_BACKGROUND_TAGS, poseTags, MAX_POSE_TAGS, payOrders } from "./db.js";
 import { taobaoConfigured, resolveItem, downloadImage } from "./taobao.js";
 import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
 import { volcCutout, volcCutoutEnabled } from "./volc-cutout.js";
+import { wxpayEnabled, newOrderNo, createMemberPrepay, verifyNotify, decryptNotify, queryOrder } from "./wechatpay.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -31,6 +32,7 @@ const MODEL_ID =
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
+const MEMBER_PAY_ENABLED = process.env.MEMBER_PAY_ENABLED === "1" && wxpayEnabled;
 const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
 const MEMBER_DAILY_LIMIT = Number(process.env.MEMBER_DAILY_LIMIT || 10);
 const FREE_WARDROBE_LIMIT = Number(process.env.FREE_WARDROBE_LIMIT || 10);
@@ -69,6 +71,12 @@ function checkUploadQuota(user, entitlement) {
   }
   return { ok: true, used, limit };
 }
+// 会员套餐（微信支付真实收费；时长：月/年/永久）
+const MEMBER_PLANS = {
+  monthly: { priceFen: 990, days: 30, label: "月卡 ¥9.9" },
+  yearly: { priceFen: 9900, days: 365, label: "年卡 ¥99" },
+  lifetime: { priceFen: 12800, days: null, label: "永久 ¥128" },
+};
 // 充值套餐（仅展示/未来接入微信支付用，当前不收真实费用）
 const CREDIT_PACKAGES = [
   { id: "starter", priceFen: 100, credits: 3, label: "体验包" },
@@ -94,7 +102,10 @@ const ai = PROVIDER === "gemini" ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) :
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "40mb" }));
+app.use(express.json({
+  limit: "40mb",
+  verify(req, res, buf) { req.rawBody = buf.toString("utf8"); }, // 供微信支付回调验签
+}));
 app.use(express.static(new URL("./public", import.meta.url).pathname));
 app.use("/uploads", express.static(UPLOADS_DIR));
 
@@ -172,6 +183,8 @@ app.get("/api/me", requireAuth, (req, res) => {
     wardrobeCount: wardrobe.list(req.user.id).length,
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
+    purchaseEnabled: MEMBER_PAY_ENABLED,
+    memberPlans: MEMBER_PLANS,
     ...q,
     taobaoImport: taobaoConfigured(),
   });
@@ -184,8 +197,9 @@ app.get("/api/credits", requireAuth, (req, res) => {
     transactions: credits.transactions(req.user.id, 30).map((t) => ({
       amount: t.amount, balanceAfter: t.balance_after, type: t.type, reason: t.reason, createdAt: t.created_at,
     })),
-    packages: CREDIT_PACKAGES, // 未来接入微信支付后开放购买
-    purchaseEnabled: false,
+    packages: CREDIT_PACKAGES,
+    memberPlans: MEMBER_PLANS,
+    purchaseEnabled: MEMBER_PAY_ENABLED,
   });
 });
 
@@ -218,6 +232,126 @@ app.post("/api/ad-rewards/claim", requireAuth, (req, res) => {
   const result = adRewards.claim(req.user.id, token, AD_DAILY_REWARD_LIMIT, AD_REWARD_CREDITS);
   if (!result.ok) return res.status(400).json({ error: result.error, ...quotaSnapshot(req.user) });
   res.json({ granted: result.credits, balance: result.balance, ...quotaSnapshot(req.user) });
+});
+
+// ===== 会员开通 · 微信支付 =====
+// 创建会员支付订单，返回 wx.requestPayment 所需的拉起参数
+app.post("/api/pay/member/prepay", requireAuth, async (req, res) => {
+  try {
+    if (!MEMBER_PAY_ENABLED) return res.status(503).json({ error: "会员支付暂未开放" });
+    const { planId } = req.body || {};
+    const plan = MEMBER_PLANS[planId];
+    if (!plan) return res.status(400).json({ error: "套餐无效" });
+    if (!req.user.openid) return res.status(400).json({ error: "缺少 openid，暂无法发起支付" });
+
+    const orderNo = newOrderNo();
+    const order = payOrders.create(req.user.id, orderNo, planId, plan.priceFen, req.user.openid);
+    const payment = await createMemberPrepay({
+      orderNo,
+      amountFen: plan.priceFen,
+      description: `AI 穿搭会员·${plan.label}`,
+      openid: req.user.openid,
+    });
+    payOrders.setPrepay(orderNo, payment.package.replace("prepay_id=", ""));
+    res.json({ orderNo, payment, planId, amountFen: plan.priceFen });
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+// 微信支付结果回调（公网地址：PUBLIC_BASE_URL + /api/pay/notify）
+app.post("/api/pay/notify", async (req, res) => {
+  try {
+    if (!MEMBER_PAY_ENABLED) return res.status(403).json({ code: "FAIL", message: "会员支付未开放" });
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const ok = await verifyNotify(req.headers, rawBody);
+    if (!ok) {
+      return res.status(400).json({ code: "FAIL", message: "签名验证失败" });
+    }
+    const event = req.body || {};
+    const resource = event.resource || {};
+    const data = decryptNotify(resource);
+    // 仅处理交易成功
+    if (data.trade_state !== "SUCCESS") {
+      return res.json({ code: "SUCCESS", message: "成功" });
+    }
+    const order = payOrders.getByOrderNo(data.out_trade_no);
+    if (!order) {
+      return res.status(404).json({ code: "FAIL", message: "订单不存在" });
+    }
+    // 金额二次校验，防止篡改
+    const paidFen = Number(data.amount && data.amount.total);
+    if (paidFen !== order.amount_fen) {
+      console.error(`微信回调金额不符：订单${order.order_no} 应收${order.amount_fen} 实收${paidFen}`);
+      return res.status(400).json({ code: "FAIL", message: "金额不符" });
+    }
+    if (order.status === "paid") {
+      return res.json({ code: "SUCCESS", message: "成功" });
+    }
+    // 幂等发放权益：月/年按当前有效期顺延，永久会员直接置空有效期
+    const granted = payOrders.markPaid(order.order_no, data.transaction_id, JSON.stringify(data));
+    if (granted) {
+      const plan = MEMBER_PLANS[order.plan_id];
+      let expiresAt = null;
+      if (plan && plan.days != null) {
+        const user = userById(order.user_id);
+        const base = user && user.member_level === "member" && user.member_expires_at
+          ? Math.max(Date.now(), Date.parse(user.member_expires_at))
+          : Date.now();
+        expiresAt = new Date(base + plan.days * 86400000).toISOString();
+      }
+      memberships.set(order.user_id, "member", expiresAt); // 永久：null
+      console.log(`微信支付开卡成功：order=${order.order_no} user=${order.user_id} plan=${order.plan_id}`);
+    }
+    return res.json({ code: "SUCCESS", message: "成功" });
+  } catch (err) {
+    console.error("微信支付回调处理失败：", String(err));
+    return res.status(500).json({ code: "FAIL", message: "处理失败" });
+  }
+});
+
+// 支付结果查询（前端刷新/恢复支付状态）
+app.get("/api/pay/order/:orderNo", requireAuth, async (req, res) => {
+  try {
+    const order = payOrders.getForUser(req.user.id, req.params.orderNo);
+    if (!order) return res.status(404).json({ error: "订单不存在" });
+    if (order.status === "paid") {
+      return res.json({ orderNo: order.order_no, status: "paid", planId: order.plan_id });
+    }
+    let wxData = null;
+    if (MEMBER_PAY_ENABLED) {
+      try { wxData = await queryOrder(order.order_no); } catch { /* wx 侧未支付也自然过期 */ }
+    }
+    const paid = wxData && wxData.trade_state === "SUCCESS";
+    if (paid) {
+      const granted = payOrders.markPaid(order.order_no, wxData.transaction_id, JSON.stringify(wxData));
+      if (granted) {
+        const plan = MEMBER_PLANS[order.plan_id];
+        let expiresAt = null;
+        if (plan && plan.days != null) {
+          const user = userById(order.user_id);
+          const base = user && user.member_level === "member" && user.member_expires_at
+            ? Math.max(Date.now(), Date.parse(user.member_expires_at))
+            : Date.now();
+          expiresAt = new Date(base + plan.days * 86400000).toISOString();
+        }
+        memberships.set(order.user_id, "member", expiresAt);
+      }
+    }
+    res.json({ orderNo: order.order_no, status: paid ? "paid" : order.status, planId: order.plan_id });
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+// 我的支付订单列表
+app.get("/api/pay/orders", requireAuth, (req, res) => {
+  res.json({
+    items: payOrders.listForUser(req.user.id).map((o) => ({
+      orderNo: o.order_no, planId: o.plan_id, amountFen: o.amount_fen,
+      status: o.status, createdAt: o.created_at, paidAt: o.paid_at,
+    })),
+  });
 });
 
 // ===== 管理员接口（需 ADMIN_TOKEN；不涉及真实支付）=====

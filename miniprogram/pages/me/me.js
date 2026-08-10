@@ -280,11 +280,74 @@ Page({
   },
 
   openVip() {
-    if (this.data.me && this.data.me.memberLevel === 'member') {
-      wx.showToast({ title: '会员权益已生效', icon: 'success' });
+    const me = this.data.me || {};
+    if (me.memberLevel === 'member') {
+      wx.showModal({ title: '会员权益', content: '您的会员已生效，到期后自动降为免费版', showCancel: false });
       return;
     }
-    wx.showToast({ title: '充值功能开发中，可先用兑换码', icon: 'none' });
+    if (!me.purchaseEnabled) {
+      wx.showToast({ title: '充值功能开发中，可先用兑换码', icon: 'none' });
+      return;
+    }
+    const plans = [
+      { id: 'monthly', label: '月卡 ¥9.9（30 天）' },
+      { id: 'yearly', label: '年卡 ¥99（365 天）' },
+      { id: 'lifetime', label: '永久 ¥128' }
+    ];
+    wx.showActionSheet({
+      itemList: plans.map(p => p.label),
+      success: (res) => {
+        this.payForPlan(plans[res.tapIndex]);
+      },
+      fail: (err) => {
+        if (err && err.errMsg && err.errMsg.includes('cancel')) return;
+        wx.showToast({ title: '请重试', icon: 'none' });
+      }
+    });
+  },
+
+  async payForPlan(plan) {
+    wx.showLoading({ title: '下单中…' });
+    try {
+      const order = await api.pay.createMemberOrder(plan.id);
+      wx.hideLoading();
+      await this.requestPayment(order);
+    } catch (e) {
+      wx.hideLoading();
+      wx.showModal({ title: '下单失败', content: e.message || '请稍后重试', showCancel: false });
+    }
+  },
+
+  requestPayment(order) {
+    const { payment, orderNo } = order;
+    return new Promise((resolve, reject) => {
+      wx.requestPayment({
+        timeStamp: payment.timeStamp,
+        nonceStr: payment.nonceStr,
+        package: payment.package,
+        signType: payment.signType,
+        paySign: payment.paySign,
+        success: async () => {
+          wx.showLoading({ title: '确认到账中…' });
+          try {
+            await api.pay.queryOrder(orderNo);
+            await this.refresh();
+            wx.hideLoading();
+            wx.showToast({ title: '会员已开通', icon: 'success' });
+            resolve();
+          } catch (e) {
+            wx.hideLoading();
+            wx.showToast({ title: '支付成功，稍后到账', icon: 'none' });
+            this.refresh();
+            resolve();
+          }
+        },
+        fail: (err) => {
+          if (err && err.errMsg && err.errMsg.includes('cancel')) reject(new Error('已取消支付'));
+          else reject(new Error(err.errMsg || '支付失败'));
+        }
+      });
+    });
   },
 
   goWardrobe() {

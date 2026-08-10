@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, "data");
+export const DATA_DIR = process.env.DATA_DIR_OVERRIDE || path.join(__dirname, "data");
 export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -142,11 +142,26 @@ CREATE TABLE IF NOT EXISTS pose_tags (
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE (user_id, text)
 );
+CREATE TABLE IF NOT EXISTS pay_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  order_no TEXT UNIQUE NOT NULL,
+  plan_id TEXT NOT NULL,
+  amount_fen INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  openid TEXT,
+  prepay_id TEXT,
+  transaction_id TEXT,
+  paid_at TEXT,
+  notify_json TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_ad_reward_user ON ad_reward_sessions(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_daily_outfit_user ON daily_outfit_recommendations(user_id, date_key);
 CREATE INDEX IF NOT EXISTS idx_background_tags_user ON background_tags(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_pose_tags_user ON pose_tags(user_id, id);
+CREATE INDEX IF NOT EXISTS idx_pay_orders_user ON pay_orders(user_id, id);
 `);
 
 export function saveImage(base64, mimeType = "image/png") {
@@ -579,4 +594,48 @@ export const redeemCodes = {
     const after = _applyDelta(userId, rc.credits, "redeem", `code:${rc.id}`, `兑换码 ${rc.code}`);
     return { ok: true, credits: rc.credits, remainingCredits: after };
   }),
+};
+
+// ============ 微信支付订单（会员开通） ============
+export const payOrders = {
+  create(userId, orderNo, planId, amountFen, openid) {
+    const info = db.prepare(`
+      INSERT INTO pay_orders (user_id, order_no, plan_id, amount_fen, openid)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(userId, orderNo, planId, amountFen, openid || null);
+    return db.prepare("SELECT * FROM pay_orders WHERE id = ?").get(info.lastInsertRowid);
+  },
+
+  getByOrderNo(orderNo) {
+    return db.prepare("SELECT * FROM pay_orders WHERE order_no = ?").get(orderNo) || null;
+  },
+
+  getForUser(userId, orderNo) {
+    return db.prepare("SELECT * FROM pay_orders WHERE user_id = ? AND order_no = ?").get(userId, orderNo) || null;
+  },
+
+  listForUser(userId, limit = 20) {
+    return db.prepare("SELECT * FROM pay_orders WHERE user_id = ? ORDER BY id DESC LIMIT ?").all(userId, limit);
+  },
+
+  // 标记为「已发起支付」，幂等保存 prepay_id
+  setPrepay(orderNo, prepayId) {
+    db.prepare("UPDATE pay_orders SET prepay_id = ?, status = CASE WHEN status = 'pending' THEN 'paying' ELSE status END WHERE order_no = ?")
+      .run(prepayId || null, orderNo);
+  },
+
+  // 支付成功回调处理（幂等：已 paid 则返回 false 不重复发放权益）
+  markPaid(orderNo, transactionId, notifyJson) {
+    const info = db.prepare(`
+      UPDATE pay_orders
+      SET status = 'paid', transaction_id = ?, notify_json = ?, paid_at = datetime('now')
+      WHERE order_no = ? AND status != 'paid'
+    `).run(transactionId, notifyJson, orderNo);
+    return info.changes > 0;
+  },
+
+  isPaid(orderNo) {
+    const row = db.prepare("SELECT status FROM pay_orders WHERE order_no = ?").get(orderNo);
+    return row ? row.status === "paid" : false;
+  },
 };

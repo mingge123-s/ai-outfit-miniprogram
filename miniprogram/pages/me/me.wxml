@@ -98,9 +98,9 @@
   <view class="vip card" bindtap="openVip">
     <view class="vip-left">
       <text class="vip-title">{{me.memberLevel === 'member' ? '👑 会员权益' : '👑 开通会员'}}</text>
-      <text class="vip-sub">每日 10 次 · 衣柜 30 件 · 模特照 30 张 · 收藏 40 套</text>
+      <text class="vip-sub">月卡 ¥9.9 · 年卡 ¥99 · 永久 ¥128</text>
     </view>
-    <text class="vip-btn">{{me.memberLevel === 'member' ? '已开通' : '敬请期待'}}</text>
+    <text class="vip-btn">{{me.memberLevel === 'member' ? '已开通' : (me.purchaseEnabled ? '开通' : '敬请期待')}}</text>
   </view>
 
   <view class="menu card">

@@ -143,6 +143,11 @@ module.exports = {
     list: () => authedRequest('GET', '/api/history'),
     remove: (id) => authedRequest('DELETE', `/api/history/${id}`)
   },
+  pay: {
+    createMemberOrder: (planId) => authedRequest('POST', '/api/pay/member/prepay', { planId }),
+    queryOrder: (orderNo) => authedRequest('GET', `/api/pay/order/${orderNo}`),
+    listOrders: () => authedRequest('GET', '/api/pay/orders')
+  },
   outfits: {
     list: () => authedRequest('GET', '/api/outfits'),
     add: (image, backgroundStyle, description, items, name, generationId) => authedRequest('POST', '/api/outfits', { image, generationId, backgroundStyle, description, items, name }),
