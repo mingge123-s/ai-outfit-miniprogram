@@ -92,6 +92,8 @@ node server/scripts/credits.js membership <用户ID> member     # 永久会员
 node server/scripts/credits.js membership <用户ID> free       # 恢复免费版
 ```
 
+会员也可在小程序「我的 → 开通会员」用微信支付自助购买：月卡 ¥9.9/30 天、年卡 ¥99/365 天、终身 ¥128；支付成功后自动开卡并顺延有效期，到期自动降回免费版。后端需配置 `WXPAY_MCHID`/`WXPAY_APIV3_KEY`/`WXPAY_SERIAL_NO`/`WXPAY_PRIVATE_KEY_PATH`/`WXPAY_NOTIFY_URL` 且 `MEMBER_PAY_ENABLED=1`（见 `server/.env.example`），并在商户平台把小程序 AppID 绑定到对应商户号。
+
 激励广告默认关闭。先在微信流量主后台创建激励视频广告位，把广告位 ID 写入
 `miniprogram/config.js` 的 `REWARDED_VIDEO_AD_UNIT_ID`，再配置后端
 `REWARDED_AD_ENABLED=1`。默认每人每天最多看广告领取 1 次，每次增加 1 次生图机会。
