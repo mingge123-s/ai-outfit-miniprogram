@@ -1,15 +1,23 @@
 <view class="page">
-  <!-- Hero -->
   <view class="hero">
-    <text class="hero-label">DESIGN YOUR STYLE</text>
-    <text class="hero-title">即刻开启\n数字时尚之旅</text>
+    <view class="hero-collage">
+      <image class="hero-photo hero-photo-a" src="/assets/look-street.jpg" mode="aspectFill" />
+      <image class="hero-photo hero-photo-b" src="/assets/look-cafe.jpg" mode="aspectFill" />
+      <image class="hero-photo hero-photo-c" src="/assets/look-mint.jpg" mode="aspectFill" />
+      <view class="hero-sticker">今天出片</view>
+    </view>
+    <view class="hero-copy">
+      <text class="hero-kicker">今日这身</text>
+      <text class="hero-title">打开就知道\n穿什么</text>
+      <text class="hero-sub">上传衣服，一键拼出今日这身</text>
+    </view>
   </view>
 
   <view class="today-entry" bindtap="goToday">
-    <view class="today-entry-icon">🪄</view>
+    <image class="today-entry-cover" src="/assets/look-mint.jpg" mode="aspectFill" />
     <view class="today-entry-copy">
       <text class="today-entry-title">今日搭配</text>
-      <text class="today-entry-sub">结合天气、地点与场景，从衣柜智能挑选</text>
+      <text class="today-entry-sub">看天气、选场合，从衣柜直接出一套</text>
     </view>
     <text class="today-entry-arrow">›</text>
   </view>

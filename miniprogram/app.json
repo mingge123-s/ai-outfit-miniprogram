@@ -9,15 +9,16 @@
     "pages/picker/picker"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#f8f9fa",
-    "navigationBarTitleText": "今天穿哪件",
+    "navigationBarBackgroundColor": "#fff6f0",
+    "navigationBarTitleText": "今日这身",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f8f9fa"
+    "backgroundColor": "#fff6f0"
   },
   "tabBar": {
-    "color": "#8a8a99",
-    "selectedColor": "#5c7c8d",
-    "backgroundColor": "#ffffff",
+    "color": "#b5a8a2",
+    "selectedColor": "#ff5c7a",
+    "backgroundColor": "#fffdfb",
+    "borderStyle": "white",
     "list": [
       { "pagePath": "pages/index/index", "text": "首页" },
       { "pagePath": "pages/wardrobe/wardrobe", "text": "衣柜" },

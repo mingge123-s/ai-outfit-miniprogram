@@ -1,11 +1,14 @@
 <view class="page">
   <view class="hero-card">
-    <view>
-      <text class="hero-kicker">TODAY'S LOOK</text>
+    <view class="hero-copy">
+      <text class="hero-kicker">今日这身</text>
       <text class="hero-title">今日搭配</text>
-      <text class="hero-sub">结合天气、体感与场景，从你的衣柜挑选完整穿搭</text>
+      <text class="hero-sub">看天气、选场合，从衣柜直接出一套</text>
     </view>
-    <text class="hero-icon">🪄</text>
+    <view class="hero-mini">
+      <image class="hero-mini-img a" src="/assets/look-cafe.jpg" mode="aspectFill" />
+      <image class="hero-mini-img b" src="/assets/look-street.jpg" mode="aspectFill" />
+    </view>
   </view>
 
   <view class="section-title">今天要去哪里？</view>
