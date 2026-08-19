@@ -6,6 +6,7 @@
     </view>
   </view>
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <text>衣柜里还没有「{{label}}」，请先到「衣柜」页添加</text>
+    <image class="empty-img" src="/assets/empty-wardrobe.jpg" mode="aspectFit" />
+    <text>衣柜里还没有「{{label}}」\n先到衣柜页添加一件吧</text>
   </view>
 </view>

@@ -48,7 +48,8 @@
   </view>
 
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <text>衣柜里还没有单品，点击上方「添加单品」收藏你的衣物</text>
+    <image class="empty-img" src="/assets/empty-wardrobe.jpg" mode="aspectFit" />
+    <text>衣柜还是空的\n点「批量添加」把衣服收进来</text>
   </view>
 
   <view class="bottom-bar" wx:if="{{selectedCount > 0}}">

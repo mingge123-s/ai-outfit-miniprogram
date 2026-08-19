@@ -35,6 +35,7 @@
   </view>
 
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <text>还没有收藏的套装\n在生成结果页点「收藏套装」即可保存到这里</text>
+    <image class="empty-img" src="/assets/empty-collection.jpg" mode="aspectFit" />
+    <text>还没有收藏的套装\n生成后点「收藏套装」就会出现在这里</text>
   </view>
 </view>
