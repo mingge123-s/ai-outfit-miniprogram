@@ -28,3 +28,9 @@
 .danger { opacity: 0.8; }
 
 .empty { margin-top: 120rpx; text-align: center; color: #8a8a99; font-size: 26rpx; line-height: 1.8; }
+.empty-img {
+  width: 280rpx;
+  height: 280rpx;
+  margin: 0 auto 20rpx;
+  display: block;
+}

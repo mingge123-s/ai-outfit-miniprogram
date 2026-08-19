@@ -43,6 +43,12 @@
 }
 
 .empty { margin-top: 80rpx; text-align: center; color: #8a8a99; font-size: 26rpx; padding: 0 40rpx; }
+.empty-img {
+  width: 280rpx;
+  height: 280rpx;
+  margin: 0 auto 20rpx;
+  display: block;
+}
 .bottom-bar {
   position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
   background: rgba(248, 249, 250, 0.96); box-shadow: 0 -8rpx 30rpx rgba(92,124,141,.08); z-index: 20;

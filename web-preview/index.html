@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>时衣集 · 网页预览</title>
+  <style>
+    :root {
+      --bg: #fff6f0;
+      --ink: #2b2a33;
+      --coral: #ff5c7a;
+      --peach: #ff8a65;
+      --muted: #8a5a62;
+      --tab-bg: #fffdfb;
+      --tab-off: #b5a8a2;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 20% 0%, #ffe4d6 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 10%, #ffd6e4 0%, transparent 40%),
+        #f3e7df;
+    }
+    .stage {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 40px;
+    }
+    .chrome {
+      width: min(420px, 100%);
+      margin-bottom: 18px;
+      color: #5a3d36;
+    }
+    .chrome h1 { margin: 0 0 6px; font-size: 22px; }
+    .chrome p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: #7a564e; }
+    .chrome-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chrome button, .chrome a {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      color: #5a3d36;
+      background: rgba(255,255,255,.78);
+    }
+    .chrome button.active { background: var(--coral); color: #fff; }
+    .phone {
+      width: min(390px, 100%);
+      height: min(844px, calc(100vh - 180px));
+      min-height: 680px;
+      background: #111;
+      border-radius: 36px;
+      padding: 12px;
+      box-shadow: 0 24px 60px rgba(90, 40, 30, .22);
+    }
+    .screen {
+      position: relative;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 26px;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+    .status {
+      flex: 0 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--bg);
+    }
+    .navbar {
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      background: var(--bg);
+    }
+    .navbar .back {
+      position: absolute;
+      left: 14px;
+      font-size: 22px;
+      color: #333;
+      cursor: pointer;
+    }
+    .scroll {
+      flex: 1;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabbar {
+      flex: 0 0 56px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--tab-bg);
+      border-top: 1px solid #f3ece8;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--tab-off);
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+    .tab.on { color: var(--coral); font-weight: 700; }
+    .page { display: none; min-height: 100%; }
+    .page.on { display: block; }
+    .home { padding: 0 16px 118px; }
+    .hero {
+      position: relative;
+      height: 360px;
+      margin: 0 -16px 14px;
+      overflow: hidden;
+      background: #1b1714;
+    }
+    .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hero-mask {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 55%;
+      background: linear-gradient(180deg, rgba(20,16,14,0) 0%, rgba(20,16,14,.72) 100%);
+    }
+    .hero-copy { position: absolute; left: 20px; right: 20px; bottom: 44px; z-index: 2; }
+    .hero-kicker { display: block; font-size: 11px; font-weight: 700; color: #ffd6c8; letter-spacing: 3px; margin-bottom: 5px; }
+    .hero-title { display: block; font-size: 26px; font-weight: 800; line-height: 1.2; color: #fffdfb; }
+    .hero-sub { display: block; margin-top: 6px; font-size: 12px; color: rgba(255,248,244,.82); }
+    .hero-sticker {
+      position: absolute; top: 14px; right: 14px; z-index: 3;
+      padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.88);
+      color: #7a4a12; font-size: 11px; font-weight: 700;
+    }
+    .today-entry {
+      display: flex; align-items: center; padding: 8px 10px; margin-bottom: 5px;
+      border-radius: 14px; color: #5a2a32;
+      background: linear-gradient(120deg, #ffe0d2, #ffd6e4);
+      box-shadow: 0 6px 14px rgba(255,92,122,.14); cursor: pointer;
+    }
+    .today-entry img { width: 44px; height: 44px; margin-right: 9px; border-radius: 11px; object-fit: cover; background: #fff; }
+    .today-entry b { display: block; font-size: 15px; }
+    .today-entry span { display: block; margin-top: 3px; font-size: 11px; color: #8a5a62; }
+    .today-entry i { margin-left: auto; font-style: normal; font-size: 23px; color: var(--coral); }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-end; margin: 14px 0 8px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 1px; }
+    .section-sub { font-size: 12px; color: var(--coral); }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .item-card, .person-card, .dashed {
+      border: 1.5px dashed #ffb4a2; border-radius: 12px; background: #fff8f4;
+      position: relative; overflow: hidden;
+    }
+    .item-card {
+      aspect-ratio: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    .item-card.filled { border-style: solid; border-color: #ffd0c4; background: #fff; }
+    .item-card img { width: 100%; height: 100%; object-fit: cover; }
+    .item-card .icon { font-size: 22px; margin-bottom: 3px; }
+    .item-card .lab { font-size: 11px; font-weight: 600; }
+    .item-card .hint { font-size: 9px; color: #c08980; margin-top: 4px; }
+    .item-tag {
+      position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.55);
+      color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip, .pose-chip {
+      text-align: center; padding: 7px 0; border-radius: 999px;
+      background: #ffe8df; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .chip { flex: 0 0 calc((100% - 30px) / 6); }
+    .chip.on, .pose-chip.on { background: var(--coral); color: #fff; box-shadow: 0 3px 8px rgba(255,92,122,.28); }
+    .custom-bg-row { display: flex; gap: 6px; margin-top: 10px; }
+    .custom-bg-row input {
+      flex: 1; padding: 9px 12px; border: 1px solid #d5d5e0; border-radius: 8px; background: #fff; font-size: 13px;
+    }
+    .save-tag { padding: 9px 11px; border-radius: 8px; background: var(--coral); color: #fff; font-size: 12px; font-weight: 600; border: 0; cursor: pointer; }
+    .bg-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .bg-tag { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 999px; background: #eef0f2; color: var(--muted); font-size: 11px; cursor: pointer; }
+    .bg-tag.on { background: var(--coral); color: #fff; }
+    .hint-soft { display: block; margin-top: 6px; color: #a0a0ad; font-size: 11px; }
+    .step34 { display: flex; gap: 10px; }
+    .col-person { flex: 0 0 42%; }
+    .col-pose { flex: 1; }
+    .person-card {
+      height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .person-icon { width: 44px; height: 44px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.06); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 6px; }
+    .person-label { font-size: 13px; font-weight: 600; color: var(--coral); }
+    .pose-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pose-chip { padding: 7px 11px; }
+    .bottom-bar {
+      position: absolute; left: 0; right: 0; bottom: 56px;
+      padding: 12px 16px 12px; background: rgba(255,246,240,.94);
+      box-shadow: 0 -4px 20px rgba(255,92,122,.08); z-index: 5;
+    }
+    .gen-btn, .primary, .secondary, .recommend-btn, .use-selected {
+      width: 100%; height: 48px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .gen-btn, .primary { background: linear-gradient(135deg, var(--peach), var(--coral)); color: #fff; box-shadow: 0 6px 15px rgba(255,92,122,.28); }
+    .gen-btn.disabled { background: #d7dde0; color: #5f7078; box-shadow: 0 5px 13px rgba(92,124,141,.18); cursor: not-allowed; }
+    .quota { display: block; margin-top: 5px; text-align: center; color: #777587; font-size: 11px; }
+    .overlay {
+      display: none; position: absolute; inset: 0; background: rgba(255,246,240,.95); z-index: 20;
+      flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    }
+    .overlay.on { display: flex; }
+    .pulse {
+      width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin-bottom: 16px; color: #fff;
+      background: linear-gradient(135deg, var(--peach), var(--coral));
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: .7; } }
+    .toast {
+      display: none; position: absolute; left: 50%; bottom: 140px; transform: translateX(-50%);
+      background: rgba(0,0,0,.72); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 30;
+      white-space: nowrap;
+    }
+    .toast.on { display: block; }
+    .today { padding: 14px 16px 40px; background: #f8f9fa; min-height: 100%; }
+    .hero-card {
+      display: flex; justify-content: space-between; align-items: center; padding: 16px;
+      border-radius: 14px; color: #fff; background: linear-gradient(135deg, #47616f, #7894a1);
+      box-shadow: 0 7px 18px rgba(71,97,111,.22);
+    }
+    .hero-card .k { font-size: 10px; letter-spacing: 2px; opacity: .75; }
+    .hero-card .t { margin-top: 4px; font-size: 22px; font-weight: 700; }
+    .hero-card .s { max-width: 180px; margin-top: 5px; font-size: 12px; line-height: 1.5; opacity: .9; }
+    .hero-mini { position: relative; width: 110px; height: 88px; flex-shrink: 0; }
+    .hero-mini img {
+      position: absolute; width: 64px; height: 80px; border-radius: 10px; object-fit: cover;
+      border: 2px solid rgba(255,255,255,.42); box-shadow: 0 5px 12px rgba(20,16,14,.22);
+    }
+    .hero-mini .a { left: 0; top: 8px; transform: rotate(-8deg); }
+    .hero-mini .b { right: 0; top: 0; transform: rotate(8deg); }
+    .today .h { margin: 16px 0 8px; font-size: 14px; font-weight: 600; color: #333b40; }
+    .occasion-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .occasion {
+      display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px;
+      border: 1px solid #e2e7e9; border-radius: 9px; color: #5f6d73; background: #fff; font-size: 12px; cursor: pointer;
+    }
+    .occasion.on { border-color: #5c7c8d; color: #47616f; background: #eaf0f2; font-weight: 600; }
+    .manual-card, .weather-card, .recommend-card, .bg-card {
+      margin-top: 12px; padding: 12px; border-radius: 11px; background: #fff;
+      box-shadow: 0 3px 12px rgba(71,97,111,.08);
+    }
+    .manual-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .manual-item { padding: 8px 2px; border-radius: 7px; text-align: center; background: #eef2f3; color: #617178; font-size: 12px; cursor: pointer; }
+    .manual-item.on { background: #5c7c8d; color: #fff; }
+    .recommend-btn { margin-top: 14px; background: #5c7c8d; color: #fff; box-shadow: 0 5px 13px rgba(92,124,141,.22); }
+    .weather-card { display: flex; align-items: center; }
+    .weather-icon { margin-right: 10px; font-size: 29px; }
+    .weather-temp { color: #354d58; font-size: 24px; font-weight: 700; }
+    .weather-label { color: #66757c; font-size: 12px; }
+    .weather-extra { margin-left: auto; text-align: right; color: #7c898e; font-size: 11px; }
+    .recommend-title { color: #2f4149; font-size: 17px; font-weight: 700; }
+    .recommend-scene { display: block; margin-top: 3px; color: #7a888e; font-size: 11px; }
+    .recommend-reason { display: block; margin-top: 9px; color: #59686e; font-size: 12px; line-height: 1.6; }
+    .outfit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 10px; }
+    .outfit-item { position: relative; height: 95px; overflow: hidden; border-radius: 8px; background: #f3f5f6; }
+    .outfit-item img { width: 100%; height: 100%; object-fit: cover; }
+    .outfit-item span {
+      position: absolute; left: 4px; bottom: 4px; padding: 2px 6px; border-radius: 999px;
+      color: #fff; background: rgba(54,68,74,.72); font-size: 10px;
+    }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .secondary { color: #526b76; border: 1px solid #8fa2aa; background: #f5f8f9; }
+    .today .primary { background: #526f7d; box-shadow: 0 5px 12px rgba(82,111,125,.2); }
+    .privacy { margin-top: 12px; color: #98a1a5; font-size: 11px; text-align: center; }
+    .bg-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .bg-chip { padding: 6px 12px; border-radius: 999px; background: #eef2f3; color: #617178; font-size: 12px; cursor: pointer; }
+    .bg-chip.on { background: #47616f; color: #fff; }
+    .wardrobe, .collection, .me { padding: 12px 16px 30px; }
+    .tip, .quota-tip {
+      font-size: 13px; color: #5c7c8d; background: #eef3f5; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+    }
+    .w-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .w-chip {
+      flex: 0 0 calc((100% - 16px) / 3); text-align: center; padding: 8px 4px; border-radius: 8px;
+      background: #fff; border: 1px solid #e3e3ee; font-size: 13px; color: #55556b; cursor: pointer;
+    }
+    .w-chip.on { border-color: #5c7c8d; background: #eef3f5; color: #5c7c8d; font-weight: 600; }
+    .w-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .w-card { position: relative; height: 105px; border-radius: 8px; overflow: hidden; background: #fff; }
+    .w-card img { width: 100%; height: 100%; object-fit: cover; }
+    .add-card { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #c9c9dc; background: #fbfbfe; cursor: pointer; }
+    .add-plus { font-size: 28px; color: #5c7c8d; }
+    .empty { margin-top: 40px; text-align: center; color: #8a8a99; font-size: 13px; line-height: 1.8; white-space: pre-line; }
+    .empty img { width: 140px; height: 140px; margin: 0 auto 10px; display: block; object-fit: contain; }
+    .c-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .c-card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .c-card .name { display: flex; justify-content: space-between; padding: 6px 9px 4px; font-size: 12px; font-weight: 600; }
+    .c-card img { width: 100%; height: 210px; object-fit: cover; display: block; }
+    .c-bar { display: flex; justify-content: space-between; padding: 7px 9px; color: #8a8a99; font-size: 10px; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05); margin-bottom: 12px; }
+    .profile { display: flex; align-items: center; padding: 16px; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; background: #eef3f5; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 12px; }
+    .name { font-size: 16px; font-weight: 600; }
+    .sub { font-size: 11px; color: #8a8a99; margin-top: 3px; }
+    .level { background: #eef3f5; color: #5c7c8d; font-size: 11px; padding: 3px 10px; border-radius: 10px; }
+    .stats { display: flex; padding: 14px 0; }
+    .stat { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .num { font-size: 20px; font-weight: 700; color: #5c7c8d; }
+    .lab { font-size: 11px; color: #8a8a99; margin-top: 3px; }
+    .divider { width: 1px; background: #f2f2f6; }
+    .photos, .history { padding: 12px; }
+    .photos-title { font-size: 12px; color: #55556b; display: block; margin-bottom: 8px; }
+    .photos-grid { display: flex; gap: 8px; }
+    .photo, .photo-add { width: 75px; height: 100px; border-radius: 6px; overflow: hidden; background: #f6f6f8; }
+    .photo-add { display: flex; align-items: center; justify-content: center; border: 1px dashed #d5d5e0; color: #8a8a99; font-size: 24px; }
+    .history-empty { display: block; color: #8a8a99; font-size: 12px; padding: 5px 0; }
+    .vip, .ad-reward { display: flex; align-items: center; padding: 14px 16px; }
+    .vip { background: linear-gradient(90deg, #fff7e6, #ffefe0); }
+    .ad-reward { background: linear-gradient(90deg, #eef8f4, #e8f2f8); }
+    .vip-title { font-size: 15px; font-weight: 600; color: #b45309; }
+    .vip-sub { font-size: 11px; color: #b45309; opacity: .8; margin-top: 3px; }
+    .vip-btn { background: #b99a5f; color: #fff; font-size: 12px; padding: 6px 16px; border-radius: 15px; }
+    .ad-title, .ad-sub { color: #397064; }
+    .ad-btn { background: #4f8075; }
+    .menu { padding: 0 16px; }
+    .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f2f2f6; font-size: 14px; }
+    .menu-item:last-child { border-bottom: 0; }
+    .arrow { color: #c0c0cc; font-size: 16px; }
+    @media (max-width: 640px) {
+      .stage { padding: 0; }
+      .chrome { width: 100%; padding: 14px 16px 8px; margin: 0; }
+      .phone {
+        width: 100%; height: calc(100vh - 118px); min-height: 0;
+        border-radius: 0; padding: 0; box-shadow: none; background: transparent;
+      }
+      .screen { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="chrome">
+      <h1>时衣集 · 网页预览</h1>
+      <p>这是按当前小程序界面做的浏览器预览，方便看杂志首页和页面跳转。微信登录、上传、真实生成请用体验版。</p>
+      <div class="chrome-row">
+        <button class="js-page active" data-page="home">首页</button>
+        <button class="js-page" data-page="today">今日搭配</button>
+        <button class="js-page" data-page="wardrobe">衣柜</button>
+        <button class="js-page" data-page="collection">收藏</button>
+        <button class="js-page" data-page="me">我的</button>
+        <button id="demoToggle">示例数据：关</button>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+        <div class="navbar"><span class="back" id="navBack" hidden>‹</span><span id="navTitle">时衣集</span></div>
+        <div class="scroll" id="scroll">
+
+          <section class="page home on" id="page-home">
+            <div class="hero">
+              <img src="./assets/hero-magazine.jpg" alt="杂志封面" />
+              <div class="hero-mask"></div>
+              <div class="hero-copy">
+                <span class="hero-kicker">时衣集</span>
+                <span class="hero-title">打开就知道穿什么</span>
+                <span class="hero-sub">上传衣服，一键拼出今日这身</span>
+              </div>
+              <div class="hero-sticker">今日出片</div>
+            </div>
+            <div class="today-entry" data-go="today">
+              <img src="./assets/look-mint.jpg" alt="" />
+              <div>
+                <b>今日搭配</b>
+                <span>看天气、选场合，从衣柜直接出一套</span>
+              </div>
+              <i>›</i>
+            </div>
+            <div class="section-head"><span class="section-title">① 选穿搭单品</span><span class="section-sub">至少上传 1 件</span></div>
+            <div class="grid4" id="itemGrid"></div>
+            <div class="section-head"><span class="section-title">② 选背景风格</span></div>
+            <div class="chips" id="styleChips"></div>
+            <div id="customBgBox" hidden>
+              <div class="custom-bg-row">
+                <input id="customBg" placeholder="描述你想要的背景，如：日本樱花街道…" />
+                <button class="save-tag" id="saveBg">＋标签</button>
+              </div>
+              <div class="bg-tags" id="bgTags"></div>
+              <span class="hint-soft">输入后点「＋标签」保存，下次可一键选用</span>
+            </div>
+            <div class="step34">
+              <div class="col-person">
+                <div class="section-head"><span class="section-title">③ 模特照片</span><span class="section-sub">可选</span></div>
+                <div class="person-card">
+                  <div class="person-icon">👤</div>
+                  <div class="person-label">上传全身照</div>
+                </div>
+              </div>
+              <div class="col-pose">
+                <div class="section-head"><span class="section-title">④ 人物动作</span><span class="section-sub">可选</span></div>
+                <div class="pose-list" id="poseList"></div>
+              </div>
+            </div>
+            <div class="bottom-bar">
+              <button class="gen-btn disabled" id="genBtn">✨ 请先上传单品</button>
+              <span class="quota">今日免费剩余 3/3 次 · 积分 0（约可生成 3 次）</span>
+            </div>
+          </section>
+
+          <section class="page today" id="page-today">
+            <div class="hero-card">
+              <div>
+                <div class="k">时衣集</div>
+                <div class="t">今日搭配</div>
+                <div class="s">看天气、选场合，从衣柜直接出一套</div>
+              </div>
+              <div class="hero-mini">
+                <img class="a" src="./assets/look-cafe.jpg" alt="" />
+                <img class="b" src="./assets/look-street.jpg" alt="" />
+              </div>
+            </div>
+            <div class="h">今天要去哪里？</div>
+            <div class="occasion-grid" id="occasions"></div>
+            <div class="manual-card">
+              <div class="h" style="margin-top:0">选择当前天气</div>
+              <div class="manual-grid" id="weathers"></div>
+            </div>
+            <button class="recommend-btn" id="recommendBtn">按当前天气推荐</button>
+            <div id="recommendBox" hidden>
+              <div class="weather-card">
+                <div class="weather-icon" id="wIcon">🌤️</div>
+                <div>
+                  <div class="weather-temp">26°</div>
+                  <div class="weather-label">舒适 · 体感 25°</div>
+                </div>
+                <div class="weather-extra">湿度 58%<br>风速 9km/h</div>
+              </div>
+              <div class="recommend-card">
+                <div class="recommend-title">轻薄日常套</div>
+                <span class="recommend-scene" id="recScene">日常 · 示例推荐</span>
+                <span class="recommend-reason">今天不冷不热，浅色上衣配阔腿裤更透气，再加一双运动鞋就能出门。</span>
+                <div class="outfit-grid">
+                  <div class="outfit-item"><img src="./assets/look-mint.jpg" alt="" /><span>上衣</span></div>
+                  <div class="outfit-item"><img src="./assets/look-street.jpg" alt="" /><span>裤子</span></div>
+                  <div class="outfit-item"><img src="./assets/look-cafe.jpg" alt="" /><span>鞋子</span></div>
+                </div>
+              </div>
+              <div class="bg-card">
+                <div class="h" style="margin-top:0">生成场景</div>
+                <div class="bg-row" id="bgRow"></div>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="changeOutfit">换一套</button>
+                <button class="primary" id="genToday">生成今日搭配</button>
+              </div>
+            </div>
+            <div class="privacy">仅使用模糊位置查询天气，不保存精确位置</div>
+          </section>
+
+          <section class="page wardrobe" id="page-wardrobe">
+            <div class="tip">免费版衣柜 <span id="wCount">0</span>/10 件 · 支持批量上传与智能分类</div>
+            <div class="w-chips" id="wCats"></div>
+            <div class="w-grid" id="wGrid"></div>
+            <div class="empty" id="wEmpty">
+              <img src="./assets/empty-wardrobe.jpg" alt="" />
+              <div>衣柜还是空的<br>点「批量添加」把衣服收进来</div>
+            </div>
+          </section>
+
+          <section class="page collection" id="page-collection">
+            <div class="quota-tip">免费版收藏 <span id="cCount">0</span>/10 套</div>
+            <div class="c-grid" id="cGrid"></div>
+            <div class="empty" id="cEmpty">
+              <img src="./assets/empty-collection.jpg" alt="" />
+              <div>还没有收藏的套装<br>生成后点「收藏套装」就会出现在这里</div>
+            </div>
+          </section>
+
+          <section class="page me" id="page-me">
+            <div class="card profile">
+              <div class="avatar">👤</div>
+              <div style="flex:1">
+                <div class="name">账号 #1024</div>
+                <div class="sub">网页预览 · 2026-08-19</div>
+              </div>
+              <div class="level">免费版</div>
+            </div>
+            <div class="card stats">
+              <div class="stat"><div class="num" id="meWardrobe">0/10</div><div class="lab">衣柜单品</div></div>
+              <div class="divider"></div>
+              <div class="stat"><div class="num" id="meOutfits">0</div><div class="lab">收藏套装</div></div>
+              <div class="divider"></div>
+              <div class="stat"><div class="num">3</div><div class="lab">今日剩余次数</div></div>
+              <div class="divider"></div>
+              <div class="stat"><div class="num">0</div><div class="lab">剩余积分</div></div>
+            </div>
+            <div class="card photos">
+              <span class="photos-title">我的模特照 0/3（全身照，点击直接用于生成）</span>
+              <div class="photos-grid"><div class="photo-add">＋</div></div>
+            </div>
+            <div class="card history">
+              <span class="photos-title">生成历史（最多保留 50 条）</span>
+              <span class="history-empty">还没有生成记录</span>
+            </div>
+            <div class="card ad-reward">
+              <div style="flex:1">
+                <div class="vip-title ad-title">🎬 看广告领生图机会</div>
+                <div class="vip-sub ad-sub">广告位配置完成后开放</div>
+              </div>
+              <span class="vip-btn ad-btn">待配置</span>
+            </div>
+            <div class="card vip">
+              <div style="flex:1">
+                <div class="vip-title">🎁 兑换码充值</div>
+                <div class="vip-sub">今日免费 3/3 次，用尽后消耗积分</div>
+              </div>
+              <span class="vip-btn">兑换</span>
+            </div>
+            <div class="card vip">
+              <div style="flex:1">
+                <div class="vip-title">👑 开通会员</div>
+                <div class="vip-sub">月卡 ¥9.9 · 年卡 ¥99 · 永久 ¥128</div>
+              </div>
+              <span class="vip-btn">开通</span>
+            </div>
+            <div class="card menu">
+              <div class="menu-item"><span>💬 联系客服</span><span class="arrow">›</span></div>
+              <div class="menu-item"><span>ℹ️ 关于小程序</span><span class="arrow">›</span></div>
+            </div>
+          </section>
+        </div>
+
+        <nav class="tabbar">
+          <button class="tab on" data-page="home">首页</button>
+          <button class="tab" data-page="wardrobe">衣柜</button>
+          <button class="tab" data-page="collection">收藏</button>
+          <button class="tab" data-page="me">我的</button>
+        </nav>
+        <div class="overlay" id="overlay">
+          <div class="pulse">✨</div>
+          <div style="font-weight:700;color:var(--coral)">正在提交生成任务…</div>
+          <div style="margin-top:6px;color:#777587;font-size:12px">网页预览不会真正生成</div>
+        </div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const items = [
+      { key: "top", label: "上衣", icon: "👕" },
+      { key: "pants", label: "裤子", icon: "👖" },
+      { key: "shoes", label: "鞋子", icon: "👟" },
+      { key: "hat", label: "帽子", icon: "🧢" },
+      { key: "coat", label: "外套", icon: "🧥" },
+      { key: "dress", label: "裙装", icon: "👗" },
+      { key: "accessory", label: "配饰/包包", icon: "🧣" },
+      { key: "socks", label: "袜子", icon: "🧦" }
+    ];
+    const styles = ["街拍","影棚","户外","咖啡馆","海边","校园","夜景","雪地","居家","自定义"];
+    const poses = ["不限","摆pose","行走","跑步中","站姿","坐姿","跳跃","自定义"];
+    const occasions = [
+      ["日常","☕"],["通勤","💼"],["约会","🌹"],["运动","🏃"],["自定义","✏️"]
+    ];
+    const weathers = [["寒冷","🧥"],["舒适","🌤️"],["炎热","☀️"],["下雨","🌧️"]];
+    const cats = [["全部","🗂️"],["上衣","👕"],["裤子","👖"],["鞋子","👟"],["帽子","🧢"],["外套","🧥"],["裙装","👗"],["配饰/包包","🧣"],["袜子","🧦"]];
+    const titles = { home: "时衣集", today: "今日搭配", wardrobe: "衣柜", collection: "收藏", me: "我的" };
+    const demoLooks = ["./assets/look-mint.jpg", "./assets/look-street.jpg", "./assets/look-cafe.jpg"];
+    let filled = {};
+    let style = "街拍";
+    let pose = "不限";
+    let occasion = "日常";
+    let weather = "舒适";
+    let demo = false;
+    let bgTags = [];
+
+    function toast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("on");
+      setTimeout(() => el.classList.remove("on"), 1800);
+    }
+
+    function renderItems() {
+      document.getElementById("itemGrid").innerHTML = items.map((item, i) => {
+        const on = filled[item.key];
+        if (on) {
+          return `<div class="item-card filled" data-i="${i}"><img src="${demoLooks[i % 3]}" alt="" /><span class="item-tag">${item.label}</span></div>`;
+        }
+        return `<div class="item-card" data-i="${i}"><div class="icon">${item.icon}</div><div class="lab">${item.label}</div><div class="hint">点击上传</div></div>`;
+      }).join("");
+      const can = Object.keys(filled).length > 0 && (style !== "自定义" || document.getElementById("customBg").value.trim());
+      const btn = document.getElementById("genBtn");
+      btn.classList.toggle("disabled", !can);
+      btn.textContent = can ? "✨ 生成穿搭" : (style === "自定义" ? "✨ 请填写自定义背景" : "✨ 请先上传单品");
+    }
+
+    function renderChips(id, list, current, cls) {
+      document.getElementById(id).innerHTML = list.map((label) => {
+        const name = Array.isArray(label) ? label[0] : label;
+        const extra = Array.isArray(label) ? `<span>${label[1]}</span>` : "";
+        const text = Array.isArray(label) ? `${label[1]} ${label[0]}` : label;
+        return `<div class="${cls}${name === current ? " on" : ""}" data-v="${name}">${cls === "occasion" ? extra + name : text}</div>`;
+      }).join("");
+    }
+
+    function showPage(name) {
+      document.querySelectorAll(".page").forEach((el) => el.classList.toggle("on", el.id === "page-" + name));
+      document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("on", el.dataset.page === name && name !== "today"));
+      document.querySelectorAll(".js-page").forEach((el) => el.classList.toggle("active", el.dataset.page === name));
+      document.getElementById("navTitle").textContent = titles[name];
+      document.getElementById("navBack").hidden = name !== "today";
+      document.getElementById("scroll").scrollTop = 0;
+      history.replaceState(null, "", "#" + name);
+    }
+
+    function renderDemo() {
+      document.getElementById("demoToggle").textContent = "示例数据：" + (demo ? "开" : "关");
+      if (demo) {
+        filled = { top: true, pants: true, shoes: true };
+        document.getElementById("wEmpty").hidden = true;
+        document.getElementById("cEmpty").hidden = true;
+        document.getElementById("wCount").textContent = "3";
+        document.getElementById("cCount").textContent = "2";
+        document.getElementById("meWardrobe").textContent = "3/10";
+        document.getElementById("meOutfits").textContent = "2";
+        document.getElementById("wGrid").innerHTML = `
+          <div class="w-card add-card"><div class="add-plus">＋</div><div class="hint">批量添加</div></div>
+          ${demoLooks.map((src, i) => `<div class="w-card"><img src="${src}" alt="" /></div>`).join("")}
+        `;
+        document.getElementById("cGrid").innerHTML = `
+          <div class="c-card"><div class="name"><span>周末咖啡</span><span>✎</span></div><img src="./assets/look-cafe.jpg" alt="" /><div class="c-bar"><span>08-19</span><span>🔍 ⬇ 🗑</span></div></div>
+          <div class="c-card"><div class="name"><span>街拍一套</span><span>✎</span></div><img src="./assets/look-street.jpg" alt="" /><div class="c-bar"><span>08-18</span><span>🔍 ⬇ 🗑</span></div></div>
+        `;
+      } else {
+        filled = {};
+        document.getElementById("wEmpty").hidden = false;
+        document.getElementById("cEmpty").hidden = false;
+        document.getElementById("wCount").textContent = "0";
+        document.getElementById("cCount").textContent = "0";
+        document.getElementById("meWardrobe").textContent = "0/10";
+        document.getElementById("meOutfits").textContent = "0";
+        document.getElementById("wGrid").innerHTML = `<div class="w-card add-card"><div class="add-plus">＋</div><div class="hint">批量添加</div></div>`;
+        document.getElementById("cGrid").innerHTML = "";
+      }
+      renderItems();
+    }
+
+    renderChips("styleChips", styles, style, "chip");
+    renderChips("poseList", poses, pose, "pose-chip");
+    renderChips("occasions", occasions, occasion, "occasion");
+    renderChips("weathers", weathers, weather, "manual-item");
+    renderChips("bgRow", ["智能场景","街拍","居家","自定义"], "智能场景", "bg-chip");
+    renderChips("wCats", cats, "全部", "w-chip");
+    renderDemo();
+
+    document.getElementById("itemGrid").addEventListener("click", (e) => {
+      const card = e.target.closest(".item-card");
+      if (!card) return;
+      const key = items[card.dataset.i].key;
+      if (filled[key]) delete filled[key];
+      else filled[key] = true;
+      renderItems();
+    });
+    document.getElementById("styleChips").addEventListener("click", (e) => {
+      const el = e.target.closest(".chip");
+      if (!el) return;
+      style = el.dataset.v;
+      document.getElementById("customBgBox").hidden = style !== "自定义";
+      renderChips("styleChips", styles, style, "chip");
+      renderItems();
+    });
+    document.getElementById("poseList").addEventListener("click", (e) => {
+      const el = e.target.closest(".pose-chip");
+      if (!el) return;
+      pose = el.dataset.v;
+      renderChips("poseList", poses, pose, "pose-chip");
+    });
+    document.getElementById("saveBg").addEventListener("click", () => {
+      const text = document.getElementById("customBg").value.trim();
+      if (!text) return toast("请先填写背景描述");
+      if (!bgTags.includes(text)) bgTags.unshift(text);
+      document.getElementById("bgTags").innerHTML = bgTags.map((t) => `<div class="bg-tag${t === text ? " on" : ""}">${t}</div>`).join("");
+      renderItems();
+    });
+    document.getElementById("occasions").addEventListener("click", (e) => {
+      const el = e.target.closest(".occasion");
+      if (!el) return;
+      occasion = el.dataset.v;
+      renderChips("occasions", occasions, occasion, "occasion");
+    });
+    document.getElementById("weathers").addEventListener("click", (e) => {
+      const el = e.target.closest(".manual-item");
+      if (!el) return;
+      weather = el.dataset.v;
+      renderChips("weathers", weathers, weather, "manual-item");
+    });
+    document.getElementById("bgRow").addEventListener("click", (e) => {
+      const el = e.target.closest(".bg-chip");
+      if (!el) return;
+      renderChips("bgRow", ["智能场景","街拍","居家","自定义"], el.dataset.v, "bg-chip");
+    });
+    document.getElementById("wCats").addEventListener("click", (e) => {
+      const el = e.target.closest(".w-chip");
+      if (!el) return;
+      renderChips("wCats", cats, el.dataset.v, "w-chip");
+    });
+    document.getElementById("recommendBtn").addEventListener("click", () => {
+      document.getElementById("recommendBox").hidden = false;
+      document.getElementById("recommendBtn").hidden = true;
+      document.getElementById("recScene").textContent = occasion + " · 示例推荐";
+      document.getElementById("scroll").scrollTo({ top: 280, behavior: "smooth" });
+    });
+    document.getElementById("changeOutfit").addEventListener("click", () => toast("网页预览：这里只展示示例推荐"));
+    document.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", () => showPage(el.dataset.go)));
+    document.querySelectorAll(".tab, .js-page").forEach((el) => el.addEventListener("click", () => showPage(el.dataset.page)));
+    document.getElementById("navBack").addEventListener("click", () => showPage("home"));
+    document.getElementById("demoToggle").addEventListener("click", () => { demo = !demo; renderDemo(); });
+    document.getElementById("genBtn").addEventListener("click", () => {
+      if (document.getElementById("genBtn").classList.contains("disabled")) return;
+      document.getElementById("overlay").classList.add("on");
+      setTimeout(() => {
+        document.getElementById("overlay").classList.remove("on");
+        toast("网页预览不能真正生成，请用微信体验版");
+      }, 1200);
+    });
+    document.getElementById("genToday").addEventListener("click", () => toast("网页预览不能真正生成，请用微信体验版"));
+    document.querySelectorAll(".vip, .ad-reward, .menu-item, .add-card, .person-card").forEach((el) => {
+      el.addEventListener("click", () => toast("网页预览仅看界面"));
+    });
+    const hash = location.hash.replace("#", "");
+    if (titles[hash]) showPage(hash);
+  </script>
+</body>
+</html>

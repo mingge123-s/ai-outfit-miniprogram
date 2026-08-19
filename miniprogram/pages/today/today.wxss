@@ -20,6 +20,22 @@
 .hero-title { margin-top: 8rpx; font-size: 44rpx; font-weight: 700; }
 .hero-sub { max-width: 500rpx; margin-top: 10rpx; font-size: 23rpx; line-height: 1.5; opacity: .9; }
 .hero-icon { font-size: 72rpx; }
+.hero-mini {
+  position: relative;
+  width: 220rpx;
+  height: 176rpx;
+  flex-shrink: 0;
+}
+.hero-mini-img {
+  position: absolute;
+  width: 128rpx;
+  height: 160rpx;
+  border-radius: 20rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 10rpx 24rpx rgba(20, 16, 14, 0.22);
+}
+.hero-mini-img.a { left: 0; top: 16rpx; transform: rotate(-8deg); }
+.hero-mini-img.b { right: 0; top: 0; transform: rotate(8deg); }
 
 .section-title { margin: 32rpx 0 16rpx; font-size: 28rpx; font-weight: 600; color: #333b40; }
 .occasion-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12rpx; }
