@@ -1,8 +1,8 @@
 {
-  "description": "AI 穿搭生成小程序",
+  "description": "今天穿哪件",
   "miniprogramRoot": "miniprogram/",
   "compileType": "miniprogram",
-  "appid": "wx4da1d4863ab8ae9a",
+  "appid": "wx1bc0aa255c24a89d",
   "projectname": "ai-outfit-miniprogram",
   "setting": {
     "urlCheck": false,
