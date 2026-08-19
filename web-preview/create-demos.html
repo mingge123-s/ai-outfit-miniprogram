@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>选衣穿搭 · 风格 Demo</title>
+  <style>
+    :root {
+      --bg: #fff6f0;
+      --ink: #2b2a33;
+      --coral: #ff5c7a;
+      --peach: #ff8a65;
+      --muted: #8a5a62;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 20% 0%, #ffe4d6 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 10%, #ffd6e4 0%, transparent 40%),
+        #f3e7df;
+    }
+    .stage { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px; }
+    .chrome { width: min(420px, 100%); margin-bottom: 16px; color: #5a3d36; }
+    .chrome h1 { margin: 0 0 6px; font-size: 22px; }
+    .chrome p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: #7a564e; }
+    .chrome a { color: var(--coral); font-weight: 700; text-decoration: none; }
+    .picks { display: flex; flex-wrap: wrap; gap: 8px; }
+    .picks button {
+      border: 0; border-radius: 999px; padding: 8px 12px; font-size: 13px; font-weight: 700;
+      background: rgba(255,255,255,.78); color: #5a3d36; cursor: pointer;
+    }
+    .picks button.on { background: var(--coral); color: #fff; }
+    .phone {
+      width: min(390px, 100%);
+      height: min(844px, calc(100vh - 200px));
+      min-height: 680px;
+      background: #111; border-radius: 36px; padding: 12px;
+      box-shadow: 0 24px 60px rgba(90, 40, 30, .22);
+    }
+    .screen { height: 100%; overflow: hidden; border-radius: 26px; background: var(--bg); display: flex; flex-direction: column; }
+    .status, .navbar { display: flex; align-items: center; background: var(--bg); }
+    .status { justify-content: space-between; height: 28px; padding: 0 18px; font-size: 12px; font-weight: 700; }
+    .navbar { height: 44px; justify-content: center; font-size: 16px; font-weight: 700; position: relative; }
+    .navbar .back { position: absolute; left: 14px; font-size: 22px; }
+    .scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+    .demo { display: none; min-height: 100%; }
+    .demo.on { display: block; }
+    .bar {
+      padding: 12px 16px 16px; background: rgba(255,246,240,.94);
+      box-shadow: 0 -4px 20px rgba(255,92,122,.08);
+    }
+    .btn {
+      width: 100%; height: 48px; border: 0; border-radius: 12px; color: #fff; font-size: 16px; font-weight: 700;
+      background: linear-gradient(135deg, var(--peach), var(--coral));
+      box-shadow: 0 6px 15px rgba(255,92,122,.28);
+    }
+    .quota { display: block; margin-top: 6px; text-align: center; color: #777587; font-size: 11px; }
+    .head { display: flex; justify-content: space-between; align-items: flex-end; margin: 14px 0 8px; }
+    .ht { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+    .hs { font-size: 12px; color: var(--coral); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { padding: 7px 12px; border-radius: 999px; background: #ffe8df; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .chip.on { background: var(--coral); color: #fff; }
+    .pad { padding: 0 16px 20px; }
+
+    /* 1 magazine strip */
+    .mini-hero { position: relative; height: 168px; overflow: hidden; background: #1b1714; }
+    .mini-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mini-hero .mask { position: absolute; inset: auto 0 0; height: 70%; background: linear-gradient(180deg, transparent, rgba(20,16,14,.72)); }
+    .mini-hero .copy { position: absolute; left: 16px; bottom: 16px; color: #fffdfb; }
+    .mini-hero .k { font-size: 10px; letter-spacing: 2px; color: #ffd6c8; font-weight: 700; }
+    .mini-hero .t { font-size: 20px; font-weight: 800; margin-top: 4px; }
+    .sticker { position: absolute; top: 12px; right: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.88); color: #7a4a12; font-size: 11px; font-weight: 700; }
+    .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .tile {
+      aspect-ratio: 1; border: 1.5px dashed #ffb4a2; border-radius: 14px; background: #fff8f4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    }
+    .tile.filled { border-style: solid; overflow: hidden; }
+    .tile.filled img { width: 100%; height: 100%; object-fit: cover; }
+    .tile .ic { font-size: 20px; }
+    .tile .lb { font-size: 11px; font-weight: 700; margin-top: 2px; }
+    .row34 { display: flex; gap: 10px; }
+    .person { flex: 0 0 42%; height: 132px; border: 1.5px dashed #ffb4a2; border-radius: 14px; background: #fff8f4; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .person b { color: var(--coral); font-size: 13px; margin-top: 6px; }
+
+    /* 2 entry cards */
+    .entry {
+      display: flex; align-items: center; padding: 8px 10px; margin-bottom: 8px;
+      border-radius: 14px; color: #5a2a32; background: linear-gradient(120deg, #ffe0d2, #ffd6e4);
+      box-shadow: 0 6px 14px rgba(255,92,122,.14);
+    }
+    .entry img { width: 44px; height: 44px; margin-right: 9px; border-radius: 11px; object-fit: cover; }
+    .entry b { display: block; font-size: 15px; }
+    .entry span { display: block; margin-top: 3px; font-size: 11px; color: #8a5a62; }
+    .entry i { margin-left: auto; font-style: normal; font-size: 22px; color: var(--coral); }
+    .mini4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 4px; }
+    .mini4 div { text-align: center; padding: 8px 0; border-radius: 12px; background: #fff8f4; border: 1px dashed #ffb4a2; font-size: 11px; font-weight: 700; }
+
+    /* 3 look preview */
+    .look { position: relative; height: 250px; margin: 0 16px 12px; border-radius: 18px; overflow: hidden; }
+    .look img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .look .mask { position: absolute; inset: auto 0 0; height: 50%; background: linear-gradient(180deg, transparent, rgba(20,16,14,.7)); }
+    .look .copy { position: absolute; left: 14px; bottom: 14px; color: #fff; }
+    .film { display: flex; gap: 8px; overflow: auto; padding: 0 16px 4px; }
+    .film .slot { flex: 0 0 72px; }
+    .film .box { height: 72px; border-radius: 12px; border: 1.5px dashed #ffb4a2; background: #fff8f4; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .film .box img { width: 100%; height: 100%; object-fit: cover; }
+    .film .name { display: block; text-align: center; margin-top: 4px; font-size: 11px; color: var(--muted); }
+
+    /* 4 closet rail */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cover {
+      height: 148px; border-radius: 16px; border: 1.5px dashed #ffb4a2; background: #fff8f4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative;
+    }
+    .cover.filled img { width: 100%; height: 100%; object-fit: cover; }
+    .cover .tag { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .scene { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .scene .s { height: 72px; border-radius: 12px; overflow: hidden; position: relative; }
+    .scene img { width: 100%; height: 100%; object-fit: cover; }
+    .scene .s span { position: absolute; left: 6px; bottom: 6px; color: #fff; font-size: 11px; font-weight: 700; }
+    .scene .s.on { outline: 2px solid var(--coral); outline-offset: 2px; }
+
+    /* 5 editorial */
+    .edi { display: flex; gap: 12px; margin-bottom: 8px; }
+    .edi img { width: 112px; height: 150px; object-fit: cover; border-radius: 14px; }
+    .edi .k { font-size: 10px; letter-spacing: 3px; color: var(--coral); font-weight: 700; }
+    .edi .t { font-size: 22px; font-weight: 800; margin: 6px 0; line-height: 1.25; }
+    .edi .s { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 0;
+      border-bottom: 1px solid #f3e4de;
+    }
+    .num { width: 28px; color: #c08980; font-size: 12px; font-weight: 800; }
+    .dot { width: 36px; height: 36px; border-radius: 10px; background: #ffe8df; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .dot img { width: 100%; height: 100%; object-fit: cover; }
+    .row b { flex: 1; font-size: 15px; }
+    .up { color: var(--coral); font-size: 12px; font-weight: 700; }
+
+    @media (max-width: 640px) {
+      .stage { padding: 0; }
+      .chrome { width: 100%; padding: 14px 16px 8px; margin: 0; }
+      .phone { width: 100%; height: calc(100vh - 168px); min-height: 0; border-radius: 0; padding: 0; box-shadow: none; background: transparent; }
+      .screen { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="chrome">
+      <h1>选衣穿搭 · 5 套杂志风 Demo</h1>
+      <p>都按首页的暖色、珊瑚和杂志照片来。点上面切换，选好告诉我编号，我再改到小程序里。<a href="./">返回总预览</a></p>
+      <div class="picks">
+        <button class="on" data-d="1">1 封面条</button>
+        <button data-d="2">2 入口卡</button>
+        <button data-d="3">3 大片预览</button>
+        <button data-d="4">4 衣橱展</button>
+        <button data-d="5">5 杂志目录</button>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+        <div class="navbar"><span class="back">‹</span>选衣穿搭</div>
+        <div class="scroll">
+
+          <section class="demo on" id="d1">
+            <div class="mini-hero">
+              <img src="./assets/hero-magazine.jpg" alt="" />
+              <div class="mask"></div>
+              <div class="copy"><div class="k">时衣集</div><div class="t">选好衣服 一键出片</div></div>
+              <div class="sticker">今日出片</div>
+            </div>
+            <div class="pad">
+              <div class="head"><div class="ht">① 选穿搭单品</div><div class="hs">至少上传 1 件</div></div>
+              <div class="g4" id="g1"></div>
+              <div class="head"><div class="ht">② 选背景风格</div></div>
+              <div class="chips" data-chips="styles"></div>
+              <div class="head"><div class="ht">③④ 模特 / 动作</div><div class="hs">可选</div></div>
+              <div class="row34">
+                <div class="person"><div>👤</div><b>上传全身照</b></div>
+                <div class="chips" data-chips="poses" style="align-content:flex-start"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="demo" id="d2">
+            <div class="pad">
+              <div class="head"><div class="ht">① 选穿搭单品</div><div class="hs">至少 1 件</div></div>
+              <div class="entry"><img src="./assets/look-mint.jpg" alt="" /><div><b>上衣</b><span>点击上传，或从衣柜选择</span></div><i>›</i></div>
+              <div class="entry"><img src="./assets/look-street.jpg" alt="" /><div><b>裤子</b><span>点击上传，或从衣柜选择</span></div><i>›</i></div>
+              <div class="entry"><img src="./assets/look-cafe.jpg" alt="" /><div><b>鞋子</b><span>点击上传，或从衣柜选择</span></div><i>›</i></div>
+              <div class="entry"><img src="./assets/hero-magazine.jpg" alt="" /><div><b>外套</b><span>点击上传，或从衣柜选择</span></div><i>›</i></div>
+              <div class="mini4"><div>🧢 帽子</div><div>👗 裙装</div><div>🧣 配饰</div><div>🧦 袜子</div></div>
+              <div class="head"><div class="ht">② 选背景风格</div></div>
+              <div class="chips" data-chips="styles"></div>
+              <div class="head"><div class="ht">③④ 模特 / 动作</div><div class="hs">可选</div></div>
+              <div class="row34">
+                <div class="person"><div>👤</div><b>上传全身照</b></div>
+                <div class="chips" data-chips="poses"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="demo" id="d3">
+            <div class="look">
+              <img src="./assets/hero-magazine.jpg" alt="" />
+              <div class="mask"></div>
+              <div class="copy"><div class="k">预览今日这身</div><div class="t">还没选单品</div></div>
+              <div class="sticker">杂志大片</div>
+            </div>
+            <div class="film" id="film"></div>
+            <div class="pad">
+              <div class="head"><div class="ht">② 选背景风格</div></div>
+              <div class="chips" data-chips="styles"></div>
+              <div class="head"><div class="ht">③④ 模特 / 动作</div><div class="hs">可选</div></div>
+              <div class="row34">
+                <div class="person"><div>👤</div><b>上传全身照</b></div>
+                <div class="chips" data-chips="poses"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="demo" id="d4">
+            <div class="pad">
+              <div class="head"><div class="ht">① 从衣橱选</div><div class="hs">大图更像杂志</div></div>
+              <div class="g2">
+                <div class="cover filled"><img src="./assets/look-street.jpg" alt="" /><span class="tag">上衣 · 衣柜</span></div>
+                <div class="cover"><div style="font-size:28px">👖</div><b>裤子</b></div>
+                <div class="cover"><div style="font-size:28px">👟</div><b>鞋子</b></div>
+                <div class="cover"><div style="font-size:28px">🧥</div><b>外套</b></div>
+              </div>
+              <div class="mini4" style="margin-top:10px"><div>🧢 帽子</div><div>👗 裙装</div><div>🧣 配饰</div><div>🧦 袜子</div></div>
+              <div class="head"><div class="ht">② 场景</div></div>
+              <div class="scene">
+                <div class="s on"><img src="./assets/look-street.jpg" alt="" /><span>街拍</span></div>
+                <div class="s"><img src="./assets/look-cafe.jpg" alt="" /><span>咖啡馆</span></div>
+                <div class="s"><img src="./assets/look-mint.jpg" alt="" /><span>户外</span></div>
+              </div>
+              <div class="head"><div class="ht">③④ 模特 / 动作</div><div class="hs">可选</div></div>
+              <div class="row34">
+                <div class="person"><div>👤</div><b>上传全身照</b></div>
+                <div class="chips" data-chips="poses"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="demo" id="d5">
+            <div class="pad">
+              <div class="edi">
+                <img src="./assets/hero-magazine.jpg" alt="" />
+                <div>
+                  <div class="k">时衣集</div>
+                  <div class="t">打开就出片</div>
+                  <div class="s">像杂志目录一样点选单品，至少一件就能生成。</div>
+                </div>
+              </div>
+              <div class="row"><div class="num">01</div><div class="dot"><img src="./assets/look-mint.jpg" alt="" /></div><b>上衣</b><div class="up">已选</div></div>
+              <div class="row"><div class="num">02</div><div class="dot">👖</div><b>裤子</b><div class="up">上传</div></div>
+              <div class="row"><div class="num">03</div><div class="dot">👟</div><b>鞋子</b><div class="up">上传</div></div>
+              <div class="row"><div class="num">04</div><div class="dot">🧥</div><b>外套</b><div class="up">上传</div></div>
+              <div class="row"><div class="num">05</div><div class="dot">👗</div><b>裙装</b><div class="up">上传</div></div>
+              <div class="row"><div class="num">06</div><div class="dot">🧣</div><b>配饰 / 帽子 / 袜子</b><div class="up">更多</div></div>
+              <div class="head"><div class="ht">场景与动作</div></div>
+              <div class="chips" data-chips="styles"></div>
+              <div class="chips" data-chips="poses" style="margin-top:8px"></div>
+            </div>
+          </section>
+        </div>
+        <div class="bar">
+          <button class="btn">✨ 请先上传单品</button>
+          <span class="quota">今日免费剩余 3/3 次 · 积分 0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const items = [
+      ["👕","上衣"],["👖","裤子"],["👟","鞋子"],["🧢","帽子"],
+      ["🧥","外套"],["👗","裙装"],["🧣","配饰"],["🧦","袜子"]
+    ];
+    const styles = ["街拍","影棚","户外","咖啡馆","海边","校园","夜景","居家","自定义"];
+    const poses = ["不限","摆pose","行走","站姿","坐姿","自定义"];
+    document.getElementById("g1").innerHTML = items.map((x,i) => i === 0
+      ? `<div class="tile filled"><img src="./assets/look-mint.jpg" alt="" /></div>`
+      : `<div class="tile"><div class="ic">${x[0]}</div><div class="lb">${x[1]}</div></div>`
+    ).join("");
+    document.getElementById("film").innerHTML = items.map((x,i) => `
+      <div class="slot">
+        <div class="box">${i===0?`<img src="./assets/look-mint.jpg" alt="" />`:x[0]}</div>
+        <span class="name">${x[1]}</span>
+      </div>
+    `).join("");
+    document.querySelectorAll("[data-chips]").forEach((el) => {
+      const list = el.dataset.chips === "styles" ? styles : poses;
+      el.innerHTML = list.map((n,i) => `<div class="chip${i===0?" on":""}">${n}</div>`).join("");
+    });
+    document.querySelectorAll(".picks button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".picks button").forEach((b) => b.classList.toggle("on", b === btn));
+        document.querySelectorAll(".demo").forEach((d) => d.classList.toggle("on", d.id === "d" + btn.dataset.d));
+        document.querySelector(".scroll").scrollTop = 0;
+        history.replaceState(null, "", "#d" + btn.dataset.d);
+      });
+    });
+    const n = location.hash.replace("#d", "");
+    if (n && document.getElementById("d" + n)) {
+      document.querySelector(`[data-d="${n}"]`).click();
+    }
+  </script>
+</body>
+</html>
