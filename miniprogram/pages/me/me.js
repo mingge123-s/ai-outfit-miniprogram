@@ -365,7 +365,7 @@ Page({
   about() {
     wx.showModal({
       title: '关于',
-      content: '今日这身\n上传单品，一键生成完整穿搭效果图',
+      content: '时衣集\n上传单品，一键生成完整穿搭效果图',
       showCancel: false
     });
   }

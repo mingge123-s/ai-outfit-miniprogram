@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero-card">
     <view class="hero-copy">
-      <text class="hero-kicker">今日这身</text>
+      <text class="hero-kicker">时衣集</text>
       <text class="hero-title">今日搭配</text>
       <text class="hero-sub">看天气、选场合，从衣柜直接出一套</text>
     </view>
