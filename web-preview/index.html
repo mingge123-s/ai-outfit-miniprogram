@@ -122,7 +122,8 @@
     .tab.on { color: var(--coral); font-weight: 700; }
     .page { display: none; min-height: 100%; }
     .page.on { display: block; }
-    .home { padding: 0 16px 118px; }
+    .home { padding: 0 16px 24px; }
+    .create { padding: 8px 16px 118px; }
     .hero {
       position: relative;
       height: 360px;
@@ -145,7 +146,7 @@
       color: #7a4a12; font-size: 11px; font-weight: 700;
     }
     .today-entry {
-      display: flex; align-items: center; padding: 8px 10px; margin-bottom: 5px;
+      display: flex; align-items: center; padding: 8px 10px; margin-bottom: 8px;
       border-radius: 14px; color: #5a2a32;
       background: linear-gradient(120deg, #ffe0d2, #ffd6e4);
       box-shadow: 0 6px 14px rgba(255,92,122,.14); cursor: pointer;
@@ -354,6 +355,7 @@
       <div class="chrome-row">
         <button class="js-page active" data-page="home">首页</button>
         <button class="js-page" data-page="today">今日搭配</button>
+        <button class="js-page" data-page="create">选衣穿搭</button>
         <button class="js-page" data-page="wardrobe">衣柜</button>
         <button class="js-page" data-page="collection">收藏</button>
         <button class="js-page" data-page="me">我的</button>
@@ -386,6 +388,33 @@
               </div>
               <i>›</i>
             </div>
+            <div class="today-entry" data-go="create">
+              <img src="./assets/look-street.jpg" alt="" />
+              <div>
+                <b>选衣穿搭</b>
+                <span>上传衣服，一键拼出今日这身</span>
+              </div>
+              <i>›</i>
+            </div>
+            <div class="today-entry" data-go="wardrobe">
+              <img src="./assets/look-cafe.jpg" alt="" />
+              <div>
+                <b>衣柜展示</b>
+                <span>把衣服收进来，随时调用</span>
+              </div>
+              <i>›</i>
+            </div>
+            <div class="today-entry" data-go="collection">
+              <img src="./assets/empty-collection.jpg" alt="" />
+              <div>
+                <b>模版收藏</b>
+                <span>收藏喜欢的套装，下次直接用</span>
+              </div>
+              <i>›</i>
+            </div>
+          </section>
+
+          <section class="page create" id="page-create">
             <div class="section-head"><span class="section-title">① 选穿搭单品</span><span class="section-sub">至少上传 1 件</span></div>
             <div class="grid4" id="itemGrid"></div>
             <div class="section-head"><span class="section-title">② 选背景风格</span></div>
@@ -574,7 +603,7 @@
     ];
     const weathers = [["寒冷","🧥"],["舒适","🌤️"],["炎热","☀️"],["下雨","🌧️"]];
     const cats = [["全部","🗂️"],["上衣","👕"],["裤子","👖"],["鞋子","👟"],["帽子","🧢"],["外套","🧥"],["裙装","👗"],["配饰/包包","🧣"],["袜子","🧦"]];
-    const titles = { home: "时衣集", today: "今日搭配", wardrobe: "衣柜", collection: "收藏", me: "我的" };
+    const titles = { home: "时衣集", today: "今日搭配", create: "选衣穿搭", wardrobe: "衣柜", collection: "收藏", me: "我的" };
     const demoLooks = ["./assets/look-mint.jpg", "./assets/look-street.jpg", "./assets/look-cafe.jpg"];
     let filled = {};
     let style = "街拍";
@@ -619,7 +648,7 @@
       document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("on", el.dataset.page === name && name !== "today"));
       document.querySelectorAll(".js-page").forEach((el) => el.classList.toggle("active", el.dataset.page === name));
       document.getElementById("navTitle").textContent = titles[name];
-      document.getElementById("navBack").hidden = name !== "today";
+      document.getElementById("navBack").hidden = name !== "today" && name !== "create";
       document.getElementById("scroll").scrollTop = 0;
       history.replaceState(null, "", "#" + name);
     }

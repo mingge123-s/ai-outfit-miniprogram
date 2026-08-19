@@ -64,7 +64,7 @@ Page({
         picks.push({ key: cat, path: res.tempFilePath });
       }
       app.globalData.outfitPartsPick = picks;
-      wx.switchTab({ url: '/pages/index/index' });
+      wx.navigateTo({ url: '/pages/create/create' });
     } catch (e) {
       wx.showToast({ title: '加载配件失败', icon: 'none' });
     } finally {

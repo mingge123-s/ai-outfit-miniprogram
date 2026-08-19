@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/today/today",
+    "pages/create/create",
     "pages/wardrobe/wardrobe",
     "pages/collection/collection",
     "pages/me/me",

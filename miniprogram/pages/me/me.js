@@ -147,7 +147,7 @@ Page({
   usePhoto(e) {
     const photo = e.currentTarget.dataset.photo;
     app.globalData.personPhotoPick = photo;
-    wx.switchTab({ url: '/pages/index/index' });
+    wx.navigateTo({ url: '/pages/create/create' });
   },
 
   // 按原图宽高比计算卡片宽度（高固定 480rpx），避免裁切或留白

@@ -1,0 +1,146 @@
+<view class="page">
+  <!-- 穿搭单品 -->
+  <view class="section-head">
+    <text class="section-title">① 选穿搭单品</text>
+    <text class="section-sub">至少上传 1 件</text>
+  </view>
+  <view class="grid">
+    <view
+      wx:for="{{items}}"
+      wx:key="key"
+      class="item-card dashed {{item.path || item.wardrobeId ? 'filled' : ''}}"
+      data-index="{{index}}"
+      bindtap="chooseItem"
+    >
+      <block wx:if="{{item.path || item.wardrobeId}}">
+        <image class="item-preview" src="{{item.path || item.imageUrl}}" mode="aspectFill" />
+        <view class="remove-btn" catchtap="removeItem" data-index="{{index}}">×</view>
+        <view class="fav-btn" wx:if="{{item.path}}" catchtap="saveItemToWardrobe" data-index="{{index}}">☆</view>
+        <view class="item-tag">{{item.label}}{{item.wardrobeId ? ' · 衣柜' : ''}}</view>
+      </block>
+      <block wx:else>
+        <text class="item-icon">{{item.icon}}</text>
+        <text class="item-label">{{item.label}}</text>
+        <text class="item-hint">点击上传</text>
+      </block>
+    </view>
+  </view>
+
+
+  <!-- 背景风格 -->
+  <view class="section-head">
+    <text class="section-title">② 选背景风格</text>
+  </view>
+  <view class="chips">
+    <view
+      wx:for="{{styles}}"
+      wx:key="key"
+      class="chip {{backgroundStyle === item.key ? 'chip-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="chooseStyle"
+    >{{item.label}}</view>
+  </view>
+  <block wx:if="{{backgroundStyle === 'custom'}}">
+    <view class="custom-bg-row">
+      <input
+        class="custom-bg"
+        placeholder="描述你想要的背景，如：日本樱花街道、赛博朋克街头…"
+        value="{{customBackground}}"
+        bindinput="onCustomBgInput"
+      />
+      <view class="save-tag-btn" bindtap="saveBgTag">＋标签</view>
+    </view>
+    <view class="bg-tags" wx:if="{{bgTags.length}}">
+      <view
+        wx:for="{{bgTags}}"
+        wx:key="id"
+        class="bg-tag {{customBackground === item.text ? 'bg-tag-active' : ''}}"
+        data-text="{{item.text}}"
+        bindtap="useBgTag"
+      >
+        <text class="bg-tag-text">{{item.text}}</text>
+        <text class="bg-tag-del" catchtap="removeBgTag" data-id="{{item.id}}">×</text>
+      </view>
+    </view>
+    <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{bgTagLimit}} 个）</text>
+  </block>
+
+  <!-- 模特照片 + 人物动作（可选） -->
+  <view class="step34">
+    <view class="col-person">
+      <view class="section-head">
+        <text class="section-title">③ 模特照片</text>
+        <text class="section-sub">可选</text>
+      </view>
+      <view class="person-card dashed {{person || personUrl ? 'filled' : ''}}" bindtap="choosePerson">
+        <block wx:if="{{person || personUrl}}">
+          <image class="person-preview" src="{{person || personUrl}}" mode="aspectFit" />
+          <view class="remove-btn" catchtap="removePerson">×</view>
+        </block>
+        <block wx:else>
+          <view class="person-icon-wrap">
+            <text class="person-icon">👤</text>
+          </view>
+          <text class="person-label">上传全身照</text>
+        </block>
+      </view>
+      <view class="switch-person-btn" wx:if="{{personCount > 0}}" bindtap="switchPerson">⇄ 换形象</view>
+    </view>
+    <view class="col-pose">
+      <view class="section-head">
+        <text class="section-title">④ 人物动作</text>
+        <text class="section-sub">可选</text>
+      </view>
+      <view class="pose-list">
+        <view
+          wx:for="{{poses}}"
+          wx:key="key"
+          class="pose-chip {{pose === item.key ? 'pose-active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="choosePose"
+        >{{item.label}}</view>
+      </view>
+      <block wx:if="{{pose === 'custom'}}">
+        <view class="custom-bg-row">
+          <input
+            class="custom-bg"
+            placeholder="描述动作，如：双手插兜回头、靠墙站…"
+            value="{{customPose}}"
+            bindinput="onCustomPoseInput"
+          />
+          <view class="save-tag-btn" bindtap="savePoseTag">＋标签</view>
+        </view>
+        <view class="bg-tags" wx:if="{{poseTags.length}}">
+          <view
+            wx:for="{{poseTags}}"
+            wx:key="id"
+            class="bg-tag {{customPose === item.text ? 'bg-tag-active' : ''}}"
+            data-text="{{item.text}}"
+            bindtap="usePoseTag"
+          >
+            <text class="bg-tag-text">{{item.text}}</text>
+            <text class="bg-tag-del" catchtap="removePoseTag" data-id="{{item.id}}">×</text>
+          </view>
+        </view>
+        <text class="bg-tags-hint">输入后点「＋标签」保存，下次可一键选用（最多 {{poseTagLimit}} 个）</text>
+      </block>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-bar">
+    <button
+      class="generate-btn gradient-btn {{canGenerate && !loading ? '' : 'disabled'}}"
+      disabled="{{!canGenerate || loading}}"
+      bindtap="generate"
+    >✨ {{loading ? '生成中…' : backgroundStyle === 'custom' && !customBackground ? '请填写自定义背景' : !canGenerate ? '请先上传单品' : '生成穿搭'}}</button>
+    <text class="quota-hint" wx:if="{{quotaLoaded}}">今日免费剩余 {{remainingFreeToday}}/{{dailyLimit}} 次 · 积分 {{credits}}（约可生成 {{remainingToday}} 次）</text>
+  </view>
+
+  <!-- 生成中遮罩 -->
+  <view class="loading-overlay" wx:if="{{loading}}">
+    <view class="loading-circle gradient-btn">✨</view>
+    <text class="loading-text">正在提交生成任务…</text>
+    <text class="loading-hint">提交后无需等待，可继续使用其他功能</text>
+  </view>
+</view>

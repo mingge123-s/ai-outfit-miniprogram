@@ -322,7 +322,7 @@ Page({
     if (!picks.length) return;
     app.globalData.wardrobeBatchPick = picks;
     this.setData({ selected: {}, selectedCount: 0 });
-    wx.switchTab({ url: '/pages/index/index' });
+    wx.navigateTo({ url: '/pages/create/create' });
   },
 
   removeItem(e) {
