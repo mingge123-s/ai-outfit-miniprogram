@@ -11,6 +11,7 @@ import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
 import { volcCutout, volcCutoutEnabled } from "./volc-cutout.js";
 import { wxpayEnabled, newOrderNo, createMemberPrepay, verifyNotify, decryptNotify, queryOrder } from "./wechatpay.js";
+import { loadWxApps, exchangeWxCode } from "./wechat-login.js";
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -32,6 +33,8 @@ const MODEL_ID =
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
 const WX_APPID = process.env.WX_APPID || "";
 const WX_SECRET = process.env.WX_SECRET || "";
+const WX_APPS = loadWxApps(process.env);
+const WX_LOGIN_CONFIGURED = WX_APPS.length > 0;
 const MEMBER_PAY_ENABLED = process.env.MEMBER_PAY_ENABLED === "1" && wxpayEnabled;
 const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
 const MEMBER_DAILY_LIMIT = Number(process.env.MEMBER_DAILY_LIMIT || 10);
@@ -115,16 +118,14 @@ app.post("/api/login", async (req, res) => {
     const { code } = req.body || {};
     if (!code) return res.status(400).json({ error: "缺少 code" });
     let openid;
-    if (WX_APPID && WX_SECRET) {
-      const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
-      const data = await (await fetch(url)).json();
-      if (!data.openid) return res.status(401).json({ error: "微信登录失败", details: data.errmsg });
-      openid = data.openid;
-    } else {
-      openid = `dev_${code}`;
+    try {
+      const exchanged = await exchangeWxCode(code, WX_APPS);
+      openid = exchanged.openid;
+    } catch (err) {
+      return res.status(err.statusCode || 401).json({ error: "微信登录失败", details: err.message });
     }
     const user = loginUser(openid);
-    return res.json({ token: user.token, userId: user.id, devMode: !(WX_APPID && WX_SECRET) });
+    return res.json({ token: user.token, userId: user.id, devMode: !WX_LOGIN_CONFIGURED });
   } catch (err) {
     return res.status(500).json({ error: "登录失败", details: String(err) });
   }
@@ -179,7 +180,7 @@ app.get("/api/me", requireAuth, (req, res) => {
     userId: req.user.id,
     nickname: req.user.nickname || null,
     createdAt: req.user.created_at,
-    devMode: !(WX_APPID && WX_SECRET),
+    devMode: !WX_LOGIN_CONFIGURED,
     wardrobeCount: wardrobe.list(req.user.id).length,
     outfitCount: outfits.list(req.user.id).length,
     personPhotoCount: personPhotos.list(req.user.id).length,
