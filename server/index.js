@@ -11,6 +11,7 @@ import { entitlementsFor } from "./entitlements.js";
 import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wardrobeRequirements, weatherFromPreset } from "./today-outfit.js";
 import { volcCutout, volcCutoutEnabled } from "./volc-cutout.js";
 import { wxpayEnabled, newOrderNo, createMemberPrepay, verifyNotify, decryptNotify, queryOrder } from "./wechatpay.js";
+import { resolvePayAppid } from "./wechatpay-appid.js";
 import { loadWxApps, exchangeWxCode } from "./wechat-login.js";
 
 const PORT = process.env.PORT || 3000;
@@ -31,8 +32,6 @@ const MODEL_ID =
       ? "doubao-seedream-5-0-pro-260628"
       : "gemini-2.5-flash-image-preview");
 const IMAGE_QUALITY = process.env.IMAGE_QUALITY || "low";
-const WX_APPID = process.env.WX_APPID || "";
-const WX_SECRET = process.env.WX_SECRET || "";
 const WX_APPS = loadWxApps(process.env);
 const WX_LOGIN_CONFIGURED = WX_APPS.length > 0;
 const MEMBER_PAY_ENABLED = process.env.MEMBER_PAY_ENABLED === "1" && wxpayEnabled;
@@ -117,14 +116,13 @@ app.post("/api/login", async (req, res) => {
   try {
     const { code } = req.body || {};
     if (!code) return res.status(400).json({ error: "缺少 code" });
-    let openid;
+    let exchanged;
     try {
-      const exchanged = await exchangeWxCode(code, WX_APPS);
-      openid = exchanged.openid;
+      exchanged = await exchangeWxCode(code, WX_APPS);
     } catch (err) {
       return res.status(err.statusCode || 401).json({ error: "微信登录失败", details: err.message });
     }
-    const user = loginUser(openid);
+    const user = loginUser(exchanged.openid, exchanged.appid);
     return res.json({ token: user.token, userId: user.id, devMode: !WX_LOGIN_CONFIGURED });
   } catch (err) {
     return res.status(500).json({ error: "登录失败", details: String(err) });
@@ -240,10 +238,11 @@ app.post("/api/ad-rewards/claim", requireAuth, (req, res) => {
 app.post("/api/pay/member/prepay", requireAuth, async (req, res) => {
   try {
     if (!MEMBER_PAY_ENABLED) return res.status(503).json({ error: "会员支付暂未开放" });
-    const { planId } = req.body || {};
+    const { planId, appId } = req.body || {};
     const plan = MEMBER_PLANS[planId];
     if (!plan) return res.status(400).json({ error: "套餐无效" });
     if (!req.user.openid) return res.status(400).json({ error: "缺少 openid，暂无法发起支付" });
+    const payAppid = resolvePayAppid(appId || req.user.wx_appid);
 
     const orderNo = newOrderNo();
     const order = payOrders.create(req.user.id, orderNo, planId, plan.priceFen, req.user.openid);
@@ -252,6 +251,7 @@ app.post("/api/pay/member/prepay", requireAuth, async (req, res) => {
       amountFen: plan.priceFen,
       description: `AI 穿搭会员·${plan.label}`,
       openid: req.user.openid,
+      appid: payAppid
     });
     payOrders.setPrepay(orderNo, payment.package.replace("prepay_id=", ""));
     res.json({ orderNo, payment, planId, amountFen: plan.priceFen });

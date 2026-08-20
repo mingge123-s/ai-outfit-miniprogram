@@ -144,7 +144,13 @@ module.exports = {
     remove: (id) => authedRequest('DELETE', `/api/history/${id}`)
   },
   pay: {
-    createMemberOrder: (planId) => authedRequest('POST', '/api/pay/member/prepay', { planId }),
+    createMemberOrder: (planId) => {
+      let appId = '';
+      try {
+        appId = wx.getAccountInfoSync().miniProgram.appId || '';
+      } catch (e) { /* 旧基础库可能没有该接口 */ }
+      return authedRequest('POST', '/api/pay/member/prepay', { planId, appId });
+    },
     queryOrder: (orderNo) => authedRequest('GET', `/api/pay/order/${orderNo}`),
     listOrders: () => authedRequest('GET', '/api/pay/orders')
   },

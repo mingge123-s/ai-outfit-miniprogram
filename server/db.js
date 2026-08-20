@@ -67,6 +67,7 @@ try { db.exec("ALTER TABLE generations ADD COLUMN charge_type TEXT DEFAULT 'free
 try { db.exec("ALTER TABLE generations ADD COLUMN items_json TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_level TEXT DEFAULT 'free'"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN member_expires_at TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN wx_appid TEXT"); } catch {}
 
 // 次数/积分系统（不涉及真实支付；用于兑换码、管理员充值，未来可平滑接入微信支付）
 db.exec(`
@@ -181,12 +182,15 @@ export function deleteImage(name) {
   try { fs.unlinkSync(path.join(UPLOADS_DIR, name)); } catch {}
 }
 
-export function loginUser(openid) {
+export function loginUser(openid, wxAppid = null) {
   let user = db.prepare("SELECT * FROM users WHERE openid = ?").get(openid);
   if (!user) {
     const token = crypto.randomBytes(24).toString("hex");
-    const info = db.prepare("INSERT INTO users (openid, token) VALUES (?, ?)").run(openid, token);
+    const info = db.prepare("INSERT INTO users (openid, token, wx_appid) VALUES (?, ?, ?)").run(openid, token, wxAppid || null);
     user = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
+  } else if (wxAppid && user.wx_appid !== wxAppid) {
+    db.prepare("UPDATE users SET wx_appid = ? WHERE id = ?").run(wxAppid, user.id);
+    user = userById(user.id);
   }
   return user;
 }

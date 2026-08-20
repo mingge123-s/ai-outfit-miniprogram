@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
 import WeChatPay from "wechatpay-node-v3";
+import { resolvePayAppid } from "./wechatpay-appid.js";
+
+export { allowedPayAppids, resolvePayAppid } from "./wechatpay-appid.js";
 
 const MCHID = process.env.WXPAY_MCHID || "";
 const APIV3_KEY = process.env.WXPAY_APIV3_KEY || "";
@@ -14,19 +17,22 @@ export const wxpayEnabled = Boolean(
   MCHID && APIV3_KEY && SERIAL_NO && fs.existsSync(PRIVATE_KEY_PATH) && APPID && NOTIFY_URL
 );
 
-let pay = null;
+const clients = new Map();
 
-function client() {
-  if (!wxpayEnabled || pay) return pay;
-  pay = new WeChatPay({
-    appid: APPID,
-    mchid: MCHID,
-    serial_no: SERIAL_NO,
-    publicKey: fs.readFileSync(CERT_PATH),
-    privateKey: fs.readFileSync(PRIVATE_KEY_PATH),
-    key: APIV3_KEY,
-  });
-  return pay;
+function client(appid = APPID) {
+  if (!wxpayEnabled) return null;
+  const id = appid || APPID;
+  if (!clients.has(id)) {
+    clients.set(id, new WeChatPay({
+      appid: id,
+      mchid: MCHID,
+      serial_no: SERIAL_NO,
+      publicKey: fs.readFileSync(CERT_PATH),
+      privateKey: fs.readFileSync(PRIVATE_KEY_PATH),
+      key: APIV3_KEY,
+    }));
+  }
+  return clients.get(id);
 }
 
 // 生成唯一的商户订单号：时间戳 + 随机后缀（<=32 位，满足微信 out_trade_no 约束）
@@ -35,8 +41,9 @@ export function newOrderNo() {
 }
 
 // 发起小程序 JSAPI 下单，返回 wx.requestPayment 所需参数
-export async function createMemberPrepay({ orderNo, amountFen, description, openid }) {
-  const c = client();
+export async function createMemberPrepay({ orderNo, amountFen, description, openid, appid }) {
+  const payAppid = resolvePayAppid(appid);
+  const c = client(payAppid);
   if (!c) throw new Error("微信支付未配置");
   const res = await c.transactions_jsapi({
     description,
@@ -47,19 +54,19 @@ export async function createMemberPrepay({ orderNo, amountFen, description, open
   });
   if (res.status === 200 || res.status === 201) {
     const prepayId = res.data.prepay_id;
-    return buildPaymentParams(prepayId);
+    return buildPaymentParams(prepayId, payAppid);
   }
   const detail = (res.data && (res.data.message || res.data.code)) || res.error || res.errRaw;
   throw new Error(`微信下单失败：${detail}`);
 }
 
 // 用 prepay_id 构造小程序拉起收银台所需参数（PaySign 使用商户私钥 RSA 加签）
-function buildPaymentParams(prepayId) {
-  const c = client();
+function buildPaymentParams(prepayId, appid = APPID) {
+  const c = client(appid);
   const timeStamp = String(Math.floor(Date.now() / 1000));
   const nonceStr = crypto.randomBytes(16).toString("hex");
   const pkg = `prepay_id=${prepayId}`;
-  const message = `${APPID}\n${timeStamp}\n${nonceStr}\n${pkg}\n`;
+  const message = `${appid}\n${timeStamp}\n${nonceStr}\n${pkg}\n`;
   const paySign = c.sha256WithRsa(message);
   return {
     timeStamp,
