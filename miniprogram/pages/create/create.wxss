@@ -1,5 +1,5 @@
 .page {
-  padding: 8rpx 32rpx 220rpx;
+  padding: 8rpx 32rpx 160rpx;
 }
 
 /* 虚线卡片 */
@@ -271,38 +271,42 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 246, 240, 0.94);
-  box-shadow: 0 -8rpx 40rpx rgba(255, 92, 122, 0.08);
+  padding: 12rpx 28rpx calc(12rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255, 246, 240, 0) 0%, rgba(255, 246, 240, 0.94) 36%);
   z-index: 50;
 }
 .generate-btn {
   width: 100%;
-  height: 112rpx;
-  border-radius: 24rpx;
-  font-size: 36rpx;
-  font-weight: 600;
+  min-height: 80rpx;
+  height: auto;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4rpx;
   box-sizing: border-box;
-  padding: 0;
-  box-shadow: 0 12rpx 30rpx rgba(255, 92, 122, 0.28);
+  padding: 14rpx 24rpx;
+  box-shadow: 0 8rpx 20rpx rgba(255, 92, 122, 0.22);
+}
+.generate-main {
+  line-height: 1.2;
+}
+.generate-sub {
+  font-size: 18rpx;
+  font-weight: 500;
+  opacity: 0.78;
+  line-height: 1.2;
 }
 .generate-btn.disabled,
 .generate-btn[disabled] {
-  background: #d7dde0 !important;
-  color: #5f7078 !important;
-  border: 2rpx solid #c4cdd1 !important;
-  opacity: 1 !important;
-  box-shadow: 0 10rpx 26rpx rgba(92, 124, 141, 0.18) !important;
-}
-.quota-hint {
-  display: block;
-  margin-top: 10rpx;
-  text-align: center;
-  color: #777587;
-  font-size: 22rpx;
+  background: linear-gradient(135deg, #ffc3b0, #ff9aad) !important;
+  color: #ffffff !important;
+  border: none !important;
+  opacity: 0.78 !important;
+  box-shadow: none !important;
 }
 
 /* 加载遮罩 */
