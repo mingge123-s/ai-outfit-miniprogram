@@ -2,6 +2,8 @@
 
 上传上衣、裤子、鞋子、帽子等单品图片（可选上传模特全身照），调用生图模型 API 生成一张模特完整穿搭效果图。
 
+**交接文档（当前生产、双号、发布与未完成项）：** [docs/交接文档.md](docs/交接文档.md)
+
 UI 由 [Google Stitch](https://stitch.withgoogle.com) 生成设计稿后转写为原生微信小程序页面；生图逻辑参考 [gemini-ai-tryon](https://github.com/oyeolamilekan/gemini-ai-tryon)。
 
 ## 设计稿
@@ -13,17 +15,17 @@ UI 由 [Google Stitch](https://stitch.withgoogle.com) 生成设计稿后转写�
 ## 目录结构
 
 ```
-miniprogram/           # 微信小程序（原生，带 tabBar：首页/衣柜/收藏/我的）
+miniprogram/           # 微信小程序（原生，带 tabBar：首页/今日/衣柜/收藏/我的）
   pages/index/         # 首页：上传单品（可从衣柜选）+ 模特照片 + 背景风格 + 生成
   pages/today/         # 今日搭配：天气/场景分析 + 衣柜推荐 + 一键生成
   pages/wardrobe/      # 我的衣柜：批量上传、自动分类、跨分类选择后用于生成
   pages/collection/    # 套装收藏：收藏的生成效果图
   pages/result/        # 结果页：效果图 + 收藏套装 + 保存到相册 + 重新生成
   pages/picker/        # 从衣柜选择单品（首页调用）
-  utils/api.js         # 登录/衣柜/收藏接口封装（自动携带 token）
+  utils/api.js         # 登录/衣柜/收藏/支付接口封装（自动携带 token）
   config.js            # 后端 API 地址配置
 server/                # Node.js (Express) 后端，调用生图模型 API；SQLite 存账号/衣柜/收藏
-docs/                  # Stitch 生成的设计稿
+docs/                  # 设计稿与交接文档
 ```
 
 ## 运行后端
