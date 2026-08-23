@@ -1,13 +1,47 @@
+/*
+ * Soft Atelier design tokens
+ * canvas  #f7f1e8  surface #fffcf7  ink #3f322a
+ * sage    #5f755f  apricot #d89a6a  line #d9cec0
+ */
 page {
-  background-color: #fff6f0;
-  color: #2b2a33;
+  background-color: #f7f1e8;
+  color: #3f322a;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  font-size: 32rpx;
+  font-size: 30rpx;
+  line-height: 1.5;
 }
 
-.gradient-btn {
-  background: linear-gradient(135deg, #ff8a65, #ff5c7a);
+image {
+  display: block;
+}
+
+.gradient-btn,
+.primary-btn {
+  background: #5f755f;
   color: #ffffff;
+}
+
+.soft-card {
+  background: #fffcf7;
+  border: 2rpx solid #e5ddd2;
+  border-radius: 24rpx;
+}
+
+.ds-icon {
+  width: 40rpx;
+  height: 40rpx;
+  flex: 0 0 auto;
+}
+
+.ds-icon-sm {
+  width: 32rpx;
+  height: 32rpx;
+  flex: 0 0 auto;
+}
+
+.serif-title {
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-weight: 600;
 }
 
 button {
@@ -15,10 +49,13 @@ button {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 80rpx;
+  min-height: 88rpx;
   padding: 0 24rpx;
   line-height: 1.2 !important;
   text-align: center;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  font-weight: 600;
 }
 
 button[size='mini'] {

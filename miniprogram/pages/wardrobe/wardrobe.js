@@ -3,16 +3,24 @@ const api = require('../../utils/api');
 const app = getApp();
 
 const CATEGORIES = [
-  { key: 'all', label: '全部', icon: '🗂️' },
-  { key: 'top', label: '上衣', icon: '👕' },
-  { key: 'pants', label: '裤子', icon: '👖' },
-  { key: 'shoes', label: '鞋子', icon: '👟' },
-  { key: 'hat', label: '帽子', icon: '🧢' },
-  { key: 'coat', label: '外套', icon: '🧥' },
-  { key: 'dress', label: '裙装', icon: '👗' },
-  { key: 'accessory', label: '配饰/包包', icon: '🧣' },
-  { key: 'socks', label: '袜子', icon: '🧦' }
+  { key: 'all', label: '全部' },
+  { key: 'top', label: '上衣' },
+  { key: 'pants', label: '裤子' },
+  { key: 'shoes', label: '鞋子' },
+  { key: 'hat', label: '帽子' },
+  { key: 'coat', label: '外套' },
+  { key: 'dress', label: '裙装' },
+  { key: 'accessory', label: '配饰/包包' },
+  { key: 'socks', label: '袜子' }
 ];
+
+const IMPORT_CATEGORIES = CATEGORIES.filter((item) => item.key !== 'all');
+const IMPORT_CATEGORY_KEYS = new Set(IMPORT_CATEGORIES.map((item) => item.key));
+
+function normalizeImportCategory(category, fallback = 'top') {
+  const normalized = category === 'bag' ? 'accessory' : category;
+  return IMPORT_CATEGORY_KEYS.has(normalized) ? normalized : fallback;
+}
 
 function pathToBase64(path) {
   return new Promise((resolve, reject) => {
@@ -28,6 +36,7 @@ function pathToBase64(path) {
 Page({
   data: {
     categories: CATEGORIES,
+    importCategories: IMPORT_CATEGORIES,
     category: 'all',
     items: [],
     loading: false,
@@ -225,7 +234,7 @@ Page({
       tbTitle: '',
       tbImages: [],
       tbSelectedIndex: -1,
-      tbCategory: this.data.category
+      tbCategory: normalizeImportCategory(this.data.category)
     });
   },
 
@@ -258,7 +267,10 @@ Page({
         tbTitle: data.title || '',
         tbImages: images,
         tbSelectedIndex: 0,
-        tbCategory: data.suggestedCategory || this.data.category
+        tbCategory: normalizeImportCategory(
+          data.suggestedCategory,
+          normalizeImportCategory(this.data.category)
+        )
       });
     } catch (e) {
       wx.showToast({ title: e.message || '解析失败', icon: 'none' });
@@ -277,11 +289,12 @@ Page({
   },
 
   selectTbCategory(e) {
-    this.setData({ tbCategory: e.currentTarget.dataset.key });
+    this.setData({ tbCategory: normalizeImportCategory(e.currentTarget.dataset.key) });
   },
 
   async importTaobao() {
-    const { tbImages, tbSelectedIndex, tbCategory } = this.data;
+    const { tbImages, tbSelectedIndex } = this.data;
+    const tbCategory = normalizeImportCategory(this.data.tbCategory);
     if (tbSelectedIndex < 0 || !tbImages[tbSelectedIndex]) {
       wx.showToast({ title: '请选择一张商品图', icon: 'none' });
       return;

@@ -6,6 +6,7 @@ Page({
   data: {
     items: [],
     loading: false,
+    loadError: '',
     openId: null,
     selected: {},
     selectedCount: 0,
@@ -21,7 +22,7 @@ Page({
   },
 
   async refresh() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: '' });
     try {
       const data = await api.outfits.list();
       this.setData({
@@ -31,6 +32,7 @@ Page({
         memberLevel: data.memberLevel || this.data.memberLevel
       });
     } catch (e) {
+      this.setData({ loadError: e.message || '加载失败' });
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });

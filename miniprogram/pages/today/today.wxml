@@ -1,17 +1,42 @@
 <view class="page">
-  <view class="hero-card">
-    <view class="hero-copy">
-      <text class="hero-kicker">时衣集</text>
-      <text class="hero-title">今日搭配</text>
-      <text class="hero-sub">看天气、选场合，从衣柜直接出一套</text>
+  <view class="page-intro">
+    <view class="intro-copy">
+      <text class="intro-kicker">DAILY EDIT</text>
+      <text class="intro-title">今天，穿得刚刚好</text>
+      <text class="intro-sub">先看天气，再从衣柜挑一套舒服的搭配</text>
     </view>
-    <view class="hero-mini">
-      <image class="hero-mini-img a" src="/assets/look-cafe.jpg" mode="aspectFill" />
-      <image class="hero-mini-img b" src="/assets/look-street.jpg" mode="aspectFill" />
+    <view class="intro-mark">
+      <image class="intro-icon" src="/assets/icons/hanger-2.png" mode="aspectFit" />
     </view>
   </view>
 
-  <view class="section-title">今天要去哪里？</view>
+  <view class="weather-board" wx:if="{{recommendation}}">
+    <view class="weather-icon-wrap">
+      <image wx:if="{{recommendation.weather.isRain}}" class="weather-icon" src="/assets/icons/weather-rain.png" mode="aspectFit" />
+      <image wx:elif="{{recommendation.weather.isSnow}}" class="weather-icon" src="/assets/icons/weather-cold.png" mode="aspectFit" />
+      <image wx:elif="{{recommendation.weather.condition === 'clear'}}" class="weather-icon" src="/assets/icons/weather-hot.png" mode="aspectFit" />
+      <image wx:else class="weather-icon" src="/assets/icons/weather-comfy.png" mode="aspectFit" />
+    </view>
+    <view class="weather-main">
+      <view class="weather-temp-row">
+        <text class="weather-temp">{{recommendation.weather.temperature}}</text>
+        <text class="weather-degree">°</text>
+      </view>
+      <text class="weather-label">{{recommendation.weather.conditionLabel}} · 体感 {{recommendation.weather.apparentTemperature}}°</text>
+    </view>
+    <view class="weather-extra">
+      <text>湿度 {{recommendation.weather.humidity}}%</text>
+      <text>风速 {{recommendation.weather.windSpeed}}km/h</text>
+    </view>
+  </view>
+
+  <view class="section-heading">
+    <view>
+      <text class="section-eyebrow">OCCASION</text>
+      <text class="section-title">今天要去哪里？</text>
+    </view>
+    <text class="section-note">选择一个场合</text>
+  </view>
   <view class="occasion-grid">
     <view
       wx:for="{{occasions}}"
@@ -20,8 +45,9 @@
       data-key="{{item.key}}"
       bindtap="selectOccasion"
     >
-      <text class="occasion-icon">{{item.icon}}</text>
-      <text>{{item.label}}</text>
+      <image wx:if="{{item.key === 'work'}}" class="occasion-icon" src="/assets/icons/occasion-commute.png" mode="aspectFit" />
+      <image wx:else class="occasion-icon" src="/assets/icons/occasion-{{item.key}}.png" mode="aspectFit" />
+      <text class="occasion-label">{{item.label}}</text>
     </view>
   </view>
   <input
@@ -35,8 +61,11 @@
     maxlength="20"
   />
 
-  <view class="manual-card" wx:if="{{manualMode}}">
-    <text class="manual-title">选择当前天气</text>
+  <view class="manual-panel" wx:if="{{manualMode}}">
+    <view class="manual-heading">
+      <text class="manual-title">选择当前天气</text>
+      <text class="manual-sub">定位不可用，手动选择也能推荐</text>
+    </view>
     <view class="manual-grid">
       <view
         wx:for="{{manualPresets}}"
@@ -44,34 +73,19 @@
         class="manual-item {{manualWeather === item.key ? 'manual-active' : ''}}"
         data-key="{{item.key}}"
         bindtap="selectManualWeather"
-      >{{item.icon}} {{item.label}}</view>
+      >
+        <image wx:if="{{item.key === 'mild'}}" class="manual-icon" src="/assets/icons/weather-comfy.png" mode="aspectFit" />
+        <image wx:else class="manual-icon" src="/assets/icons/weather-{{item.key}}.png" mode="aspectFit" />
+        <text>{{item.label}}</text>
+      </view>
     </view>
   </view>
 
-  <button
-    class="recommend-btn"
-    wx:if="{{!recommendation}}"
-    bindtap="startRecommend"
-    loading="{{loading}}"
-    disabled="{{loading}}"
-  >{{loading ? '正在分析衣柜…' : manualMode ? '按当前天气推荐' : '获取天气并推荐'}}</button>
-
   <block wx:if="{{recommendation}}">
-    <view class="weather-card">
-      <text class="weather-icon">{{recommendation.weather.icon}}</text>
-      <view class="weather-main">
-        <text class="weather-temp">{{recommendation.weather.temperature}}°</text>
-        <text class="weather-label">{{recommendation.weather.conditionLabel}} · 体感 {{recommendation.weather.apparentTemperature}}°</text>
-      </view>
-      <view class="weather-extra">
-        <text>湿度 {{recommendation.weather.humidity}}%</text>
-        <text>风速 {{recommendation.weather.windSpeed}}km/h</text>
-      </view>
-    </view>
-
-    <view class="recommend-card">
+    <view class="outfit-board">
       <view class="recommend-head">
-        <view>
+        <view class="recommend-copy">
+          <text class="recommend-kicker">TODAY'S LOOK</text>
           <text class="recommend-title">{{recommendation.title}}</text>
           <text class="recommend-scene">{{recommendation.occasionLabel}} · {{recommendation.cached ? '今日推荐' : '新推荐'}}</text>
         </view>
@@ -87,8 +101,14 @@
       </view>
     </view>
 
-    <view class="bg-card">
-      <text class="bg-title">生成场景</text>
+    <view class="scene-section">
+      <view class="scene-heading">
+        <view>
+          <text class="section-eyebrow">SETTING</text>
+          <text class="scene-title">生成场景</text>
+        </view>
+        <image class="scene-icon" src="/assets/icons/palette.png" mode="aspectFit" />
+      </view>
       <view class="bg-row">
         <view
           class="bg-chip {{backgroundStyle === item.key ? 'active' : ''}}"
@@ -98,7 +118,10 @@
           bindtap="selectBackground"
         >{{item.label}}</view>
       </view>
-      <text class="bg-smart-hint" wx:if="{{backgroundStyle === 'smart' && recommendation.generationBackground}}">✨ {{recommendation.generationBackground}}</text>
+      <view class="bg-smart-hint" wx:if="{{backgroundStyle === 'smart' && recommendation.generationBackground}}">
+        <image class="inline-icon" src="/assets/icons/sparkles-sage.png" mode="aspectFit" />
+        <text>{{recommendation.generationBackground}}</text>
+      </view>
       <block wx:if="{{backgroundStyle === 'custom'}}">
         <view class="bg-custom-row">
           <input
@@ -108,7 +131,10 @@
             bindinput="onCustomBackgroundInput"
             maxlength="100"
           />
-          <view class="bg-save-btn" bindtap="saveBgTag">＋标签</view>
+          <view class="bg-save-btn" bindtap="saveBgTag">
+            <image class="button-icon" src="/assets/icons/plus.png" mode="aspectFit" />
+            <text>保存</text>
+          </view>
         </view>
         <view class="bg-tags" wx:if="{{bgTags.length}}">
           <view
@@ -119,25 +145,46 @@
             bindtap="useBgTag"
           >
             <text class="bg-tag-text">{{item.text}}</text>
-            <text class="bg-tag-del" catchtap="removeBgTag" data-id="{{item.id}}">×</text>
+            <image class="bg-tag-del" src="/assets/icons/x.png" mode="aspectFit" catchtap="removeBgTag" data-id="{{item.id}}" />
           </view>
         </view>
-        <text class="bg-tags-hint">输入后点「＋标签」保存，下次一键选用（最多 {{bgTagLimit}} 个）</text>
+        <text class="bg-tags-hint">保存为标签，下次一键选用（最多 {{bgTagLimit}} 个）</text>
       </block>
-    </view>
-
-    <view class="actions">
-      <button class="secondary-btn" bindtap="changeOutfit" disabled="{{loading || generating}}">换一套</button>
-      <button class="primary-btn" bindtap="generateTodayOutfit" loading="{{generating}}" disabled="{{loading || generating}}">
-        {{generating ? '正在生成…' : '生成今日搭配'}}
-      </button>
     </view>
   </block>
 
-  <view class="privacy-tip">仅使用模糊位置查询天气，不保存精确位置</view>
+  <view class="privacy-tip">
+    <image class="privacy-icon" src="/assets/icons/info-circle.png" mode="aspectFit" />
+    <text>仅使用模糊位置查询天气，不保存精确位置</text>
+  </view>
+
+  <view class="today-bottom-bar">
+    <button
+      class="recommend-btn"
+      wx:if="{{!recommendation}}"
+      bindtap="startRecommend"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <image wx:if="{{!loading}}" class="cta-icon" src="/assets/icons/sun.png" mode="aspectFit" />
+      <text>{{loading ? '正在分析衣柜…' : manualMode ? '按当前天气推荐' : '获取天气并推荐'}}</text>
+    </button>
+    <view class="actions" wx:else>
+      <button class="secondary-btn" bindtap="changeOutfit" disabled="{{loading || generating}}">
+        <image class="action-icon" src="/assets/icons/refresh.png" mode="aspectFit" />
+        <text>换一套</text>
+      </button>
+      <button class="primary-btn" bindtap="generateTodayOutfit" loading="{{generating}}" disabled="{{loading || generating}}">
+        <image wx:if="{{!generating}}" class="action-icon action-icon-light" src="/assets/icons/sparkles.png" mode="aspectFit" />
+        <text>{{generating ? '正在生成…' : '生成今日搭配'}}</text>
+      </button>
+    </view>
+  </view>
 
   <view class="loading-overlay" wx:if="{{generating}}">
-    <view class="loading-circle">✨</view>
+    <view class="loading-mark">
+      <image class="loading-icon" src="/assets/icons/sparkles.png" mode="aspectFit" />
+    </view>
     <text class="loading-title">正在提交生成任务…</text>
     <text class="loading-sub">提交后无需等待，可继续使用其他功能</text>
   </view>

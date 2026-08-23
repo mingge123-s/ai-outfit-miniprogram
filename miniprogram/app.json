@@ -10,21 +10,43 @@
     "pages/picker/picker"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#fff6f0",
+    "navigationBarBackgroundColor": "#f7f1e8",
     "navigationBarTitleText": "时衣集",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fff6f0"
+    "backgroundColor": "#f7f1e8",
+    "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#b5a8a2",
-    "selectedColor": "#ff5c7a",
-    "backgroundColor": "#fffdfb",
+    "custom": true,
+    "color": "#81746a",
+    "selectedColor": "#5f755f",
+    "backgroundColor": "#fffcf7",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "首页" },
-      { "pagePath": "pages/wardrobe/wardrobe", "text": "衣柜" },
-      { "pagePath": "pages/collection/collection", "text": "收藏" },
-      { "pagePath": "pages/me/me", "text": "我的" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/icons/tab-home.png",
+        "selectedIconPath": "assets/icons/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/wardrobe/wardrobe",
+        "text": "衣柜",
+        "iconPath": "assets/icons/tab-briefcase.png",
+        "selectedIconPath": "assets/icons/tab-briefcase-active.png"
+      },
+      {
+        "pagePath": "pages/collection/collection",
+        "text": "收藏",
+        "iconPath": "assets/icons/tab-heart.png",
+        "selectedIconPath": "assets/icons/tab-heart-active.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "assets/icons/tab-user.png",
+        "selectedIconPath": "assets/icons/tab-user-active.png"
+      }
     ]
   },
   "style": "v2",

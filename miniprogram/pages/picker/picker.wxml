@@ -1,12 +1,73 @@
 <view class="page">
-  <view class="tip">从衣柜选择一件「{{label}}」</view>
-  <view class="grid">
-    <view class="item-card" wx:for="{{items}}" wx:key="id" data-item="{{item}}" bindtap="pick">
-      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
+  <view class="picker-intro">
+    <view class="intro-kicker">
+      <image src="/assets/icons/hanger-2.png" mode="aspectFit" />
+      <text>从我的衣柜选择</text>
+    </view>
+    <text class="intro-title">选择一件「{{label}}」</text>
+    <text class="intro-copy">轻点单品即可确认，并自动返回穿搭编辑。</text>
+  </view>
+
+  <view class="category-summary">
+    <view class="category-icon-wrap">
+      <image wx:if="{{category === 'top'}}" src="/assets/icons/category-top.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'pants'}}" src="/assets/icons/category-bottom.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'shoes'}}" src="/assets/icons/category-shoes.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'hat'}}" src="/assets/icons/category-hat.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'coat'}}" src="/assets/icons/category-outerwear.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'dress'}}" src="/assets/icons/category-dress.png" mode="aspectFit" />
+      <image wx:elif="{{category === 'socks'}}" src="/assets/icons/category-socks.png" mode="aspectFit" />
+      <image wx:else src="/assets/icons/category-accessory.png" mode="aspectFit" />
+    </view>
+    <view class="category-copy">
+      <text class="category-eyebrow">当前分类</text>
+      <text class="category-name">{{label}}</text>
+    </view>
+    <view class="category-count">
+      <text class="category-count-main">{{items.length}}</text>
+      <text class="category-count-label">件可选</text>
     </view>
   </view>
+
+  <view class="list-head">
+    <view>
+      <text class="list-title">衣橱单品</text>
+      <text class="list-subtitle">选择最适合本次搭配的一件</text>
+    </view>
+    <view class="list-hint">
+      <image src="/assets/icons/check-sage.png" mode="aspectFit" />
+      <text>点选即确认</text>
+    </view>
+  </view>
+
+  <view class="loading-card" wx:if="{{loading}}">
+    <image src="/assets/icons/hanger.png" mode="aspectFit" />
+    <text>正在整理「{{label}}」</text>
+  </view>
+
+  <view class="grid" wx:if="{{!loading && items.length > 0}}">
+    <view class="item-card" wx:for="{{items}}" wx:key="id" data-item="{{item}}" bindtap="pick">
+      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFit" />
+      <view class="pick-corner">
+        <image src="/assets/icons/check.png" mode="aspectFit" />
+      </view>
+    </view>
+  </view>
+
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <image class="empty-img" src="/assets/empty-wardrobe.jpg" mode="aspectFit" />
-    <text>衣柜里还没有「{{label}}」\n先到衣柜页添加一件吧</text>
+    <image class="empty-img" src="/assets/soft-atelier-empty-wardrobe.jpg" mode="aspectFill" />
+    <text class="empty-title">还没有「{{label}}」</text>
+    <text class="empty-copy">先回到衣柜添加一件，整理完成后就可以在这里选择。</text>
+  </view>
+
+  <view class="confirm-dock" wx:if="{{!loading && items.length > 0}}">
+    <view class="confirm-icon-wrap">
+      <image src="/assets/icons/check-sage.png" mode="aspectFit" />
+    </view>
+    <view class="confirm-copy">
+      <text class="confirm-main">选择单品即确认</text>
+      <text class="confirm-sub">点击任一衣物后自动返回</text>
+    </view>
+    <view class="confirm-count">{{items.length}} 件</view>
   </view>
 </view>

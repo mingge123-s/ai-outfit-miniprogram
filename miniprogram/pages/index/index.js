@@ -13,5 +13,9 @@ Page({
 
   goCollection() {
     wx.switchTab({ url: '/pages/collection/collection' });
+  },
+
+  goMe() {
+    wx.switchTab({ url: '/pages/me/me' });
   }
 });

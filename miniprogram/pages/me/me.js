@@ -28,6 +28,7 @@ Page({
     history: [],
     baseUrl: api.API_BASE_URL,
     loading: false,
+    loadError: '',
     adLoading: false,
     adConfigured: Boolean(REWARDED_VIDEO_AD_UNIT_ID)
   },
@@ -89,7 +90,7 @@ Page({
   },
 
   async refresh() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: '' });
     try {
       const [me, photoData, historyData] = await Promise.all([
         api.authedRequest('GET', '/api/me'),
@@ -98,6 +99,7 @@ Page({
       ]);
       this.setData({ me, photos: photoData.items, history: historyData.items });
     } catch (e) {
+      this.setData({ loadError: e.message || '加载失败' });
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });

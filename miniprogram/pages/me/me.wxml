@@ -1,6 +1,21 @@
 <view class="page">
-  <view class="profile card">
-    <view class="avatar">👤</view>
+  <view class="page-status" wx:if="{{loading}}">
+    <image class="page-status-icon" src="/assets/icons/user.png" mode="aspectFit" />
+    <text class="page-status-title">正在整理个人衣橱</text>
+    <text class="page-status-copy">稍等片刻，生成记录与权益正在同步</text>
+  </view>
+
+  <view class="page-status page-status-error" wx:elif="{{loadError}}">
+    <image class="page-status-icon" src="/assets/icons/info-circle.png" mode="aspectFit" />
+    <text class="page-status-title">暂时没有加载成功</text>
+    <text class="page-status-copy">{{loadError}}</text>
+  </view>
+
+  <block wx:elif="{{me}}">
+  <view class="profile">
+    <view class="avatar">
+      <image class="avatar-icon" src="/assets/icons/user.png" mode="aspectFit" />
+    </view>
     <view class="info">
       <text class="name">账号 #{{me.userId}}</text>
       <text class="sub">{{me.devMode ? '开发模式登录' : '微信登录'}} · {{me.createdAt}}</text>
@@ -8,7 +23,7 @@
     <view class="level {{me.memberLevel === 'member' ? 'level-member' : ''}}">{{me.memberLevel === 'member' ? '会员' : '免费版'}}</view>
   </view>
 
-  <view class="stats card">
+  <view class="stats">
     <view class="stat" bindtap="goWardrobe">
       <text class="num">{{me.wardrobeCount}}/{{me.wardrobeLimit}}</text>
       <text class="label">衣柜单品</text>
@@ -21,7 +36,7 @@
     <view class="divider" />
     <view class="stat">
       <text class="num">{{me.remainingToday}}</text>
-      <text class="label">今日剩余次数</text>
+      <text class="label">今日生成</text>
     </view>
     <view class="divider" />
     <view class="stat">
@@ -30,24 +45,36 @@
     </view>
   </view>
 
-  <view class="photos card">
-    <text class="photos-title">我的模特照 {{me.personPhotoCount}}/{{me.personPhotoLimit}}（全身照，点击直接用于生成）</text>
-    <view class="photos-grid">
+  <view class="studio-section photos-section">
+    <view class="section-head">
+      <view class="section-copy">
+        <text class="section-title">我的模特照</text>
+      </view>
+      <text class="section-count">{{me.personPhotoCount}}/{{me.personPhotoLimit}}</text>
+    </view>
+    <text class="section-note">选择一张全身照，轻触即可直接用于生成</text>
+    <scroll-view class="photos-scroll" scroll-x enable-flex>
       <view class="photo" wx:for="{{photos}}" wx:key="id" data-photo="{{item}}" bindtap="usePhoto">
         <image class="photo-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
-        <view class="photo-del" catchtap="removePhoto" data-id="{{item.id}}">×</view>
+        <view class="photo-del" catchtap="removePhoto" data-id="{{item.id}}">
+          <image class="remove-icon" src="/assets/icons/x.png" mode="aspectFit" />
+        </view>
       </view>
       <view class="photo photo-add" bindtap="addPhoto">
-        <text class="photo-plus">＋</text>
+        <image class="photo-plus" src="/assets/icons/plus.png" mode="aspectFit" />
+        <text class="photo-add-text">添加全身照</text>
       </view>
-    </view>
+    </scroll-view>
   </view>
 
-  <view class="history card">
-    <view class="history-head">
-      <text class="photos-title">生成历史（最多保留 50 条，点击可预览/收藏）</text>
-      <text class="history-count">{{history.length}} 条</text>
+  <view class="studio-section history">
+    <view class="section-head">
+      <view class="section-copy">
+        <text class="section-title">生成历史</text>
+      </view>
+      <text class="section-count">{{history.length}} 条</text>
     </view>
+    <text class="section-note">最多保留 50 条，轻触图片可预览或收藏</text>
     <scroll-view class="history-row" scroll-x enable-flex wx:if="{{history.length}}">
       <view class="history-item" wx:for="{{history}}" wx:key="id" style="{{item.imageUrl ? 'width:' + (item._w || 320) + 'rpx' : ''}}">
         <image
@@ -61,7 +88,9 @@
           bindtap="historyAction"
         />
         <view class="history-placeholder {{item.status === 'failed' ? '' : 'history-generating'}}" wx:else>
-          <text class="history-dream" wx:if="{{item.status !== 'failed'}}">{{item.status === 'processing' ? '造梦中…' : '排队中…'}}</text>
+          <image class="history-placeholder-icon" wx:if="{{item.status !== 'failed'}}" src="/assets/icons/sparkles-sage.png" mode="aspectFit" />
+          <image class="history-placeholder-icon history-failed-icon" wx:else src="/assets/icons/info-circle.png" mode="aspectFit" />
+          <text wx:if="{{item.status !== 'failed'}}">{{item.status === 'processing' ? '造梦中…' : '排队中…'}}</text>
           <text wx:else>生成失败</text>
         </view>
         <text class="history-status {{item.status}}">{{item.status === 'done' ? '已完成' : item.status === 'failed' ? '失败' : item.status === 'processing' ? '生成中' : '排队中'}}</text>
@@ -70,45 +99,73 @@
           wx:if="{{item.status === 'done' || item.status === 'failed'}}"
           data-id="{{item.id}}"
           catchtap="removeHistory"
-        >×</view>
+        >
+          <image class="remove-icon" src="/assets/icons/x.png" mode="aspectFit" />
+        </view>
       </view>
     </scroll-view>
-    <text class="history-empty" wx:else>还没有生成记录</text>
-  </view>
-
-  <view class="ad-reward card" bindtap="watchAd">
-    <view class="vip-left">
-      <text class="vip-title ad-title">🎬 看广告领生图机会</text>
-      <text class="vip-sub ad-sub" wx:if="{{me.rewardedAdEnabled && adConfigured}}">
-        完整观看奖励 {{me.adRewardCredits}} 次 · 今日剩余可领 {{me.adRewardsRemainingToday}} 次
-      </text>
-      <text class="vip-sub ad-sub" wx:else>广告位配置完成后开放</text>
+    <view class="history-empty" wx:else>
+      <image class="history-empty-icon" src="/assets/icons/photo.png" mode="aspectFit" />
+      <text>还没有生成记录</text>
     </view>
-    <text class="vip-btn ad-btn">{{!adConfigured || !me.rewardedAdEnabled ? '待配置' : adLoading ? '加载中' : me.adRewardsRemainingToday ? '观看' : '已领取'}}</text>
   </view>
 
-  <view class="vip card" bindtap="redeem">
-    <view class="vip-left">
-      <text class="vip-title">🎁 兑换码充值</text>
-      <text class="vip-sub">今日免费 {{me.remainingFreeToday}}/{{me.dailyLimit}} 次，用尽后消耗积分</text>
+  <view class="account-section">
+    <text class="account-title">账户与权益</text>
+    <view class="benefits">
+      <view class="benefit-row benefit-ad" bindtap="watchAd">
+        <view class="benefit-icon-wrap">
+          <image class="benefit-icon" src="/assets/icons/video.png" mode="aspectFit" />
+        </view>
+        <view class="benefit-copy">
+          <text class="benefit-title">看广告领生图机会</text>
+          <text class="benefit-sub" wx:if="{{me.rewardedAdEnabled && adConfigured}}">
+            完整观看奖励 {{me.adRewardCredits}} 次 · 今日剩余可领 {{me.adRewardsRemainingToday}} 次
+          </text>
+          <text class="benefit-sub" wx:else>广告位配置完成后开放</text>
+        </view>
+        <text class="benefit-btn">{{!adConfigured || !me.rewardedAdEnabled ? '待配置' : adLoading ? '加载中' : me.adRewardsRemainingToday ? '观看' : '已领取'}}</text>
+      </view>
+
+      <view class="benefit-row" bindtap="redeem">
+        <view class="benefit-icon-wrap benefit-icon-peach">
+          <image class="benefit-icon" src="/assets/icons/gift.png" mode="aspectFit" />
+        </view>
+        <view class="benefit-copy">
+          <text class="benefit-title">兑换码充值</text>
+          <text class="benefit-sub">今日免费 {{me.remainingFreeToday}}/{{me.dailyLimit}} 次，用尽后消耗积分</text>
+        </view>
+        <text class="benefit-btn benefit-btn-peach">兑换</text>
+      </view>
+
+      <view class="benefit-row" bindtap="openVip">
+        <view class="benefit-icon-wrap benefit-icon-gold">
+          <image class="benefit-icon" src="/assets/icons/crown.png" mode="aspectFit" />
+        </view>
+        <view class="benefit-copy">
+          <text class="benefit-title">{{me.memberLevel === 'member' ? '会员权益' : '开通会员'}}</text>
+          <text class="benefit-sub">月卡 ¥9.9 · 年卡 ¥99 · 永久 ¥128</text>
+        </view>
+        <text class="benefit-btn benefit-btn-gold">{{me.memberLevel === 'member' ? '已开通' : (me.purchaseEnabled ? '开通' : '敬请期待')}}</text>
+      </view>
     </view>
-    <text class="vip-btn">兑换</text>
   </view>
 
-  <view class="vip card" bindtap="openVip">
-    <view class="vip-left">
-      <text class="vip-title">{{me.memberLevel === 'member' ? '👑 会员权益' : '👑 开通会员'}}</text>
-      <text class="vip-sub">月卡 ¥9.9 · 年卡 ¥99 · 永久 ¥128</text>
-    </view>
-    <text class="vip-btn">{{me.memberLevel === 'member' ? '已开通' : (me.purchaseEnabled ? '开通' : '敬请期待')}}</text>
-  </view>
-
-  <view class="menu card">
+  <view class="menu">
     <view class="menu-item" bindtap="contact">
-      <text>💬 联系客服</text><text class="arrow">›</text>
+      <view class="menu-label">
+        <image class="menu-icon" src="/assets/icons/message.png" mode="aspectFit" />
+        <text>联系客服</text>
+      </view>
+      <image class="arrow-icon" src="/assets/icons/chevron-right.png" mode="aspectFit" />
     </view>
     <view class="menu-item" bindtap="about">
-      <text>ℹ️ 关于小程序</text><text class="arrow">›</text>
+      <view class="menu-label">
+        <image class="menu-icon" src="/assets/icons/info-circle.png" mode="aspectFit" />
+        <text>关于小程序</text>
+      </view>
+      <image class="arrow-icon" src="/assets/icons/chevron-right.png" mode="aspectFit" />
     </view>
   </view>
+  </block>
 </view>

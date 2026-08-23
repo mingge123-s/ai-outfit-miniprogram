@@ -1,41 +1,87 @@
 <view class="page">
-  <view class="quota-tip">{{memberLevel === 'member' ? '会员' : '免费版'}}收藏 {{outfitCount}}/{{outfitLimit}} 套</view>
+  <view class="collection-head">
+    <view class="tab-current">
+      <text class="tab-title">套装</text>
+      <text class="tab-count">{{outfitCount}}</text>
+    </view>
+    <view class="quota-pill">
+      <image class="quota-icon" src="/assets/icons/heart-filled.png" mode="aspectFit" />
+      <text>{{memberLevel === 'member' ? '会员' : '免费版'}} {{outfitCount}}/{{outfitLimit}}</text>
+    </view>
+  </view>
 
-  <view class="grid">
+  <view class="collection-note" wx:if="{{items.length}}">
+    <text>全部场景</text>
+    <text class="note-hint">轻触图片查看搭配单品</text>
+  </view>
+
+  <view class="page-status" wx:if="{{loading}}">
+    <image class="page-status-icon" src="/assets/icons/heart.png" mode="aspectFit" />
+    <text class="page-status-title">正在翻开收藏册</text>
+    <text class="page-status-copy">你喜欢的套装马上就好</text>
+  </view>
+
+  <view class="page-status page-status-error" wx:elif="{{loadError}}">
+    <image class="page-status-icon" src="/assets/icons/info-circle.png" mode="aspectFit" />
+    <text class="page-status-title">暂时没有加载成功</text>
+    <text class="page-status-copy">{{loadError}}</text>
+  </view>
+
+  <view class="grid" wx:if="{{!loading && !loadError && items.length}}">
     <view class="card" wx:for="{{items}}" wx:key="id">
-      <view class="card-name" data-item="{{item}}" bindtap="rename">
-        <text class="name-text {{item.name ? '' : 'name-empty'}}">{{item.name || '未命名套装'}}</text>
-        <text class="name-edit">✎</text>
+      <view class="image-wrap">
+        <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-id="{{item.id}}" bindtap="toggleItems" />
       </view>
-      <image class="card-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" data-id="{{item.id}}" bindtap="toggleItems" />
+
+      <view class="card-copy">
+        <view class="card-name" data-item="{{item}}" bindtap="rename">
+          <text class="name-text {{item.name ? '' : 'name-empty'}}">{{item.name || '未命名套装'}}</text>
+          <image class="name-edit" src="/assets/icons/adjustments-horizontal.png" mode="aspectFit" />
+        </view>
+        <view class="card-bar">
+          <text class="card-date">{{item.createdAt}}</text>
+          <view class="card-actions">
+            <view class="action-hit" data-url="{{item.imageUrl}}" bindtap="preview">
+              <image class="action-icon" src="/assets/icons/search.png" mode="aspectFit" />
+            </view>
+            <view class="action-hit" data-url="{{item.imageUrl}}" bindtap="save">
+              <image class="action-icon" src="/assets/icons/download.png" mode="aspectFit" />
+            </view>
+            <view class="action-hit action-danger" data-id="{{item.id}}" bindtap="remove">
+              <image class="action-icon" src="/assets/icons/trash.png" mode="aspectFit" />
+            </view>
+          </view>
+        </view>
+      </view>
+
       <view class="card-parts" wx:if="{{openId === item.id}}">
-        <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件（点击预选，可多选）</text>
-        <text class="parts-tip" wx:else>（无配件记录）</text>
+        <text class="parts-tip" wx:if="{{item.items.length}}">生成时的单品配件，可多选</text>
+        <text class="parts-tip" wx:else>暂无单品记录</text>
         <scroll-view scroll-x class="parts-row" wx:if="{{item.items.length}}">
-          <view class="part {{selected[part.category] === part.imageUrl ? 'sel' : ''}}" wx:for="{{item.items}}" wx:for-item="part" wx:key="imageUrl"
-                data-cat="{{part.category}}" data-url="{{part.imageUrl}}" catchtap="togglePart">
+          <view
+            class="part {{selected[part.category] === part.imageUrl ? 'sel' : ''}}"
+            wx:for="{{item.items}}"
+            wx:for-item="part"
+            wx:key="imageUrl"
+            data-cat="{{part.category}}"
+            data-url="{{part.imageUrl}}"
+            catchtap="togglePart"
+          >
             <image class="part-img" src="{{baseUrl}}{{part.imageUrl}}" mode="aspectFill" />
             <text class="part-cat">{{labels[part.category]}}</text>
-            <text class="part-check" wx:if="{{selected[part.category] === part.imageUrl}}">✓</text>
+            <image class="part-check" wx:if="{{selected[part.category] === part.imageUrl}}" src="/assets/icons/check-sage.png" mode="aspectFit" />
           </view>
         </scroll-view>
         <button class="use-parts" wx:if="{{item.items.length}}" disabled="{{selectedCount === 0}}" size="mini" catchtap="useParts">
           添加到生成{{selectedCount ? '（' + selectedCount + ' 件）' : ''}}
         </button>
       </view>
-      <view class="card-bar">
-        <text class="card-date">{{item.createdAt}}</text>
-        <view class="card-actions">
-          <text class="action" data-url="{{item.imageUrl}}" bindtap="preview">🔍</text>
-          <text class="action" data-url="{{item.imageUrl}}" bindtap="save">⬇</text>
-          <text class="action danger" data-id="{{item.id}}" bindtap="remove">🗑</text>
-        </view>
-      </view>
     </view>
   </view>
 
-  <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <image class="empty-img" src="/assets/empty-collection.jpg" mode="aspectFit" />
-    <text>还没有收藏的套装\n生成后点「收藏套装」就会出现在这里</text>
+  <view class="empty" wx:if="{{!loading && !loadError && items.length === 0}}">
+    <image class="empty-img" src="/assets/soft-atelier-empty-collection.jpg" mode="aspectFill" />
+    <text class="empty-title">收藏你的下一套</text>
+    <text class="empty-copy">生成喜欢的穿搭后，点“收藏套装”就会出现在这里</text>
   </view>
 </view>

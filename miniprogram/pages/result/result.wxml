@@ -1,48 +1,66 @@
 <view class="page">
-  <!-- 效果图 -->
   <view class="hero-wrap" wx:if="{{!pending && !failedError}}">
     <image class="hero-image" src="{{image}}" mode="widthFix" show-menu-by-longpress bindtap="previewImage" />
-    <view class="float-label">⭐ 智能搭配</view>
+    <view class="float-label">
+      <image class="label-icon" src="/assets/icons/sparkles-sage.png" mode="aspectFit" />
+      <text>AI生成</text>
+    </view>
   </view>
 
-  <!-- 生成中占位 -->
   <view class="pending-wrap" wx:if="{{pending}}">
-    <view class="loading-circle gradient-btn pending-icon">✨</view>
+    <view class="pending-symbol pending-dreaming">
+      <image class="pending-symbol-icon" src="/assets/icons/sparkles-sage.png" mode="aspectFit" />
+    </view>
     <text class="pending-title">正在生成穿搭…</text>
     <text class="pending-sub">通常需要 1~3 分钟，无需在此等待</text>
     <text class="pending-sub">可返回继续使用其他功能，完成后会提醒你</text>
   </view>
 
-  <!-- 失败提示 -->
-  <view class="pending-wrap" wx:if="{{failedError}}">
-    <view class="loading-circle pending-icon">😓</view>
-    <text class="pending-title">生成失败</text>
+  <view class="pending-wrap failed-wrap" wx:if="{{failedError}}">
+    <view class="pending-symbol failed-symbol">
+      <image class="pending-symbol-icon" src="/assets/icons/info-circle.png" mode="aspectFit" />
+    </view>
+    <text class="pending-title failed-title">生成失败</text>
     <text class="pending-sub">{{failedError}}</text>
   </view>
 
-  <!-- 搭配单品 -->
-  <view class="section-head">
-    <text class="section-title">搭配单品</text>
-    <text class="section-sub">共 {{items.length}} 件</text>
-  </view>
-  <scroll-view class="items-scroll" scroll-x enable-flex>
-    <view class="item-cell" wx:for="{{items}}" wx:key="key">
-      <view class="item-thumb-wrap">
-        <image class="item-thumb" src="{{item.path}}" mode="aspectFit" />
+  <view class="items-section" wx:if="{{items.length}}">
+    <view class="section-head">
+      <view>
+        <text class="section-title">搭配单品</text>
       </view>
-      <text class="item-name">{{item.label}}</text>
+      <text class="section-sub">共 {{items.length}} 件</text>
     </view>
-  </scroll-view>
+    <scroll-view class="items-scroll" scroll-x enable-flex>
+      <view class="item-cell" wx:for="{{items}}" wx:key="key">
+        <view class="item-thumb-wrap">
+          <image class="item-thumb" src="{{item.path}}" mode="aspectFit" />
+        </view>
+        <text class="item-name">{{item.label}}</text>
+      </view>
+    </scroll-view>
+  </view>
 
-  <!-- 底部按钮 -->
   <view class="bottom-bar">
     <view class="action-row" wx:if="{{!pending && !failedError}}">
-      <button class="save-btn gradient-btn" bindtap="saveToAlbum">保存到相册</button>
-      <button class="collect-btn" bindtap="collectOutfit" disabled="{{collecting || collected}}">{{collected ? '已收藏' : collecting ? '收藏中…' : '收藏套装'}}</button>
+      <button class="action-btn save-btn" bindtap="saveToAlbum">
+        <image class="button-icon button-icon-light" src="/assets/icons/download.png" mode="aspectFit" />
+        <text>保存到相册</text>
+      </button>
+      <button class="action-btn collect-btn" bindtap="collectOutfit" disabled="{{collecting || collected}}">
+        <image class="button-icon" src="{{collected ? '/assets/icons/heart-filled.png' : '/assets/icons/heart.png'}}" mode="aspectFit" />
+        <text>{{collected ? '已收藏' : collecting ? '收藏中…' : '收藏套装'}}</text>
+      </button>
     </view>
     <view class="action-row">
-      <button class="regen-btn" bindtap="regenerate" disabled="{{regenerating || pending}}" wx:if="{{!pending}}">{{regenerating ? '提交中…' : failedError ? '重试' : '重新生成'}}</button>
-      <button class="edit-btn" bindtap="editOutfit" disabled="{{regenerating}}">返回编辑</button>
+      <button class="action-btn regen-btn" bindtap="regenerate" disabled="{{regenerating || pending}}" wx:if="{{!pending}}">
+        <image class="button-icon" src="/assets/icons/refresh.png" mode="aspectFit" />
+        <text>{{regenerating ? '提交中…' : failedError ? '重试' : '重新生成'}}</text>
+      </button>
+      <button class="action-btn edit-btn" bindtap="editOutfit" disabled="{{regenerating}}">
+        <image class="button-icon" src="/assets/icons/arrow-left.png" mode="aspectFit" />
+        <text>返回编辑</text>
+      </button>
     </view>
   </view>
 </view>

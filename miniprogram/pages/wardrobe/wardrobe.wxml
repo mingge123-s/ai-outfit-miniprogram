@@ -1,85 +1,177 @@
-<view class="page">
-  <view class="tip">
-    <text>{{memberLevel === 'member' ? '会员' : '免费版'}}衣柜 {{wardrobeCount}}/{{wardrobeLimit}} 件</text>
-    <text> · 支持批量上传与智能分类</text>
+<view class="page {{selectedCount > 0 ? 'has-selection' : ''}}">
+  <view class="wardrobe-hero">
+    <view class="hero-kicker">
+      <image class="hero-kicker-icon" src="/assets/icons/hanger-2.png" mode="aspectFit" />
+      <text>SOFT ATELIER · 私人衣橱</text>
+    </view>
+
+    <view class="hero-title-row">
+      <view class="hero-copy">
+        <text class="hero-title">我的衣柜</text>
+        <text class="hero-subtitle">整理每一件喜欢，也整理每天的灵感</text>
+      </view>
+      <view class="capacity-pill">
+        <text class="capacity-main">{{wardrobeCount}} / {{wardrobeLimit}}</text>
+        <text class="capacity-label">{{memberLevel === 'member' ? '会员容量' : '免费容量'}}</text>
+      </view>
+    </view>
+
+    <view class="hero-actions">
+      <view class="hero-action hero-action-secondary" bindtap="openTaobao">
+        <image class="hero-action-icon" src="/assets/icons/shopping-bag.png" mode="aspectFit" />
+        <text>商品链接导入</text>
+      </view>
+      <view class="hero-action hero-action-primary {{batchUploading ? 'hero-action-disabled' : ''}}" bindtap="addItem">
+        <image class="hero-action-icon" src="/assets/icons/upload.png" mode="aspectFit" />
+        <text>{{batchUploading ? '正在批量上传' : '批量添加衣物'}}</text>
+      </view>
+    </view>
   </view>
 
   <view class="batch-status" wx:if="{{batchUploading || batchProcessingCount > 0}}">
-    <view class="batch-status-row">
-      <text wx:if="{{batchUploading}}">正在上传 {{batchCompleted}}/{{batchTotal}}</text>
-      <text wx:else>正在智能识别并抠图：{{batchProcessingCount}} 件</text>
-      <text class="batch-failed" wx:if="{{batchFailed > 0}}">失败 {{batchFailed}}</text>
+    <view class="batch-icon-wrap">
+      <image
+        class="batch-icon"
+        src="{{batchUploading ? '/assets/icons/upload.png' : '/assets/icons/sparkles-sage.png'}}"
+        mode="aspectFit"
+      />
     </view>
-    <view class="batch-progress" wx:if="{{batchUploading}}">
-      <view class="batch-progress-inner" style="width: {{batchProgress}}%;" />
+    <view class="batch-content">
+      <view class="batch-status-row">
+        <view>
+          <text class="batch-title" wx:if="{{batchUploading}}">正在整理新衣 {{batchCompleted}} / {{batchTotal}}</text>
+          <text class="batch-title" wx:else>正在智能识别 {{batchProcessingCount}} 件衣物</text>
+          <text class="batch-note">识别完成后会自动归入对应分类</text>
+        </view>
+        <text class="batch-failed" wx:if="{{batchFailed > 0}}">{{batchFailed}} 件失败</text>
+      </view>
+      <view class="batch-progress" wx:if="{{batchUploading}}">
+        <view class="batch-progress-inner" style="width: {{batchProgress}}%;" />
+      </view>
     </view>
   </view>
 
-  <!-- 分类 -->
-  <view class="chips">
-    <view
-      wx:for="{{categories}}"
-      wx:key="key"
-      class="chip {{category === item.key ? 'chip-active' : ''}}"
-      data-key="{{item.key}}"
-      bindtap="switchCategory"
-    >{{item.icon}} {{item.label}}</view>
+  <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="category-list">
+      <view
+        wx:for="{{categories}}"
+        wx:key="key"
+        class="category-chip {{category === item.key ? 'category-chip-active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="switchCategory"
+      >{{item.label}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="collection-head">
+    <view>
+      <view class="collection-title-row">
+        <text class="collection-title">衣橱单品</text>
+        <text class="collection-count">{{items.length}} 件</text>
+      </view>
+      <text class="collection-meta" wx:if="{{selectedCount > 0}}">已选 {{selectedCount}} 件，可跨分类组合</text>
+      <text class="collection-meta" wx:else>轻点选择，长按查看衣物细节</text>
+    </view>
+    <view class="collection-filter-note">
+      <image class="collection-filter-icon" src="/assets/icons/adjustments-horizontal.png" mode="aspectFit" />
+      <text>{{category === 'all' ? '全部' : '当前分类'}}</text>
+    </view>
   </view>
 
-  <!-- 列表 -->
-  <view class="grid">
-    <view class="item-card add-card dashed {{batchUploading ? 'add-card-disabled' : ''}}" bindtap="addItem">
-      <text class="add-plus">＋</text>
-      <text class="add-label">{{batchUploading ? '上传中…' : '批量添加'}}</text>
-    </view>
+  <view class="loading-card" wx:if="{{loading}}">
+    <image class="loading-icon" src="/assets/icons/hanger.png" mode="aspectFit" />
+    <text>正在打开衣柜</text>
+  </view>
+
+  <view class="grid" wx:if="{{!loading && items.length > 0}}">
     <view
-      class="item-card {{selected[item.category] && selected[item.category].id === item.id ? 'selected' : ''}}"
+      class="item-card {{selected[item.category] && selected[item.category].id === item.id ? 'item-card-selected' : ''}}"
       wx:for="{{items}}"
       wx:key="id"
       data-item="{{item}}"
       bindtap="tapItem"
       bindlongpress="previewItem"
     >
-      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFill" />
-      <view class="processing-mask" wx:if="{{item.status === 'processing'}}"><text>处理中…</text></view>
-      <view class="selected-check" wx:if="{{selected[item.category] && selected[item.category].id === item.id}}">✓</view>
-      <view class="remove-btn" catchtap="removeItem" data-id="{{item.id}}">×</view>
+      <image class="item-img" src="{{baseUrl}}{{item.imageUrl}}" mode="aspectFit" />
+      <view class="processing-mask" wx:if="{{item.status === 'processing'}}">
+        <image class="processing-icon" src="/assets/icons/sparkles.png" mode="aspectFit" />
+        <text>智能整理中</text>
+      </view>
+      <view class="selected-check" wx:if="{{selected[item.category] && selected[item.category].id === item.id}}">
+        <image src="/assets/icons/check.png" mode="aspectFit" />
+      </view>
+      <view class="remove-btn" catchtap="removeItem" data-id="{{item.id}}">
+        <image src="/assets/icons/trash.png" mode="aspectFit" />
+      </view>
     </view>
   </view>
 
   <view class="empty" wx:if="{{!loading && items.length === 0}}">
-    <image class="empty-img" src="/assets/empty-wardrobe.jpg" mode="aspectFit" />
-    <text>衣柜还是空的\n点「批量添加」把衣服收进来</text>
+    <image class="empty-img" src="/assets/soft-atelier-empty-wardrobe.jpg" mode="aspectFill" />
+    <text class="empty-title">这一格衣柜还空着</text>
+    <text class="empty-copy">从相册批量加入衣物，系统会自动识别分类并整理好背景。</text>
+    <view class="empty-action" bindtap="addItem">
+      <image class="empty-action-icon" src="/assets/icons/upload.png" mode="aspectFit" />
+      <text>{{batchUploading ? '正在批量上传' : '添加第一件衣物'}}</text>
+    </view>
   </view>
 
   <view class="bottom-bar" wx:if="{{selectedCount > 0}}">
-    <button class="use-selected" bindtap="useSelected">添加到生成</button>
+    <view class="selection-summary">
+      <view class="selection-icon-wrap">
+        <image src="/assets/icons/check-sage.png" mode="aspectFit" />
+      </view>
+      <view>
+        <text class="selection-main">已选 {{selectedCount}} 件</text>
+        <text class="selection-sub">继续选择或加入穿搭</text>
+      </view>
+    </view>
+    <button class="use-selected" bindtap="useSelected">
+      <text>加入穿搭</text>
+      <image class="use-selected-icon" src="/assets/icons/chevron-right.png" mode="aspectFit" />
+    </button>
   </view>
 
-  <!-- 淘宝商品链接导入 -->
   <view class="tb-mask" wx:if="{{tbVisible}}" bindtap="closeTaobao">
     <view class="tb-panel" catchtap="noop">
+      <view class="tb-handle" />
       <view class="tb-header">
-        <text class="tb-title">商品链接导入</text>
-        <text class="tb-close" bindtap="closeTaobao">×</text>
+        <view class="tb-heading">
+          <view class="tb-heading-icon">
+            <image src="/assets/icons/shopping-bag.png" mode="aspectFit" />
+          </view>
+          <view>
+            <text class="tb-title">商品链接导入</text>
+            <text class="tb-heading-sub">从淘宝或天猫收进你的衣柜</text>
+          </view>
+        </view>
+        <view class="tb-close" bindtap="closeTaobao">
+          <image src="/assets/icons/x.png" mode="aspectFit" />
+        </view>
       </view>
 
       <block wx:if="{{tbStep === 'input'}}">
-        <view class="tb-desc">粘贴淘宝/天猫商品链接，自动获取商品图片</view>
+        <view class="tb-desc">粘贴商品链接，系统会提取清晰商品图供你选择。</view>
         <textarea
           class="tb-input"
-          placeholder="例如 https://item.taobao.com/item.htm?id=..."
+          placeholder="粘贴淘宝或天猫商品链接"
           value="{{tbUrl}}"
           bindinput="onTbUrlInput"
           maxlength="500"
           auto-height
         />
-        <button class="tb-primary {{tbLoading ? 'disabled' : ''}}" disabled="{{tbLoading}}" bindtap="resolveTaobao">{{tbLoading ? '解析中…' : '获取商品图片'}}</button>
+        <button class="tb-primary {{tbLoading ? 'disabled' : ''}}" disabled="{{tbLoading}}" bindtap="resolveTaobao">
+          <image class="tb-primary-icon" src="/assets/icons/download.png" mode="aspectFit" />
+          <text>{{tbLoading ? '正在获取商品图' : '获取商品图片'}}</text>
+        </button>
       </block>
 
       <block wx:if="{{tbStep === 'pick'}}">
         <view class="tb-goods-title" wx:if="{{tbTitle}}">{{tbTitle}}</view>
-        <view class="tb-sub">选择要加入衣柜的图片（长按可预览）</view>
+        <view class="tb-section-head">
+          <text class="tb-section-title">选择商品图</text>
+          <text class="tb-section-note">长按可预览</text>
+        </view>
         <scroll-view scroll-y class="tb-imgs">
           <view class="tb-img-grid">
             <view
@@ -90,24 +182,32 @@
               bindtap="selectTbImage"
               bindlongpress="previewTbImage"
             >
-              <image class="tb-img" src="{{item}}" mode="aspectFill" />
-              <view class="tb-img-check" wx:if="{{tbSelectedIndex === index}}">✓</view>
+              <image class="tb-img" src="{{item}}" mode="aspectFit" />
+              <view class="tb-img-check" wx:if="{{tbSelectedIndex === index}}">
+                <image src="/assets/icons/check.png" mode="aspectFit" />
+              </view>
             </view>
           </view>
         </scroll-view>
 
-        <view class="tb-sub">选择分类</view>
+        <view class="tb-section-head tb-category-head">
+          <text class="tb-section-title">归入分类</text>
+          <text class="tb-section-note">导入后仍可调整</text>
+        </view>
         <view class="tb-cats">
           <view
-            wx:for="{{categories}}"
+            wx:for="{{importCategories}}"
             wx:key="key"
-            class="chip {{tbCategory === item.key ? 'chip-active' : ''}}"
+            class="tb-category-chip {{tbCategory === item.key ? 'tb-category-chip-active' : ''}}"
             data-key="{{item.key}}"
             bindtap="selectTbCategory"
-          >{{item.icon}} {{item.label}}</view>
+          >{{item.label}}</view>
         </view>
 
-        <button class="tb-primary" bindtap="importTaobao">加入衣柜</button>
+        <button class="tb-primary" bindtap="importTaobao">
+          <image class="tb-primary-icon" src="/assets/icons/archive.png" mode="aspectFit" />
+          <text>加入衣柜</text>
+        </button>
       </block>
     </view>
   </view>

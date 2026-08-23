@@ -1,48 +1,52 @@
 <view class="page">
   <view class="hero">
-    <image class="hero-image" src="/assets/hero-magazine.jpg" mode="aspectFill" />
-    <view class="hero-mask" />
-    <view class="hero-copy">
-      <text class="hero-kicker">时衣集</text>
-      <text class="hero-title">打开就知道穿什么</text>
-      <text class="hero-sub">上传衣服，一键拼出今日这身</text>
+    <image class="hero-image" src="/assets/soft-atelier-hero-v2.jpg" mode="aspectFill" />
+    <view class="hero-settings" bindtap="goMe">
+      <image src="/assets/icons/settings.png" mode="aspectFit" />
     </view>
-    <view class="hero-sticker">今日出片</view>
+    <view class="hero-copy">
+      <text class="hero-kicker serif-title">时衣集</text>
+      <text class="hero-title serif-title">今天穿什么</text>
+      <text class="hero-sub">用自己的衣橱，搭出好看的一天</text>
+    </view>
   </view>
 
-  <view class="entry" bindtap="goToday">
-    <image class="entry-cover" src="/assets/look-mint.jpg" mode="aspectFill" />
+  <view class="entry entry-primary" bindtap="goToday">
+    <view class="entry-icon-wrap">
+      <image class="entry-icon" src="/assets/icons/sun.png" mode="aspectFit" />
+    </view>
     <view class="entry-copy">
       <text class="entry-title">今日搭配</text>
-      <text class="entry-sub">看天气、选场合，从衣柜直接出一套</text>
+      <text class="entry-sub">根据天气与场合，从衣柜直接出一套</text>
     </view>
-    <text class="entry-arrow">›</text>
+    <image class="entry-arrow" src="/assets/icons/chevron-right.png" mode="aspectFit" />
   </view>
 
-  <view class="entry" bindtap="goCreate">
-    <image class="entry-cover" src="/assets/look-street.jpg" mode="aspectFill" />
+  <view class="entry entry-primary" bindtap="goCreate">
+    <view class="entry-icon-wrap">
+      <image class="entry-icon" src="/assets/icons/sparkles-sage.png" mode="aspectFit" />
+    </view>
     <view class="entry-copy">
       <text class="entry-title">选衣穿搭</text>
-      <text class="entry-sub">上传衣服，一键拼出今日这身</text>
+      <text class="entry-sub">自由搭配单品，打造专属造型</text>
     </view>
-    <text class="entry-arrow">›</text>
+    <image class="entry-arrow" src="/assets/icons/chevron-right.png" mode="aspectFit" />
   </view>
 
-  <view class="entry" bindtap="goWardrobe">
-    <image class="entry-cover" src="/assets/look-cafe.jpg" mode="aspectFill" />
-    <view class="entry-copy">
-      <text class="entry-title">衣柜展示</text>
-      <text class="entry-sub">把衣服收进来，随时调用</text>
+  <view class="entry-grid">
+    <view class="entry entry-compact" bindtap="goWardrobe">
+      <image class="compact-icon" src="/assets/icons/hanger.png" mode="aspectFit" />
+      <view class="entry-copy">
+        <text class="entry-title">衣柜管理</text>
+        <text class="entry-sub">管理我的衣物</text>
+      </view>
     </view>
-    <text class="entry-arrow">›</text>
-  </view>
-
-  <view class="entry" bindtap="goCollection">
-    <image class="entry-cover" src="/assets/empty-collection.jpg" mode="aspectFill" />
-    <view class="entry-copy">
-      <text class="entry-title">模版收藏</text>
-      <text class="entry-sub">收藏喜欢的套装，下次直接用</text>
+    <view class="entry entry-compact" bindtap="goCollection">
+      <image class="compact-icon" src="/assets/icons/heart.png" mode="aspectFit" />
+      <view class="entry-copy">
+        <text class="entry-title">我的收藏</text>
+        <text class="entry-sub">查看收藏套装</text>
+      </view>
     </view>
-    <text class="entry-arrow">›</text>
   </view>
 </view>

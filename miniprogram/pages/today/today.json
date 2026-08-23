@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "今日搭配"
+  "navigationBarTitleText": "今日搭配",
+  "navigationBarBackgroundColor": "#f7f1e8",
+  "backgroundColor": "#f7f1e8"
 }

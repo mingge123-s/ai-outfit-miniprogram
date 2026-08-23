@@ -29,17 +29,17 @@ function getFuzzyLocation() {
 Page({
   data: {
     occasions: [
-      { key: 'daily', label: '日常', icon: '☕' },
-      { key: 'work', label: '通勤', icon: '💼' },
-      { key: 'date', label: '约会', icon: '🌹' },
-      { key: 'sport', label: '运动', icon: '🏃' },
-      { key: 'custom', label: '自定义', icon: '✏️' }
+      { key: 'daily', label: '日常' },
+      { key: 'work', label: '通勤' },
+      { key: 'date', label: '约会' },
+      { key: 'sport', label: '运动' },
+      { key: 'custom', label: '自定义' }
     ],
     manualPresets: [
-      { key: 'cold', label: '寒冷', icon: '🧥' },
-      { key: 'mild', label: '舒适', icon: '🌤️' },
-      { key: 'hot', label: '炎热', icon: '☀️' },
-      { key: 'rain', label: '下雨', icon: '🌧️' }
+      { key: 'cold', label: '寒冷' },
+      { key: 'mild', label: '舒适' },
+      { key: 'hot', label: '炎热' },
+      { key: 'rain', label: '下雨' }
     ],
     occasion: 'daily',
     customOccasion: '',

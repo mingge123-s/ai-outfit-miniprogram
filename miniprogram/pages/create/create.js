@@ -27,14 +27,14 @@ Page({
     personUrl: null,
     personCount: 0,
     items: [
-      { key: 'top', label: '上衣', icon: '👕', path: null },
-      { key: 'pants', label: '裤子', icon: '👖', path: null },
-      { key: 'shoes', label: '鞋子', icon: '👟', path: null },
-      { key: 'hat', label: '帽子', icon: '🧢', path: null },
-      { key: 'coat', label: '外套', icon: '🧥', path: null },
-      { key: 'dress', label: '裙装', icon: '👗', path: null },
-      { key: 'accessory', label: '配饰/包包', icon: '🧣', path: null },
-      { key: 'socks', label: '袜子', icon: '🧦', path: null }
+      { key: 'top', label: '上衣', path: null },
+      { key: 'pants', label: '裤子', path: null },
+      { key: 'shoes', label: '鞋子', path: null },
+      { key: 'hat', label: '帽子', path: null },
+      { key: 'coat', label: '外套', path: null },
+      { key: 'dress', label: '裙装', path: null },
+      { key: 'accessory', label: '配饰/包包', path: null },
+      { key: 'socks', label: '袜子', path: null }
     ],
     styles: [
       { key: 'street', label: '街拍' },

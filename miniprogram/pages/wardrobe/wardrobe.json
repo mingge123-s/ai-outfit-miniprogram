@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "我的衣柜"
+  "navigationBarTitleText": "衣柜",
+  "navigationBarBackgroundColor": "#f7f1e8",
+  "backgroundColor": "#f7f1e8"
 }
