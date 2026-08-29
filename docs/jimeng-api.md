@@ -20,6 +20,11 @@ OpenAI 兼容网关。客户端只需配置三项：
 
 不要用 `https://111.228.14.193/v1`（443 打到别的服务）。
 
+本文档下载：
+
+- `https://jimeng.mingge.asia/docs/jimeng-api.md`
+- `https://jimeng.mingge.asia:8443/docs/jimeng-api.md`
+
 文生图完整路径：`https://jimeng.mingge.asia/v1/images/generations`  
 图生图完整路径：`https://jimeng.mingge.asia/v1/images/edits`
 
