@@ -41,9 +41,9 @@ export function newOrderNo() {
 }
 
 // 发起小程序 JSAPI 下单，返回 wx.requestPayment 所需参数
-export async function createMemberPrepay({ orderNo, amountFen, description, openid, appid }) {
+export async function createMemberPrepay({ orderNo, amountFen, description, openid, appid }, getClient = client) {
   const payAppid = resolvePayAppid(appid);
-  const c = client(payAppid);
+  const c = getClient(payAppid);
   if (!c) throw new Error("微信支付未配置");
   const res = await c.transactions_jsapi({
     description,
@@ -53,16 +53,35 @@ export async function createMemberPrepay({ orderNo, amountFen, description, open
     payer: { openid },
   });
   if (res.status === 200 || res.status === 201) {
-    const prepayId = res.data.prepay_id;
-    return buildPaymentParams(prepayId, payAppid);
+    const data = res.data || {};
+    // wechatpay-node-v3 已将 prepay_id 换成小程序拉起支付所需的完整参数。
+    if (data.package && data.timeStamp && data.nonceStr && data.signType && data.paySign) {
+      if (data.appId && data.appId !== payAppid) throw new Error("微信下单返回的 AppID 不匹配");
+      return {
+        timeStamp: String(data.timeStamp),
+        nonceStr: data.nonceStr,
+        package: data.package,
+        signType: data.signType,
+        paySign: data.paySign,
+      };
+    }
+    // 兼容仅返回原始 prepay_id 的客户端。
+    if (data.prepay_id) return buildPaymentParams(data.prepay_id, payAppid, c);
+    throw new Error("微信下单返回缺少支付参数");
   }
-  const detail = (res.data && (res.data.message || res.data.code)) || res.error || res.errRaw;
+  let remoteError = res.error;
+  if (typeof remoteError === "string") {
+    try { remoteError = JSON.parse(remoteError); } catch { /* 保留原始错误文本 */ }
+  }
+  const detail = [remoteError && remoteError.code, remoteError && remoteError.message].filter(Boolean).join("：")
+    || (res.data && [res.data.code, res.data.message].filter(Boolean).join("："))
+    || (typeof remoteError === "string" && remoteError)
+    || `HTTP ${res.status || "未知"}`;
   throw new Error(`微信下单失败：${detail}`);
 }
 
 // 用 prepay_id 构造小程序拉起收银台所需参数（PaySign 使用商户私钥 RSA 加签）
-function buildPaymentParams(prepayId, appid = APPID) {
-  const c = client(appid);
+function buildPaymentParams(prepayId, appid = APPID, c = client(appid)) {
   const timeStamp = String(Math.floor(Date.now() / 1000));
   const nonceStr = crypto.randomBytes(16).toString("hex");
   const pkg = `prepay_id=${prepayId}`;
@@ -114,10 +133,11 @@ export function decryptNotify(resource) {
 }
 
 // 按商户订单号查询微信侧支付结果（供前端恢复状态）
-export async function queryOrder(orderNo) {
-  const c = client();
+// getClient 仅用于注入测试客户端；实际请求仍使用当前登录小程序对应的 AppID。
+export async function queryOrder(orderNo, appid = APPID, getClient = client) {
+  const c = getClient(resolvePayAppid(appid));
   if (!c) throw new Error("微信支付未配置");
-  const res = await c.query_order({ out_trade_no: orderNo });
+  const res = await c.query({ out_trade_no: orderNo });
   if (res.status === 200) return res.data;
   throw new Error(`查询订单失败：${(res.data && res.data.message) || res.error || res.errRaw}`);
 }

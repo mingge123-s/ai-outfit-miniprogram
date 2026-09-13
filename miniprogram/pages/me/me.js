@@ -310,13 +310,23 @@ Page({
 
   async payForPlan(plan) {
     wx.showLoading({ title: '下单中…' });
+    let order;
     try {
-      const order = await api.pay.createMemberOrder(plan.id);
-      wx.hideLoading();
-      await this.requestPayment(order);
+      order = await api.pay.createMemberOrder(plan.id);
     } catch (e) {
       wx.hideLoading();
       wx.showModal({ title: '下单失败', content: e.message || '请稍后重试', showCancel: false });
+      return;
+    }
+    wx.hideLoading();
+    try {
+      await this.requestPayment(order);
+    } catch (e) {
+      if (e.paymentCancelled) {
+        wx.showToast({ title: '已取消支付', icon: 'none' });
+      } else {
+        wx.showModal({ title: '支付失败', content: e.message || '请稍后重试', showCancel: false });
+      }
     }
   },
 
@@ -332,21 +342,39 @@ Page({
         success: async () => {
           wx.showLoading({ title: '确认到账中…' });
           try {
-            await api.pay.queryOrder(orderNo);
+            const result = await api.pay.queryOrder(orderNo);
             await this.refresh();
             wx.hideLoading();
-            wx.showToast({ title: '会员已开通', icon: 'success' });
+            if (result.status === 'paid') {
+              wx.showToast({ title: '会员已开通', icon: 'success' });
+            } else if (result.status === 'cancelled') {
+              wx.showToast({ title: '订单已取消', icon: 'none' });
+            } else {
+              wx.showModal({
+                title: '支付结果待确认',
+                content: '暂未确认会员到账，请稍后查看会员状态，不要重复付款。',
+                showCancel: false
+              });
+            }
             resolve();
           } catch (e) {
             wx.hideLoading();
-            wx.showToast({ title: '支付成功，稍后到账', icon: 'none' });
+            wx.showModal({
+              title: '支付结果待确认',
+              content: '暂时无法查询到账状态，请稍后查看会员状态，不要重复付款。',
+              showCancel: false
+            });
             this.refresh();
             resolve();
           }
         },
         fail: (err) => {
-          if (err && err.errMsg && err.errMsg.includes('cancel')) reject(new Error('已取消支付'));
-          else reject(new Error(err.errMsg || '支付失败'));
+          if (err && err.errMsg && err.errMsg.includes('cancel')) {
+            const cancelled = new Error('已取消支付');
+            cancelled.paymentCancelled = true;
+            reject(cancelled);
+          }
+          else reject(new Error((err && err.errMsg) || '支付失败'));
         }
       });
     });

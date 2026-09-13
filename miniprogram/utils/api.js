@@ -10,6 +10,14 @@ function setToken(token) {
   wx.setStorageSync(TOKEN_KEY, token);
 }
 
+function currentAppId() {
+  try {
+    return wx.getAccountInfoSync().miniProgram.appId || '';
+  } catch (e) { // 旧基础库可能没有该接口
+    return '';
+  }
+}
+
 function request(method, path, data) {
   return new Promise((resolve, reject) => {
     wx.request({
@@ -144,14 +152,12 @@ module.exports = {
     remove: (id) => authedRequest('DELETE', `/api/history/${id}`)
   },
   pay: {
-    createMemberOrder: (planId) => {
-      let appId = '';
-      try {
-        appId = wx.getAccountInfoSync().miniProgram.appId || '';
-      } catch (e) { /* 旧基础库可能没有该接口 */ }
-      return authedRequest('POST', '/api/pay/member/prepay', { planId, appId });
+    createMemberOrder: (planId) => authedRequest('POST', '/api/pay/member/prepay', { planId, appId: currentAppId() }),
+    queryOrder: (orderNo) => {
+      const appId = currentAppId();
+      const params = appId ? `?appId=${encodeURIComponent(appId)}` : '';
+      return authedRequest('GET', `/api/pay/order/${encodeURIComponent(orderNo)}${params}`);
     },
-    queryOrder: (orderNo) => authedRequest('GET', `/api/pay/order/${orderNo}`),
     listOrders: () => authedRequest('GET', '/api/pay/orders')
   },
   outfits: {

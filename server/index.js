@@ -12,6 +12,7 @@ import { OCCASIONS, buildCandidatePool, normalizeSelection, summarizeWeather, wa
 import { volcCutout, volcCutoutEnabled } from "./volc-cutout.js";
 import { wxpayEnabled, newOrderNo, createMemberPrepay, verifyNotify, decryptNotify, queryOrder } from "./wechatpay.js";
 import { resolvePayAppid } from "./wechatpay-appid.js";
+import { validateSuccessfulPayment } from "./payment-validation.js";
 import { loadWxApps, exchangeWxCode } from "./wechat-login.js";
 
 const PORT = process.env.PORT || 3000;
@@ -242,7 +243,7 @@ app.post("/api/pay/member/prepay", requireAuth, async (req, res) => {
     const plan = MEMBER_PLANS[planId];
     if (!plan) return res.status(400).json({ error: "套餐无效" });
     if (!req.user.openid) return res.status(400).json({ error: "缺少 openid，暂无法发起支付" });
-    const payAppid = resolvePayAppid(appId || req.user.wx_appid);
+    const payAppid = resolvePayAppid(req.user.wx_appid || appId);
 
     const orderNo = newOrderNo();
     const order = payOrders.create(req.user.id, orderNo, planId, plan.priceFen, req.user.openid);
@@ -280,12 +281,7 @@ app.post("/api/pay/notify", async (req, res) => {
     if (!order) {
       return res.status(404).json({ code: "FAIL", message: "订单不存在" });
     }
-    // 金额二次校验，防止篡改
-    const paidFen = Number(data.amount && data.amount.total);
-    if (paidFen !== order.amount_fen) {
-      console.error(`微信回调金额不符：订单${order.order_no} 应收${order.amount_fen} 实收${paidFen}`);
-      return res.status(400).json({ code: "FAIL", message: "金额不符" });
-    }
+    validateSuccessfulPayment(order, data, process.env.WXPAY_MCHID);
     if (order.status === "paid") {
       return res.json({ code: "SUCCESS", message: "成功" });
     }
@@ -321,10 +317,13 @@ app.get("/api/pay/order/:orderNo", requireAuth, async (req, res) => {
     }
     let wxData = null;
     if (MEMBER_PAY_ENABLED) {
-      try { wxData = await queryOrder(order.order_no); } catch { /* wx 侧未支付也自然过期 */ }
+      // 已登录用户的 AppID 优先；历史账号未记录 AppID 时才参考客户端传入值。
+      const payAppid = resolvePayAppid(req.user.wx_appid || req.query.appId);
+      try { wxData = await queryOrder(order.order_no, payAppid); } catch { /* 微信侧未支付或暂不可查 */ }
     }
     const paid = wxData && wxData.trade_state === "SUCCESS";
     if (paid) {
+      validateSuccessfulPayment(order, wxData, process.env.WXPAY_MCHID);
       const granted = payOrders.markPaid(order.order_no, wxData.transaction_id, JSON.stringify(wxData));
       if (granted) {
         const plan = MEMBER_PLANS[order.plan_id];
